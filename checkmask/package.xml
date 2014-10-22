@@ -1,0 +1,12 @@
+<package>
+   <name>checkmask</name>
+   <version>0.0.0</version>
+   <description>
+      checkmask
+   </description>
+   <maintainer email="cdellin@gmail.com">Chris Dellin</maintainer>
+   <license>None</license>
+   <buildtool_depend>catkin</buildtool_depend>
+   <build_depend>roscpp</build_depend>
+   <run_depend>roscpp</run_depend>
+</package>
