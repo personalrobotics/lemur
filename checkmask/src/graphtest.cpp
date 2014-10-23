@@ -34,8 +34,8 @@ bool isvalid_a(const ompl::base::State * s)
 
 bool isvalid_ra(const ompl::base::State * s)
 {
-   if (!isvalid_r) return false;
-   if (!isvalid_a) return false;
+   if (!isvalid_r(s)) return false;
+   if (!isvalid_a(s)) return false;
    return true;
 }
 
@@ -84,8 +84,10 @@ int main()
    
    /* ask the checkmask planner to solve our problem */
    p->setProblemDefinition(pdef_ra);
-   
-   
+   printf("trying once ...\n");
+   p->solve(ompl::base::timedPlannerTerminationCondition(1.0));
+   //printf("trying again ...\n");
+   //p->solve(ompl::base::timedPlannerTerminationCondition(1.0));
    
    
    

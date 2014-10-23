@@ -21,6 +21,13 @@ public:
    virtual ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc) = 0;
    virtual void clear(void) = 0;
 
+   // this will resize our list of sis,
+   // update our check model,
+   // and update the check mask on all vertices/edges;
+   // if setProblemDefinition is called refrerncing an unknown si,
+   // this function will be called with a default cost of 1.0
+   virtual void add_si(const ompl::base::SpaceInformationPtr si, double check_cost) = 0;
+
 #if 0
    /* each space has an associate checker for validity
     * these are Cfree's */
