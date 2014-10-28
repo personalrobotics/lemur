@@ -8,13 +8,13 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
 #include <ompl/base/Planner.h>
-
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/geometric/PathGeometric.h>
 
 #include <checkmask/graph.h>
 
-#define DEBUG_DUMPFILE "dump.txt"
+//#define DEBUG_DUMPFILE "dump.txt"
 
 namespace
 {
@@ -128,14 +128,12 @@ private:
    // just kept in a map
    struct ProbDefData
    {
-      ProbDefData(ompl::base::ProblemDefinitionPtr pdef):
-         v_start(GraphTypes::null_vertex()),
-         v_goal(GraphTypes::null_vertex())
+      ProbDefData(ompl::base::ProblemDefinitionPtr pdef)
       {
          pis.use(pdef);
       }
-      Vertex v_start;
-      Vertex v_goal;
+      std::vector<Vertex> v_starts;
+      std::vector<Vertex> v_goals;
       ompl::base::PlannerInputStates pis;
    };
    // kept in a vector,
@@ -353,41 +351,43 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
    // EVENTUALLY THIS SHOULD SEARCH THE GRARPH FOR EXISTING VERTICES!
    while (const ompl::base::State * s = pdefdata.pis.nextStart())
    {
-      if (pdefdata.v_start != GraphTypes::null_vertex())
-         throw ompl::Exception("we already have a start state!");
       ompl::base::State * s_new = this->space->allocState();
       this->space->copyState(s_new, s);
-      pdefdata.v_start = this->add_vertex(s_new);
+      pdefdata.v_starts.push_back(this->add_vertex(s_new));
    }
    while (pdefdata.pis.haveMoreGoalStates())
    {
       const ompl::base::State * s = pdefdata.pis.nextGoal();
-      if (pdefdata.v_goal != GraphTypes::null_vertex())
-         throw ompl::Exception("we already have a goal state!");
       ompl::base::State * s_new = this->space->allocState();
       this->space->copyState(s_new, s);
-      pdefdata.v_goal = this->add_vertex(s_new);
+      pdefdata.v_goals.push_back(this->add_vertex(s_new));
    }
-   if (pdefdata.v_start == GraphTypes::null_vertex())
-      throw ompl::Exception("no start state found!");
-   if (pdefdata.v_goal == GraphTypes::null_vertex())
-      throw ompl::Exception("no goal state found!");
+   if (!pdefdata.v_starts.size())
+      throw ompl::Exception("no start states found!");
+   if (!pdefdata.v_goals.size())
+      throw ompl::Exception("no goal states found!");
    
    // add states
    while (ptc() == false)
    {
+      //printf("graph has %lu vertics and %lu edges!\n",
+      //   boost::num_vertices(this->g),
+      //   boost::num_edges(this->g));
+      
       // first, run bidirectional dijkstra's to find a candidate path
       std::list<Vertex> path_vs;
       std::list<Edge> path_es;
       success = this->dijkstras_bidirectional(pdefdata, path_vs, path_es);
       if (!success)
       {
-         printf("no connection found! adding random vertex ...\n");
+         //printf("no connection found! adding random vertex ...\n");
          ompl::base::State * s_new = this->space->allocState();
          this->sampler->sampleUniform(s_new);
          this->add_vertex(s_new);
          continue;
       }
+      
+      printf("found potential path!\n");
       
 #ifdef DEBUG_DUMPFILE
       {
@@ -424,11 +424,18 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
 #endif
       
       success = isvalid_path(path_vs, path_es);
-      if (success)
-      {
-         printf("success!\n");
-         return ompl::base::PlannerStatus::TIMEOUT;
-      }
+      if (!success) continue;
+      
+      printf("success!\n");
+      
+      /* create the path */
+      ompl::geometric::PathGeometric * path = new ompl::geometric::PathGeometric(
+         this->cfrees[this->pdef_ci].si);
+      for (std::list<Vertex>::iterator it_v=path_vs.begin(); it_v!=path_vs.end(); it_v++)
+         path->append(g[*it_v].s);
+      this->pdef->addSolutionPath(ompl::base::PathPtr(path));
+      
+      return ompl::base::PlannerStatus::EXACT_SOLUTION;
   
       //if (count >= 2)
       //   break;
@@ -671,6 +678,7 @@ inline
 bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
    std::list<Vertex> & path_vs, std::list<Edge> & path_es)
 {
+   int i;
    std::map<Vertex, BiDijkType> closed_fwd;
    std::map<Vertex, BiDijkType> closed_bck;
    std::priority_queue<BiDijkType> open;
@@ -678,8 +686,10 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
    // actually we should set these costs to the expense of checking the roots themselves,
    // which will become important once we're doing multi-root stuff;
    // TODO: does it matter that we're sort of double-counting the cost of the connection vertex?
-   open.push(BiDijkType(0.0, pdefdata.v_start, GraphTypes::null_vertex(), Edge(), false));
-   open.push(BiDijkType(0.0, pdefdata.v_goal, GraphTypes::null_vertex(), Edge(), true));
+   for (i=0; i<pdefdata.v_starts.size(); i++)
+      open.push(BiDijkType(0.0, pdefdata.v_starts[i], GraphTypes::null_vertex(), Edge(), false));
+   for (i=0; i<pdefdata.v_goals.size(); i++)
+      open.push(BiDijkType(0.0, pdefdata.v_goals[i], GraphTypes::null_vertex(), Edge(), true));
    while (!open.empty())
    {
       // pop next
@@ -859,7 +869,8 @@ P::Vertex P::add_vertex(ompl::base::State * s)
       if (n == v)
          continue;
       double euc_dist = this->space->distance(this->g[v].s, this->g[n].s);
-      if (0.2 < euc_dist)
+      //if (0.2 < euc_dist)
+      if (2.0 < euc_dist)
          continue;
       this->add_edge(v, n);
    }
@@ -885,7 +896,7 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
    euc_dist = this->space->distance(this->g[va].s, this->g[vb].s);
    this->g[e].euc_dist = euc_dist;
    // allocate internal states for this edge
-   n = floor(euc_dist / 0.01);
+   n = floor(euc_dist / 0.05);
    this->g[e].edgestates.clear();
    this->g[e].edgestates.resize(n);
    this->g[e].statuses.clear();
@@ -1141,6 +1152,10 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
             if (!found_true && found_false)
                ep.edgestates[ei].statuses[ci] = STATUS_INVALID;
          }
+         
+         /* fail early if we know we're invalid w.r.t. ci_target */
+         if (ep.edgestates[ei].statuses[ci] == STATUS_INVALID)
+            break;
       }
       
       // update meta-statuses
@@ -1177,7 +1192,3 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
    else
       return false;
 }
-
-
-
-

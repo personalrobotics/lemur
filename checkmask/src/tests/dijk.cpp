@@ -74,7 +74,7 @@ struct OpenType
 void average(std::vector<double> & vec)
 {
    double sum = 0.0;
-   for (int i=0; i<vec.size(); i++)
+   for (unsigned int i=0; i<vec.size(); i++)
       sum += vec[i];
    printf("%.9f\n", sum/vec.size());
 }
