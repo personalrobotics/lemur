@@ -191,6 +191,8 @@ int main()
    
    /* create planner (with dummy si based on our space) */
    checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
+   p->set_radius(2.0);
+   p->set_resolution(0.05);
    
    /* create basic si */
    ompl::base::SpaceInformationPtr si_x(new ompl::base::SpaceInformation(space));

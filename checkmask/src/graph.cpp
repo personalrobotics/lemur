@@ -14,7 +14,8 @@
 
 #include <checkmask/graph.h>
 
-//#define DEBUG_DUMPFILE "dump.txt"
+#define DEBUG_DUMPFILE 1
+#define LEN_NOT_CHECKCOST 1
 
 namespace
 {
@@ -59,28 +60,7 @@ std::vector<int> perm_edgestates(int n)
 
 class P : public checkmask::GraphPlanner
 {
-public:
-   P(const ompl::base::StateSpacePtr & space,
-      const ompl::base::SpaceInformationPtr & si_bogus);
-   ~P(void);
-
-   // ompl planner interface
-   void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
-   ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
-   void clear(void);
-   
-   void add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, double check_cost);
-
-   void add_inclusion(
-      const ompl::base::SpaceInformationPtr si_superset,
-      const ompl::base::SpaceInformationPtr si_subset);
-   void add_intersection(
-      const ompl::base::SpaceInformationPtr si_a,
-      const ompl::base::SpaceInformationPtr si_b,
-      const ompl::base::SpaceInformationPtr si_intersection);
-
 private:
-
    // types
    enum CheckStatus
    {
@@ -181,8 +161,36 @@ private:
       ompl::base::SpaceInformationPtr si_b;
       ompl::base::SpaceInformationPtr si_intersection;
    };
-   
 
+public:
+
+   P(const ompl::base::StateSpacePtr & space,
+      const ompl::base::SpaceInformationPtr & si_bogus);
+   ~P(void);
+
+   // ompl planner interface
+   void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
+   ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
+   void clear(void);
+   
+   // parameters
+   void set_batchsize(int batchsize);
+   void set_radius(double radius);
+   void set_resolution(double resolution);
+   
+   void set_dumpfile(const char * dumpfile);
+   
+   void add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, double check_cost);
+
+   void add_inclusion(
+      const ompl::base::SpaceInformationPtr si_superset,
+      const ompl::base::SpaceInformationPtr si_subset);
+   void add_intersection(
+      const ompl::base::SpaceInformationPtr si_a,
+      const ompl::base::SpaceInformationPtr si_b,
+      const ompl::base::SpaceInformationPtr si_intersection);
+
+private:
    // private methods
    
    // given the relations (inclusions and intersections),
@@ -202,7 +210,7 @@ private:
    // try to get a path!
    // return true on success
    bool dijkstras_bidirectional(ProbDefData & pdefdata,
-      std::list<Vertex> & path_vs, std::list<Edge> & path_es);
+      std::list<Vertex> & path_vs, std::list<Edge> & path_es, double & cost_estimate);
    
    bool isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es);
    
@@ -225,6 +233,11 @@ private:
 
    
    // private members
+   
+   // PRM parameters
+   int batchsize;
+   double radius;
+   double resolution;
    
    // we have a graph g
    Graph g;
@@ -275,6 +288,7 @@ private:
 
 } // anonymous namespace
 
+// static creation method
 checkmask::GraphPlanner * checkmask::GraphPlanner::create(const ompl::base::StateSpacePtr & space)
 {
    ompl::base::SpaceInformationPtr si_bogus(new ompl::base::SpaceInformation(space));
@@ -287,31 +301,24 @@ checkmask::GraphPlanner * checkmask::GraphPlanner::create(const ompl::base::Stat
    return new P(space, si_bogus);
 }
 
-P::P(
-      const ompl::base::StateSpacePtr & space,
+P::P(const ompl::base::StateSpacePtr & space,
       const ompl::base::SpaceInformationPtr & si_bogus):
-   checkmask::GraphPlanner(si_bogus),
+   checkmask::GraphPlanner(si_bogus, "CheckMaskGraph"),
+   batchsize(1), radius(1.0), resolution(0.01),
    space(space), sampler(space->allocStateSampler())
 {
    printf("constructor called!\n");
-   
 #ifdef DEBUG_DUMPFILE
-   this->dump_fp = fopen(DEBUG_DUMPFILE, "w");
+   this->dump_fp = 0;
 #endif
-}
-
-checkmask::GraphPlanner::GraphPlanner(const ompl::base::SpaceInformationPtr & si_bogus):
-   ompl::base::Planner(si_bogus, "CheckMaskGraph")
-{
 }
 
 P::~P()
 {
    printf("destructor called!\n");
    // eventually we need to actually free all the ompl states in our graph
-
 #ifdef DEBUG_DUMPFILE
-   fclose(this->dump_fp);
+   if (this->dump_fp) fclose(this->dump_fp);
 #endif
 }
 
@@ -377,48 +384,46 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
       // first, run bidirectional dijkstra's to find a candidate path
       std::list<Vertex> path_vs;
       std::list<Edge> path_es;
-      success = this->dijkstras_bidirectional(pdefdata, path_vs, path_es);
+      double cost_estimate;
+      success = this->dijkstras_bidirectional(pdefdata, path_vs, path_es, cost_estimate);
       if (!success)
       {
-         //printf("no connection found! adding random vertex ...\n");
-         ompl::base::State * s_new = this->space->allocState();
-         this->sampler->sampleUniform(s_new);
-         this->add_vertex(s_new);
+         printf("no connection found! adding %d random vertices ...\n", this->batchsize);
+         for (int i=0; i<this->batchsize; i++)
+         {
+            ompl::base::State * s_new = this->space->allocState();
+            this->sampler->sampleUniform(s_new);
+            this->add_vertex(s_new);
+         }
          continue;
       }
       
       printf("found potential path!\n");
       
 #ifdef DEBUG_DUMPFILE
+      if (this->dump_fp)
       {
-         fprintf(this->dump_fp, "candidate_path");
+         fprintf(this->dump_fp, "candidate_path %f", cost_estimate);
          for (std::list<Vertex>::iterator it_v=path_vs.begin(); it_v!=path_vs.end(); it_v++)
          {
             double * q = g[*it_v].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
             fprintf(this->dump_fp, " %f,%f", q[0], q[1]);
          }
          fprintf(this->dump_fp, "\n");
-      }
-#endif
-      
-
-#if 0
-      // print path
-      printf("found path:\n");
-      std::list<Vertex>::iterator it_v;
-      std::list<Edge>::iterator it_e;
-      for (it_v=path_vs.begin(),it_e=path_es.begin(); it_v!=path_vs.end(); it_v++,it_e++)
-      {
-         double * q = g[*it_v].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-         printf("  vertex: (%f,%f)\n", q[0], q[1]);
          
-         if (it_e!=path_es.end())
+         std::list<Vertex>::iterator it_v;
+         std::list<Edge>::iterator it_e;
+         it_v = path_vs.begin();
+         fprintf(this->dump_fp, "candidate_path_cost_vertex %f\n",
+            this->g[*it_v].estimates[this->pdef_ci].cost_remaining);
+         it_v++;
+         it_e=path_es.begin();
+         for (; it_v!=path_vs.end(); it_v++,it_e++)
          {
-            Vertex va = boost::source(*it_e, g);
-            Vertex vb = boost::target(*it_e, g);
-            double * qa = g[va].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-            double * qb = g[vb].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-            printf("    edge from (%f,%f) to (%f,%f)\n", qa[0], qa[1], qb[0], qb[1]);
+            fprintf(this->dump_fp, "candidate_path_cost_edge %f\n",
+               this->g[*it_e].estimates[this->pdef_ci].cost_remaining);
+            fprintf(this->dump_fp, "candidate_path_cost_vertex %f\n",
+               this->g[*it_v].estimates[this->pdef_ci].cost_remaining);
          }
       }
 #endif
@@ -436,9 +441,6 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
       this->pdef->addSolutionPath(ompl::base::PathPtr(path));
       
       return ompl::base::PlannerStatus::EXACT_SOLUTION;
-  
-      //if (count >= 2)
-      //   break;
    }
    
    return ompl::base::PlannerStatus::TIMEOUT;
@@ -447,6 +449,31 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
 void P::clear(void)
 {
    throw std::runtime_error("clear not implemented!");
+}
+
+void P::set_batchsize(int batchsize)
+{
+   this->batchsize = batchsize;
+}
+
+void P::set_radius(double radius)
+{
+   this->radius = radius;
+}
+
+void P::set_resolution(double resolution)
+{
+   this->resolution = resolution;
+}
+
+void P::set_dumpfile(const char * dumpfile)
+{
+#ifdef DEBUG_DUMPFILE
+   if (this->dump_fp) fclose(this->dump_fp);
+   this->dump_fp = fopen(dumpfile, "w");
+#else
+   OMPL_WARN("set_dumpfile called, but dumping not supported!");
+#endif
 }
 
 void P::add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, double check_cost)
@@ -676,7 +703,7 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
 
 inline
 bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
-   std::list<Vertex> & path_vs, std::list<Edge> & path_es)
+   std::list<Vertex> & path_vs, std::list<Edge> & path_es, double & cost_estimate)
 {
    int i;
    std::map<Vertex, BiDijkType> closed_fwd;
@@ -732,20 +759,35 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
          update_vertex_estimate(g[v_succ], this->pdef_ci);
          if (g[v_succ].statuses[this->pdef_ci] == STATUS_INVALID)
             continue;
+#ifdef LEN_NOT_CHECKCOST
+         new_cost += 0.0;
+#else
          if (g[v_succ].statuses[this->pdef_ci] == STATUS_UNKNOWN)
             new_cost += g[v_succ].estimates[this->pdef_ci].cost_remaining;
+#endif
          // get cost of the edge
          update_edge_estimate(g[e], this->pdef_ci);
          if (g[e].statuses[this->pdef_ci] == STATUS_INVALID)
             continue;
+#ifdef LEN_NOT_CHECKCOST
+         new_cost += g[e].euc_dist;
+#else
          if (g[e].statuses[this->pdef_ci] == STATUS_UNKNOWN)
             new_cost += g[e].estimates[this->pdef_ci].cost_remaining;
+#endif
          // add to open list
          open.push(BiDijkType(new_cost, v_succ, top.v, e, top.isbck));
       }
    }
    if (v_connection == GraphTypes::null_vertex())
       return false;
+   // compute cost estimate
+   {
+      std::map<Vertex, BiDijkType>::iterator it;
+      cost_estimate = 0.0;
+      cost_estimate += closed_fwd.find(v_connection)->second.v_cost;
+      cost_estimate += closed_bck.find(v_connection)->second.v_cost;
+   }
    // create the path
    path_vs.push_back(v_connection);
    for (;;)
@@ -856,9 +898,12 @@ P::Vertex P::add_vertex(ompl::base::State * s)
    this->g[v].statuses.clear();
    this->g[v].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
 #ifdef DEBUG_DUMPFILE
-   double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-   fprintf(this->dump_fp, "add_vertex %f,%f", q[0], q[1]);
-   for (int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
+   if (this->dump_fp)
+   {
+      double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+      fprintf(this->dump_fp, "add_vertex %f,%f", q[0], q[1]);
+      for (int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
+   }
 #endif
    // for now, we find nearest neighbors by just iterating over
    // all existing vertices
@@ -869,8 +914,7 @@ P::Vertex P::add_vertex(ompl::base::State * s)
       if (n == v)
          continue;
       double euc_dist = this->space->distance(this->g[v].s, this->g[n].s);
-      //if (0.2 < euc_dist)
-      if (2.0 < euc_dist)
+      if (this->radius < euc_dist)
          continue;
       this->add_edge(v, n);
    }
@@ -885,10 +929,13 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
    int i;
    int n;
 #ifdef DEBUG_DUMPFILE
-   double * qa = this->g[va].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-   double * qb = this->g[vb].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-   fprintf(this->dump_fp, "add_edge %f,%f %f,%f", qa[0], qa[1], qb[0], qb[1]);
-   for (int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
+   if (this->dump_fp)
+   {
+      double * qa = this->g[va].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+      double * qb = this->g[vb].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+      fprintf(this->dump_fp, "add_edge %f,%f %f,%f", qa[0], qa[1], qb[0], qb[1]);
+      for (int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
+   }
 #endif
    boost::tie(e,success) = boost::add_edge(va, vb, this->g);
    if (!success)
@@ -896,7 +943,7 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
    euc_dist = this->space->distance(this->g[va].s, this->g[vb].s);
    this->g[e].euc_dist = euc_dist;
    // allocate internal states for this edge
-   n = floor(euc_dist / 0.05);
+   n = floor(euc_dist / this->resolution);
    this->g[e].edgestates.clear();
    this->g[e].edgestates.resize(n);
    this->g[e].statuses.clear();
@@ -917,6 +964,7 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
       for (i=0; i<this->g[e].estimates.size(); i++)
          this->g[e].statuses[i] = STATUS_VALID;
    }
+   return e;
 }
 
 // from calc_order_endgood
@@ -970,42 +1018,46 @@ const std::vector<int> & P::get_edgeperm(int n)
 }
 
 inline
-void P::update_vertex_estimate(struct VertexProperties & vp, unsigned int ci)
+void P::update_vertex_estimate(struct VertexProperties & vp, unsigned int ci_target)
 {
-   if (vp.statuses[ci] != STATUS_UNKNOWN) return;
-   if (vp.estimates[ci].cost_dirty == false) return;
+   if (vp.statuses[ci_target] != STATUS_UNKNOWN) return;
+   if (vp.estimates[ci_target].cost_dirty == false) return;
    
    const std::pair<double, std::vector<std::pair<int,bool> > > & checks
-      = this->get_optimistic_checks(vp.statuses, ci);
+      = this->get_optimistic_checks(vp.statuses, ci_target);
    
-   vp.estimates[ci].cost_remaining = checks.first;
-   vp.estimates[ci].cost_dirty = false;
+   vp.estimates[ci_target].cost_remaining = checks.first;
+   vp.estimates[ci_target].cost_dirty = false;
 }
 
 inline
-void P::update_edge_estimate(struct EdgeProperties & ep, unsigned int ci)
+void P::update_edge_estimate(struct EdgeProperties & ep, unsigned int ci_target)
 {
-   if (ep.statuses[ci] != STATUS_UNKNOWN) return;
-   if (ep.estimates[ci].cost_dirty == false) return;
+   if (ep.statuses[ci_target] != STATUS_UNKNOWN) return;
+   if (ep.estimates[ci_target].cost_dirty == false) return;
    
    int ei;
    int ti;
+   int ci;
    
    // assume the edge's meta statuses are up-to-date
    const std::pair<double, std::vector<std::pair<int,bool> > > & checks
-      = this->get_optimistic_checks(ep.statuses, ci);
+      = this->get_optimistic_checks(ep.statuses, ci_target);
    
    // visit each state on the edge
    // this is not perfect w.r.t. our cfree check model
-   ep.estimates[ci].cost_remaining = 0.0;
-   ep.estimates[ci].cost_dirty = false;
+   ep.estimates[ci_target].cost_remaining = 0.0;
+   ep.estimates[ci_target].cost_dirty = false;
    for (ei=0; ei<ep.edgestates.size(); ei++)
    {
-      if (ep.edgestates[ei].statuses[ci] == STATUS_VALID)
+      if (ep.edgestates[ei].statuses[ci_target] == STATUS_VALID)
          continue;
       for (ti=0; ti<checks.second.size(); ti++)
-         if (ep.edgestates[ei].statuses[ti] == STATUS_UNKNOWN)
-            ep.estimates[ci].cost_remaining += this->cfrees[ti].check_cost;
+      {
+         ci = checks.second[ti].first;
+         if (ep.edgestates[ei].statuses[ci] == STATUS_UNKNOWN)
+            ep.estimates[ci_target].cost_remaining += this->cfrees[ci].check_cost;
+      }
    }
 }
 
@@ -1067,11 +1119,14 @@ bool P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
       }
       
 #ifdef DEBUG_DUMPFILE
-      double * q = vp.s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-      fprintf(this->dump_fp, "update_vertex %f,%f", q[0], q[1]);
-      for (ci=0; ci<vp.statuses.size(); ci++)
-         fprintf(this->dump_fp," %c","UVI"[vp.statuses[ci]]);
-      fprintf(this->dump_fp,"\n");
+      if (this->dump_fp)
+      {
+         double * q = vp.s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         fprintf(this->dump_fp, "update_vertex %f,%f", q[0], q[1]);
+         for (ci=0; ci<vp.statuses.size(); ci++)
+            fprintf(this->dump_fp," %c","UVI"[vp.statuses[ci]]);
+         fprintf(this->dump_fp,"\n");
+      }
 #endif
 
       // invalidate estimates
@@ -1104,7 +1159,10 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
       for (ei=0; ei<ep.edgestates.size(); ei++)
       {
          if (ep.edgestates[ei].statuses[ci_target] == STATUS_VALID)
+         {
             continue;
+         }
+         
          // else unknown
          
          // perform all requested checks
@@ -1154,7 +1212,7 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
          }
          
          /* fail early if we know we're invalid w.r.t. ci_target */
-         if (ep.edgestates[ei].statuses[ci] == STATUS_INVALID)
+         if (ep.edgestates[ei].statuses[ci_target] == STATUS_INVALID)
             break;
       }
       
@@ -1175,12 +1233,15 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
       }
 
 #ifdef DEBUG_DUMPFILE
-      double * qa = this->g[boost::source(e,g)].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-      double * qb = this->g[boost::target(e,g)].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-      fprintf(this->dump_fp, "update_edge %f,%f %f,%f", qa[0], qa[1], qb[0], qb[1]);
-      for (ci=0; ci<ep.statuses.size(); ci++)
-         fprintf(this->dump_fp," %c","UVI"[ep.statuses[ci]]);
-      fprintf(this->dump_fp,"\n");
+      if (this->dump_fp)
+      {
+         double * qa = this->g[boost::source(e,g)].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         double * qb = this->g[boost::target(e,g)].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         fprintf(this->dump_fp, "update_edge %f,%f %f,%f", qa[0], qa[1], qb[0], qb[1]);
+         for (ci=0; ci<ep.statuses.size(); ci++)
+            fprintf(this->dump_fp," %c","UVI"[ep.statuses[ci]]);
+         fprintf(this->dump_fp,"\n");
+      }
 #endif
       
       // invalidate estimates

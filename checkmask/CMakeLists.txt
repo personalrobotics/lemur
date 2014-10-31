@@ -29,6 +29,9 @@ add_library(${PROJECT_NAME} src/graph.cpp)
 add_executable(test2d src/tests/test2d.cpp)
 target_link_libraries(test2d ${PROJECT_NAME})
 
+add_executable(test2dimg src/tests/test2dimg.cpp)
+target_link_libraries(test2dimg ${PROJECT_NAME} png)
+
 add_executable(testherb src/tests/testherb.cpp)
 target_link_libraries(testherb ${PROJECT_NAME})
 

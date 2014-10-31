@@ -16,35 +16,45 @@ edges = []
 # map from v or e to statuses string
 statusdict = {}
 
-# four colors
+# r p rbn
 colors = [
-   (1.0, 0.0, 0.0), # r - red
-   (1.0, 0.5, 0.0), # p - orange
-   (0.0, 1.0, 0.0), # a - green
-   (0.0, 0.0, 1.0)  # b - blue
+   ('U U U', (0.7,0.7,0.7)),
+   ('V U U', (0., 0., 0. )),
+   ('V V U', (0., 0., 0. )),
+   ('V I U', (0., 0., 0. )),
+   ('I U U', (1., 0., 0. )),
+   ('I I U', (1., 0., 0. )),
+   ('U I U', (1., 0., 1. )),
+   # rbn stuff
+   ('U U V', (0., 0., 0. )),
+   ('U U I', (1., 0., 0. )),
 ]
 
-for num,line in enumerate(open('dump.txt')):
+# path is sticky
+path = None
+imgnum = 1
+first_path = False
+for num,line in enumerate(open('dump-2-r-lazyprm.txt')):
    line = line.strip()
-   
-   path = None
    
    cmd,args = line.split(None,1)
    if cmd == 'add_vertex':
+      path = None
       sxy,statuses = args.split(None,1)
       (x,y) = tuple(map(float,sxy.split(',')))
       vertices.append((x,y))
       statusdict[(x,y)] = statuses
    elif cmd == 'add_edge':
+      path = None
       v1,v2,statuses = args.split(None,2)
       (x1,y1) = tuple(map(float,v1.split(',')))
       (x2,y2) = tuple(map(float,v2.split(',')))
       edges.append(((x1,y1),(x2,y2)))
       statusdict[((x1,y1),(x2,y2))] = statuses
    elif cmd == 'candidate_path':
-      print(cmd)
+      first_path = True
       path = []
-      spoints = args.split()
+      spoints = args.split()[1:]
       for spoint in spoints:
          (x,y) = tuple(map(float,spoint.split(',')))
          path.append((x,y))
@@ -66,37 +76,40 @@ for num,line in enumerate(open('dump.txt')):
          statusdict[key2] = statuses
       else:
          raise RuntimeError('update failed, unknown edge!')
+   elif cmd in ('candidate_path_cost_vertex','candidate_path_cost_edge'):
+      continue
    else:
       raise RuntimeError('unknown cmd: {}'.format(cmd))
    
-   s = cairo.ImageSurface(cairo.FORMAT_ARGB32, 500, 500)
+   s = cairo.ImageSurface.create_from_png(open('w-padding1.png','rb'))
    c = cairo.Context(s)
-   c.rectangle(0,0,500,500)
-   c.set_source_rgb(255., 255., 255.)
-   c.fill()
-   
-   c.arc(250.0, 250.0, 0.3*500.0, 0.0, 2.0*math.pi)
-   c.set_source_rgb(255., 0., 0.)
-   c.fill()
-   
-   c.rectangle(50,200,400,100)
-   c.set_source_rgb(0., 255., 0.)
-   c.fill()
-   
-   c.rectangle(200,50,100,400)
-   c.set_source_rgb(0., 0., 255.)
-   c.fill()
    
    if path is not None:
       c.set_source_rgb(0., 255., 0.)
       c.set_line_width(10.0)
       for i,(x,y) in enumerate(path):
          if i == 0:
-            c.move_to(500.0*x, s.get_height()-500.0*y)
+            c.move_to(y, x)
          else:
-            c.line_to(500.0*x, s.get_height()-500.0*y)
+            c.line_to(y, x)
       c.stroke()
    
+   
+   for color_statuses,color in colors:
+      for ((x1,y1),(x2,y2)) in edges:
+         key1 = ((x1,y1),(x2,y2))
+         key2 = ((x2,y2),(x1,y1))
+         if key1 in statusdict:
+            statuses = statusdict[key1]
+         else:
+            statuses = statusdict[key2]
+         if statuses != color_statuses:
+            continue
+         c.set_source_rgb(*color)
+         c.set_line_width(2.0)
+         c.move_to(y1, x1)
+         c.line_to(y2, x2)
+         c.stroke()
    for ((x1,y1),(x2,y2)) in edges:
       key1 = ((x1,y1),(x2,y2))
       key2 = ((x2,y2),(x1,y1))
@@ -104,48 +117,26 @@ for num,line in enumerate(open('dump.txt')):
          statuses = statusdict[key1]
       else:
          statuses = statusdict[key2]
-      # draw each line segment
-      for i in range(4):
-         xa = x1 + (1.0*i/4)*(x2-x1)
-         ya = y1 + (1.0*i/4)*(y2-y1)
-         xb = x1 + (1.0*(i+1)/4)*(x2-x1)
-         yb = y1 + (1.0*(i+1)/4)*(y2-y1)
-         color = list(colors[i])
-         if statuses.split()[i] == 'U':
-            c.set_line_width(2.0)
-            color = (0.7,0.7,0.7) # grey
-         elif statuses.split()[i] == 'V':
-            c.set_line_width(3.0)
-            pass # nice dark color
-         else: # assumed invalid
-            c.set_line_width(1.0)
-            color = (0.0,0.0,0.0) # black
-         c.set_source_rgb(*color)
-         c.move_to(500.0*xa, s.get_height()-500.0*ya)
-         c.line_to(500.0*xb, s.get_height()-500.0*yb)
-         c.stroke()
+      for color_statuses,_ in colors:
+         if statuses == color_statuses:
+            break
+      else:
+         raise RuntimeError('unknown statuses: {}'.format(statuses))
    
    for (x,y) in vertices:
       statuses = statusdict[(x,y)]
-      # draw each circle quadrant
-      for i in range(4):
-         color = list(colors[i])
-         if statuses.split()[i] == 'U':
-            radius = 3.0
-            color = (0.7,0.7,0.7) # grey
-         elif statuses.split()[i] == 'V':
-            radius = 5.0
-            pass # nice dark color
-         else: # assumed invalid
-            radius = 5.0
-            color = (0.0,0.0,0.0) # black
-         c.set_source_rgb(*color)
-         c.arc(500.0*x, s.get_height()-500.0*y, radius, (0.5*i)*math.pi, (0.5*(i+1))*math.pi)
-         c.line_to(500.0*x, s.get_height()-500.0*y)
-         c.fill()
-      
+      for color_statuses,color in colors:
+         if statuses == color_statuses:
+            c.set_source_rgb(*color)
+            break
+      else:
+         raise RuntimeError('unknown statuses: {}'.format(statuses))
+      c.arc(y, x, 3.0, 0, 2*math.pi)
+      c.fill()
 
+   if first_path:
+      imgnum += 1
+   s.write_to_png('dump/frame-{:05d}.png'.format(imgnum))
    
-   s.write_to_png('dump/frame-{:05d}.png'.format(num))
    
    
