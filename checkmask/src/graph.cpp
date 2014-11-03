@@ -14,8 +14,8 @@
 
 #include <checkmask/graph.h>
 
-#define DEBUG_DUMPFILE 1
-#define LEN_NOT_CHECKCOST 1
+//#define DEBUG_DUMPFILE 1
+//#define LEN_NOT_CHECKCOST 1
 
 namespace
 {
@@ -128,16 +128,15 @@ private:
       double check_cost;
    };
    
-   struct BiDijkType
+   struct DijkType
    {
-      BiDijkType(double v_cost, Vertex v, Vertex v_parent, Edge e_to_parent, bool isbck=true):
-         v_cost(v_cost), v(v), v_parent(v_parent), e_to_parent(e_to_parent), isbck(isbck) {}
+      DijkType(double v_cost, Vertex v, Vertex v_parent, Edge e_to_parent):
+         v_cost(v_cost), v(v), v_parent(v_parent), e_to_parent(e_to_parent) {}
       double v_cost;
       Vertex v;
       Vertex v_parent;
       Edge e_to_parent;
-      bool isbck;
-      bool operator < (const BiDijkType rhs) const // for sorting on the open priority queue
+      bool operator < (const DijkType rhs) const // for sorting on the open priority queue
       {
         return v_cost > rhs.v_cost;
       }
@@ -226,8 +225,8 @@ private:
    void update_vertex_estimate(struct VertexProperties & vp, unsigned int ci);
    void update_edge_estimate(struct EdgeProperties & ep, unsigned int ci);
    
-   bool isvalid_vertex(struct VertexProperties & vp, unsigned int ci);
-   bool isvalid_edge(struct EdgeProperties & ep, unsigned int ci, Edge e);
+   bool isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target);
+   bool isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e);
    
    const std::vector<int> & get_edgeperm(int n);
 
@@ -594,7 +593,7 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
       >::iterator it;
    
    // look it up in the cache
-   std::pair< std::vector<enum CheckStatus>, int > key = std::make_pair(statuses,ci);
+   std::pair< std::vector<enum CheckStatus>, int > key = std::make_pair(statuses,ci_target);
    it = this->optimistic_checks.find(key);
    if (it != this->optimistic_checks.end())
       return it->second;
@@ -706,42 +705,68 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
    std::list<Vertex> & path_vs, std::list<Edge> & path_es, double & cost_estimate)
 {
    int i;
-   std::map<Vertex, BiDijkType> closed_fwd;
-   std::map<Vertex, BiDijkType> closed_bck;
-   std::priority_queue<BiDijkType> open;
+   std::priority_queue<DijkType> open_fwd;
+   std::priority_queue<DijkType> open_bck;
+   std::map<Vertex, DijkType> closed_fwd;
+   std::map<Vertex, DijkType> closed_bck;
+   double cost_connection = HUGE_VAL;
    Vertex v_connection = GraphTypes::null_vertex();
    // actually we should set these costs to the expense of checking the roots themselves,
    // which will become important once we're doing multi-root stuff;
    // TODO: does it matter that we're sort of double-counting the cost of the connection vertex?
    for (i=0; i<pdefdata.v_starts.size(); i++)
-      open.push(BiDijkType(0.0, pdefdata.v_starts[i], GraphTypes::null_vertex(), Edge(), false));
-   for (i=0; i<pdefdata.v_goals.size(); i++)
-      open.push(BiDijkType(0.0, pdefdata.v_goals[i], GraphTypes::null_vertex(), Edge(), true));
-   while (!open.empty())
    {
-      // pop next
-      BiDijkType top = open.top();
-      open.pop();
-      // get appropriate closed list
-      std::map<Vertex, BiDijkType> * closed_mine = &closed_fwd;
-      std::map<Vertex, BiDijkType> * closed_other = &closed_bck;
-      if (top.isbck)
+      update_vertex_estimate(g[pdefdata.v_starts[i]], this->pdef_ci);
+      open_fwd.push(DijkType(
+         0.5*g[pdefdata.v_starts[i]].estimates[this->pdef_ci].cost_remaining,
+         pdefdata.v_starts[i], GraphTypes::null_vertex(), Edge()));
+   }
+   for (i=0; i<pdefdata.v_goals.size(); i++)
+   {
+      update_vertex_estimate(g[pdefdata.v_goals[i]], this->pdef_ci);
+      open_bck.push(DijkType(
+         0.5*g[pdefdata.v_goals[i]].estimates[this->pdef_ci].cost_remaining,
+         pdefdata.v_goals[i], GraphTypes::null_vertex(), Edge()));
+   }
+   while (!open_fwd.empty() && !open_bck.empty())
+   {
+      std::priority_queue<DijkType> * open_mine;
+      std::map<Vertex, DijkType> * closed_mine;
+      std::map<Vertex, DijkType> * closed_other;
+      // are we done?
+      if (cost_connection <= open_fwd.top().v_cost + open_bck.top().v_cost)
+         break;
+      // get appropriate open/closed lists
+      if (open_fwd.top().v_cost < open_bck.top().v_cost)
       {
+         open_mine = &open_fwd;
+         closed_mine = &closed_fwd;
+         closed_other = &closed_bck;
+      }
+      else
+      {
+         open_mine = &open_bck;
          closed_mine = &closed_bck;
          closed_other = &closed_fwd;
       }
+      // pop next
+      DijkType top = open_mine->top();
+      open_mine->pop();
       // already in closed list?
       if (closed_mine->find(top.v) != closed_mine->end())
          continue;
-      // are we done?
-      // (i think we should be done when we discover the first overlapping EDGE!!)
-      if (closed_other->find(top.v_parent) != closed_other->end())
-      {
-         v_connection = top.v_parent;
-         break;
-      }
       // add to closed list!
       closed_mine->insert(std::make_pair(top.v,top));
+      // did we find a better potential path?
+      std::map<Vertex, DijkType>::iterator it_other = closed_other->find(top.v);
+      if (it_other != closed_other->end())
+      {
+         if (top.v_cost + it_other->second.v_cost < cost_connection)
+         {
+            cost_connection = top.v_cost + it_other->second.v_cost;
+            v_connection = top.v;
+         }
+      }
       // get all successors
       for (std::pair<EdgeOutIter,EdgeOutIter> ep = boost::out_edges(top.v, g);
          ep.first!=ep.second; ep.first++)
@@ -755,7 +780,13 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
             continue;
          // get cumulative cost to the vertex
          double new_cost = top.v_cost;
-         // get cost of the vertex itself
+         // add in half cost of the source vertex
+#ifdef LEN_NOT_CHECKCOST
+         new_cost += 0.0;
+#else
+         new_cost += 0.5 * g[top.v].estimates[this->pdef_ci].cost_remaining;
+#endif
+         // get cost of the target (successor) vertex itself
          update_vertex_estimate(g[v_succ], this->pdef_ci);
          if (g[v_succ].statuses[this->pdef_ci] == STATUS_INVALID)
             continue;
@@ -763,7 +794,7 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
          new_cost += 0.0;
 #else
          if (g[v_succ].statuses[this->pdef_ci] == STATUS_UNKNOWN)
-            new_cost += g[v_succ].estimates[this->pdef_ci].cost_remaining;
+            new_cost += 0.5 * g[v_succ].estimates[this->pdef_ci].cost_remaining;
 #endif
          // get cost of the edge
          update_edge_estimate(g[e], this->pdef_ci);
@@ -776,23 +807,18 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
             new_cost += g[e].estimates[this->pdef_ci].cost_remaining;
 #endif
          // add to open list
-         open.push(BiDijkType(new_cost, v_succ, top.v, e, top.isbck));
+         open_mine->push(DijkType(new_cost, v_succ, top.v, e));
       }
    }
    if (v_connection == GraphTypes::null_vertex())
       return false;
-   // compute cost estimate
-   {
-      std::map<Vertex, BiDijkType>::iterator it;
-      cost_estimate = 0.0;
-      cost_estimate += closed_fwd.find(v_connection)->second.v_cost;
-      cost_estimate += closed_bck.find(v_connection)->second.v_cost;
-   }
+   // return cost estimate
+   cost_estimate = cost_connection;
    // create the path
    path_vs.push_back(v_connection);
    for (;;)
    {
-      std::map<Vertex, BiDijkType>::iterator it = closed_fwd.find(path_vs.front());
+      std::map<Vertex, DijkType>::iterator it = closed_fwd.find(path_vs.front());
       if (it->second.v_parent == GraphTypes::null_vertex())
          break;
       path_vs.push_front(it->second.v_parent);
@@ -800,7 +826,7 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
    }
    for (;;)
    {
-      std::map<Vertex, BiDijkType>::iterator it = closed_bck.find(path_vs.back());
+      std::map<Vertex, DijkType>::iterator it = closed_bck.find(path_vs.back());
       if (it->second.v_parent == GraphTypes::null_vertex())
          break;
       path_vs.push_back(it->second.v_parent);
@@ -1075,10 +1101,11 @@ bool P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
       // perform all requested checks
       for (ti=0; ti<checks.second.size(); ti++)
       {
-         if (this->cfrees[checks.second[ti].first].si->isValid(vp.s))
-            vp.statuses[checks.second[ti].first] = STATUS_VALID;
+         ci = checks.second[ti].first;
+         if (this->cfrees[ci].si->isValid(vp.s))
+            vp.statuses[ci] = STATUS_VALID;
          else
-            vp.statuses[checks.second[ti].first] = STATUS_INVALID;
+            vp.statuses[ci] = STATUS_INVALID;
       }
       
       // what does this imply for all our other statuses?
@@ -1159,19 +1186,18 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
       for (ei=0; ei<ep.edgestates.size(); ei++)
       {
          if (ep.edgestates[ei].statuses[ci_target] == STATUS_VALID)
-         {
             continue;
-         }
          
          // else unknown
          
          // perform all requested checks
          for (ti=0; ti<checks.second.size(); ti++)
          {
-            if (this->cfrees[checks.second[ti].first].si->isValid(ep.edgestates[ei].s))
-               ep.edgestates[ei].statuses[checks.second[ti].first] = STATUS_VALID;
+            ci = checks.second[ti].first;
+            if (this->cfrees[ci].si->isValid(ep.edgestates[ei].s))
+               ep.edgestates[ei].statuses[ci] = STATUS_VALID;
             else
-               ep.edgestates[ei].statuses[checks.second[ti].first] = STATUS_INVALID;
+               ep.edgestates[ei].statuses[ci] = STATUS_INVALID;
          }
          
          // what does this imply for all our other statuses?
