@@ -19,12 +19,12 @@ statusdict = {}
 # r p rbn
 colors = [
    ('U U U', (0.7,0.7,0.7)),
-   ('V U U', (0., 0., 0. )),
-   ('V V U', (0., 0., 0. )),
-   ('V I U', (0., 0., 0. )),
    ('I U U', (1., 0., 0. )),
    ('I I U', (1., 0., 0. )),
    ('U I U', (1., 0., 1. )),
+   ('V U U', (0., 0., 0. )),
+   ('V V U', (0., 0., 0. )),
+   ('V I U', (0., 0., 0. )),
    # rbn stuff
    ('U U V', (0., 0., 0. )),
    ('U U I', (1., 0., 0. )),
@@ -34,7 +34,7 @@ colors = [
 path = None
 imgnum = 1
 first_path = False
-for num,line in enumerate(open('dump-2-r-lazyprm.txt')):
+for num,line in enumerate(open('dump.txt')):
    line = line.strip()
    
    cmd,args = line.split(None,1)
