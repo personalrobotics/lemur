@@ -33,6 +33,7 @@ OpenRAVE::Transform ortx_from_vpose(
 
 OpenRAVE::EnvironmentBasePtr penv;
 OpenRAVE::RobotBasePtr probot;
+OpenRAVE::RobotBasePtr probot_padded;
 OpenRAVE::ModuleBasePtr pikfast;
 OpenRAVE::KinBodyPtr kb_kitchen;
 OpenRAVE::KinBodyPtr kb_table;
@@ -49,18 +50,20 @@ const double pose_mug_drop[7] = { -1.1, 2.3, 0.735, 0.,0.,M_SQRT1_2,-M_SQRT1_2 }
 unsigned long long checktime;
 
 /* spaces:
- * A: (robot) x (robot+kitchen+table+bin)
- * B: (robot) x (mug-on-table)
- * C: (mug-in-hand) x (robot+kitchen+table+bin)
+ * R: (robot) x (robot+kitchen+table+bin)
+ * T: (robot) x (mug-on-table)
+ * H: (mug-in-hand) x (robot+kitchen+table+bin)
  * D: (robot) x (mug-in-bin)
+ * 
+ * P: (padded_robot) x (padded_robot+kitchen+table+bin)
  *
- * step 1, in AnB
- * step 2, in AnC
- * step 3, in AnD
+ * step 1, in RnT
+ * step 2, in RnH
+ * step 3, in RnD
  */
 
 // this is regardless of the mug location and grabbed state
-bool isvalid_now_A(void)
+bool isvalid_now_R(void)
 {
    //if (probot->CheckSelfCollision()) return false;
    if (penv->CheckSelfCollision(probot)) return false; // ignores grabbed bodies
@@ -77,13 +80,38 @@ bool isvalid_now_A(void)
    return true;
 }
 
-bool isvalid_now_BD(void)
+// this is regardless of the mug location and grabbed state
+bool isvalid_now_P(void)
+{
+   //if (probot->CheckSelfCollision()) return false;
+   if (penv->CheckSelfCollision(probot_padded)) return false; // ignores grabbed bodies
+   //if (penv->CheckCollision(probot, kb_kitchen)) return false;
+   //if (penv->CheckCollision(probot, kb_table)) return false;
+   //if (penv->CheckCollision(probot, kb_bin)) return false;
+   const std::vector<OpenRAVE::KinBody::LinkPtr> rlinks = probot_padded->GetLinks();
+   for (unsigned int i=0; i<rlinks.size(); i++)
+   {
+      if (penv->CheckCollision(rlinks[i], kb_kitchen)) return false;
+      if (penv->CheckCollision(rlinks[i], kb_table)) return false;
+      if (penv->CheckCollision(rlinks[i], kb_bin)) return false;
+   }
+   return true;
+}
+
+bool isvalid_now_TD(void)
 {
    if (penv->CheckCollision(probot, kb_mug)) return false;
    return true;
 }
 
-bool isvalid_now_C(void)
+
+bool isvalid_now_TD_padded(void)
+{
+   if (penv->CheckCollision(probot_padded, kb_mug)) return false;
+   return true;
+}
+
+bool isvalid_now_H(void)
 {
    /* check mug against robot */
    const std::vector<OpenRAVE::KinBody::LinkPtr> mlinks = kb_mug->GetLinks();
@@ -102,7 +130,28 @@ bool isvalid_now_C(void)
    return true;
 }
 
-bool isvalid_A(const ompl::base::State * s)
+bool isvalid_now_H_padded(void)
+{
+   /* check mug against robot */
+   const std::vector<OpenRAVE::KinBody::LinkPtr> mlinks = kb_mug->GetLinks();
+   const std::vector<OpenRAVE::KinBody::LinkPtr> rlinks = probot_padded->GetLinks();
+   for (unsigned int j=0; j<mlinks.size(); j++)
+   {
+      for (unsigned int i=0; i<rlinks.size(); i++)
+      {
+         if (rlinks[i]->GetName() == "/right/wam7")
+            continue;
+         if (penv->CheckCollision(rlinks[i], mlinks[j])) return false;
+         /* ignore collision with grabbed link(s)? we should do that with GetGrabbedInfo */
+      }
+      if (penv->CheckCollision(mlinks[j], kb_kitchen)) return false;
+      if (penv->CheckCollision(mlinks[j], kb_table)) return false;
+      if (penv->CheckCollision(mlinks[j], kb_bin)) return false;
+   }
+   return true;
+}
+
+bool isvalid_R(const ompl::base::State * s)
 {
    struct timespec tic;
    struct timespec toc;
@@ -112,14 +161,30 @@ bool isvalid_A(const ompl::base::State * s)
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
-   isvalid = isvalid_now_A();
+   isvalid = isvalid_now_R();
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   return isvalid;
+}
+
+bool isvalid_P(const ompl::base::State * s)
+{
+   struct timespec tic;
+   struct timespec toc;
+   bool isvalid;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   // regardless of mug location
+   double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+   std::vector<double> adofvals(q,q+7);
+   probot_padded->SetActiveDOFValues(adofvals);
+   isvalid = isvalid_now_P();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
 // ensure mug isnt grabbed?
-bool isvalid_B(const ompl::base::State * s)
+bool isvalid_T(const ompl::base::State * s)
 {
    struct timespec tic;
    struct timespec toc;
@@ -129,14 +194,14 @@ bool isvalid_B(const ompl::base::State * s)
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
-   isvalid = isvalid_now_BD();
+   isvalid = isvalid_now_TD();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
 // place mug relative to hand
-bool isvalid_C(const ompl::base::State * s)
+bool isvalid_H(const ompl::base::State * s)
 {
    struct timespec tic;
    struct timespec toc;
@@ -149,7 +214,7 @@ bool isvalid_C(const ompl::base::State * s)
       probot->GetActiveManipulator()->GetEndEffectorTransform()
       * ortx_from_pose(pose_ee_palm)
       * ortx_from_pose(pose_mug_grasp1).inverse());
-   isvalid = isvalid_now_C();
+   isvalid = isvalid_now_H();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
@@ -165,13 +230,13 @@ bool isvalid_D(const ompl::base::State * s)
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
-   isvalid = isvalid_now_BD();
+   isvalid = isvalid_now_TD();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
-bool isvalid_AnB(const ompl::base::State * s)
+bool isvalid_RnT(const ompl::base::State * s)
 {
    struct timespec tic;
    struct timespec toc;
@@ -181,14 +246,14 @@ bool isvalid_AnB(const ompl::base::State * s)
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
-   isvalid = isvalid_now_A() && isvalid_now_BD();
+   isvalid = isvalid_now_R() && isvalid_now_TD();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
 // place mug relative to hand
-bool isvalid_AnC(const ompl::base::State * s)
+bool isvalid_RnH(const ompl::base::State * s)
 {
    struct timespec tic;
    struct timespec toc;
@@ -201,13 +266,13 @@ bool isvalid_AnC(const ompl::base::State * s)
       probot->GetActiveManipulator()->GetEndEffectorTransform()
       * ortx_from_pose(pose_ee_palm)
       * ortx_from_pose(pose_mug_grasp1).inverse());
-   isvalid = isvalid_now_A() && isvalid_now_C();
+   isvalid = isvalid_now_R() && isvalid_now_H();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
-bool isvalid_AnD(const ompl::base::State * s)
+bool isvalid_RnD(const ompl::base::State * s)
 {
    struct timespec tic;
    struct timespec toc;
@@ -217,7 +282,59 @@ bool isvalid_AnD(const ompl::base::State * s)
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
-   isvalid = isvalid_now_A() && isvalid_now_BD();
+   isvalid = isvalid_now_R() && isvalid_now_TD();
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   return isvalid;
+}
+
+bool isvalid_PnT(const ompl::base::State * s)
+{
+   struct timespec tic;
+   struct timespec toc;
+   bool isvalid;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   kb_mug->SetTransform(ortx_from_pose(pose_mugB));
+   double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+   std::vector<double> adofvals(q,q+7);
+   probot_padded->SetActiveDOFValues(adofvals);
+   isvalid = isvalid_now_P() && isvalid_now_TD_padded();
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   return isvalid;
+}
+
+// place mug relative to hand
+bool isvalid_PnH(const ompl::base::State * s)
+{
+   struct timespec tic;
+   struct timespec toc;
+   bool isvalid;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+   std::vector<double> adofvals(q,q+7);
+   probot_padded->SetActiveDOFValues(adofvals);
+   kb_mug->SetTransform(
+      probot_padded->GetActiveManipulator()->GetEndEffectorTransform()
+      * ortx_from_pose(pose_ee_palm)
+      * ortx_from_pose(pose_mug_grasp1).inverse());
+   isvalid = isvalid_now_P() && isvalid_now_H_padded();
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   return isvalid;
+}
+
+bool isvalid_PnD(const ompl::base::State * s)
+{
+   struct timespec tic;
+   struct timespec toc;
+   bool isvalid;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   kb_mug->SetTransform(ortx_from_pose(pose_mugD));
+   double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+   std::vector<double> adofvals(q,q+7);
+   probot_padded->SetActiveDOFValues(adofvals);
+   isvalid = isvalid_now_P() && isvalid_now_TD_padded();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
@@ -298,15 +415,15 @@ int main(int argc, char * argv[])
    probot = penv->ReadRobotXMLFile("robots/herb2_padded_nosensors.robot.xml");
    if (!probot)
    {
-      printf("Tried to open robot xml \"robots/barrettwam.robot.xml\", but loading failed!");
+      printf("Tried to open robot xml \"robots/herb2_padded_nosensors.robot.xml\", but loading failed!");
       return 2;
    }
    penv->Add(probot);
    probot->SetTransform(ortx_from_vpose(-0.3975,2.38,0., 0.,0.,-M_SQRT1_2,M_SQRT1_2));
    {
       double array[] = {
-         5.759, -1.972, -0.2, 1.9, 0., 0., 0., 0., 0., 0., 0.,
-         0.524, -1.972,  0.2, 1.9, 0., 0., 0., 2.3,2.3,2.3,0.
+         5.759, -1.972, -0.20, 1.9, 0., 0., 0., 0., 0., 0., 0., /* right */
+         0.630, -1.900,  0.15, 1.9, 0., 0., 0., 2.3,2.3,2.3,0.  /* left */
       };
       std::vector<double> dofvals(array, array+sizeof(array)/sizeof(array[0]));
       dofvals.resize(probot->GetDOF(), 0.0);
@@ -315,6 +432,26 @@ int main(int argc, char * argv[])
    probot->SetActiveManipulator("right_wam");
    probot->SetActiveDOFs(probot->GetActiveManipulator()->GetArmIndices());
    
+#if 1
+   /* add padded robot, positioned/configured appropriately */
+   probot_padded = penv->ReadRobotXMLFile("robots/herb2_blocky.robot.xml");
+   if (!probot_padded)
+   {
+      printf("Tried to open robot xml \"robots/herb2_blocky.robot.xml\", but loading failed!");
+      return 2;
+   }
+   penv->Add(probot_padded);
+   probot_padded->SetTransform(probot->GetTransform());
+   {
+      std::vector<double> dofvals;
+      probot->GetDOFValues(dofvals);
+      probot_padded->SetDOFValues(dofvals);
+      
+   }
+   probot_padded->SetActiveManipulator(probot->GetActiveManipulator()->GetName());
+   probot_padded->SetActiveDOFs(probot->GetActiveDOFIndices());
+   probot_padded->Enable(false);
+#endif
    
    /* load ik */
    pikfast = RaveCreateModule(penv,"ikfast");
@@ -372,6 +509,8 @@ int main(int argc, char * argv[])
       sleep(1);
    }
    
+   // re-enable padded robot (we shouldnt check against it tho)
+   if (probot_padded) probot_padded->Enable(true);
    
    
    
@@ -413,7 +552,7 @@ int main(int argc, char * argv[])
          s->values[j] = rng.uniformReal(lowers[j], uppers[j]);
       
       clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
-      valid = isvalid_D(s.get());
+      valid = isvalid_P(s.get());
       clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
       times[i] = (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
       
@@ -422,7 +561,7 @@ int main(int argc, char * argv[])
       //}
       
       //printf("valid: %s\n", valid?"valid":"invalid");
-      //sleep(1);
+      //sleep(5);
    }
    
    printf("times:\n");
@@ -437,24 +576,32 @@ int main(int argc, char * argv[])
    
    
    /* create si for space */
-   ompl::base::SpaceInformationPtr si_A(new ompl::base::SpaceInformation(space));
-   si_A->setStateValidityChecker(&isvalid_A);
-   ompl::base::SpaceInformationPtr si_B(new ompl::base::SpaceInformation(space));
-   si_B->setStateValidityChecker(&isvalid_B);
-   ompl::base::SpaceInformationPtr si_C(new ompl::base::SpaceInformation(space));
-   si_C->setStateValidityChecker(&isvalid_C);
+   ompl::base::SpaceInformationPtr si_R(new ompl::base::SpaceInformation(space));
+   si_R->setStateValidityChecker(&isvalid_R);
+   ompl::base::SpaceInformationPtr si_P(new ompl::base::SpaceInformation(space));
+   si_P->setStateValidityChecker(&isvalid_P);
+   ompl::base::SpaceInformationPtr si_T(new ompl::base::SpaceInformation(space));
+   si_T->setStateValidityChecker(&isvalid_T);
+   ompl::base::SpaceInformationPtr si_H(new ompl::base::SpaceInformation(space));
+   si_H->setStateValidityChecker(&isvalid_H);
    ompl::base::SpaceInformationPtr si_D(new ompl::base::SpaceInformation(space));
    si_D->setStateValidityChecker(&isvalid_D);
-   ompl::base::SpaceInformationPtr si_AnB(new ompl::base::SpaceInformation(space));
-   si_AnB->setStateValidityChecker(&isvalid_AnB);
-   ompl::base::SpaceInformationPtr si_AnC(new ompl::base::SpaceInformation(space));
-   si_AnC->setStateValidityChecker(&isvalid_AnC);
-   ompl::base::SpaceInformationPtr si_AnD(new ompl::base::SpaceInformation(space));
-   si_AnD->setStateValidityChecker(&isvalid_AnD);
+   ompl::base::SpaceInformationPtr si_RnT(new ompl::base::SpaceInformation(space));
+   si_RnT->setStateValidityChecker(&isvalid_RnT);
+   ompl::base::SpaceInformationPtr si_RnH(new ompl::base::SpaceInformation(space));
+   si_RnH->setStateValidityChecker(&isvalid_RnH);
+   ompl::base::SpaceInformationPtr si_RnD(new ompl::base::SpaceInformation(space));
+   si_RnD->setStateValidityChecker(&isvalid_RnD);
+   ompl::base::SpaceInformationPtr si_PnT(new ompl::base::SpaceInformation(space));
+   si_PnT->setStateValidityChecker(&isvalid_PnT);
+   ompl::base::SpaceInformationPtr si_PnH(new ompl::base::SpaceInformation(space));
+   si_PnH->setStateValidityChecker(&isvalid_PnH);
+   ompl::base::SpaceInformationPtr si_PnD(new ompl::base::SpaceInformation(space));
+   si_PnD->setStateValidityChecker(&isvalid_PnD);
    
    /* problem 1: plan from start to any mugikB */
    
-   ompl::base::ProblemDefinitionPtr pdef_1(new ompl::base::ProblemDefinition(si_AnB));
+   ompl::base::ProblemDefinitionPtr pdef_1(new ompl::base::ProblemDefinition(si_RnT));
    {
       /* single start state */
       ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s_start(space);
@@ -469,7 +616,7 @@ int main(int argc, char * argv[])
       pdef_1->addStartState(s_start);
       
       /* multiple goal states */
-      ompl::base::GoalStates * gs = new ompl::base::GoalStates(si_AnB);
+      ompl::base::GoalStates * gs = new ompl::base::GoalStates(si_RnT);
       gs->clear();
       for (int i=0; i<(int)mugiksB.size(); i++)
       {
@@ -484,7 +631,7 @@ int main(int argc, char * argv[])
    pdefs.push_back(pdef_1);
    
    /* problem 2: plan from any mugikB to any mugikdrop */
-   ompl::base::ProblemDefinitionPtr pdef_2(new ompl::base::ProblemDefinition(si_AnC));
+   ompl::base::ProblemDefinitionPtr pdef_2(new ompl::base::ProblemDefinition(si_RnH));
    {
       pdef_2->clearStartStates();
       for (int i=0; i<(int)mugiksB.size(); i++)
@@ -495,7 +642,7 @@ int main(int argc, char * argv[])
          pdef_2->addStartState(s_start);
       }
       
-      ompl::base::GoalStates * gs = new ompl::base::GoalStates(si_AnC);
+      ompl::base::GoalStates * gs = new ompl::base::GoalStates(si_RnH);
       gs->clear();
       for (int i=0; i<(int)mugiksdrop.size(); i++)
       {
@@ -510,7 +657,7 @@ int main(int argc, char * argv[])
    pdefs.push_back(pdef_2);
    
    /* problem 3: plan from any mugikdrop back to start */
-   ompl::base::ProblemDefinitionPtr pdef_3(new ompl::base::ProblemDefinition(si_AnD));
+   ompl::base::ProblemDefinitionPtr pdef_3(new ompl::base::ProblemDefinition(si_RnD));
    {
       pdef_3->clearStartStates();
       for (int i=0; i<(int)mugiksdrop.size(); i++)
@@ -521,7 +668,7 @@ int main(int argc, char * argv[])
          pdef_3->addStartState(s_start);
       }
       
-      ompl::base::GoalStates * gs = new ompl::base::GoalStates(si_AnD);
+      ompl::base::GoalStates * gs = new ompl::base::GoalStates(si_RnD);
       gs->clear();
       {
          ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s_goal(space);
@@ -551,22 +698,31 @@ int main(int argc, char * argv[])
    p->set_resolution(0.05);
    p->set_batchsize(1000);
    
-   const double cost_A = 38554193.0;
-   const double cost_B =   198423.5;
-   const double cost_C =  1310076.5;
+   const double cost_R = 38554193.0;
+   const double cost_P =  1632685.0;
+   const double cost_T =   198423.5;
+   const double cost_H =  1310076.5;
    const double cost_D =   197120.5;
    
-   p->add_cfree(si_A, "A", cost_A);
-   p->add_cfree(si_B, "B", cost_B);
-   p->add_cfree(si_C, "C", cost_C);
-   p->add_cfree(si_D, "D", cost_D);
-   p->add_cfree(si_AnB, "AnB", cost_A+cost_B);
-   p->add_cfree(si_AnC, "AnC", cost_A+cost_C);
-   p->add_cfree(si_AnD, "AnD", cost_A+cost_D);
+   //p->add_cfree(si_R, "R", cost_R);
+   //p->add_cfree(si_P, "P", cost_P);
+   //p->add_cfree(si_T, "T", cost_T);
+   //p->add_cfree(si_H, "H", cost_H);
+   //p->add_cfree(si_D, "D", cost_D);
+   p->add_cfree(si_RnT, "RnT", cost_R+cost_T);
+   p->add_cfree(si_RnH, "RnH", cost_R+cost_H);
+   p->add_cfree(si_RnD, "RnD", cost_R+cost_D);
+   p->add_cfree(si_PnT, "PnT", cost_P+cost_T);
+   p->add_cfree(si_PnH, "PnH", cost_P+cost_H);
+   p->add_cfree(si_PnD, "PnD", cost_P+cost_D);
    
-   //p->add_intersection(si_A, si_B, si_AnB);
-   //p->add_intersection(si_A, si_C, si_AnC);
-   //p->add_intersection(si_A, si_D, si_AnD);
+   //p->add_inclusion(si_R, si_P);
+   //p->add_intersection(si_R, si_T, si_RnT);
+   //p->add_intersection(si_R, si_H, si_RnH);
+   //p->add_intersection(si_R, si_D, si_RnD);
+   p->add_inclusion(si_RnT, si_PnT);
+   p->add_inclusion(si_RnH, si_PnH);
+   p->add_inclusion(si_RnD, si_PnD);
    
 #else // rrt
 
@@ -579,7 +735,7 @@ int main(int argc, char * argv[])
    
    for (unsigned int pi=0; pi<pdefs.size(); pi++)
    {
-      printf("solving %d/%d ...\n",pi+1,pdefs.size());
+      printf("solving %u/%lu ...\n",pi+1,pdefs.size());
       checktime = 0;
       p->setProblemDefinition(pdefs[pi]);
       ompl::base::PlannerStatus status = p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
@@ -592,64 +748,63 @@ int main(int argc, char * argv[])
       printf("checktime: %llu\n", checktime);
       checktimes.push_back(checktime);
    }
-
-
+   
    printf("checktimes:");
    for (unsigned int pi=0; pi<checktimes.size(); pi++)
       printf(" %llu", checktimes[pi]);
    printf("\n");
 
-#if 0
-   
-   printf("viewing trajs, press [Ctrl]+[C] to quit ...\n");
-   signal(SIGINT, sigint_handler);
-   while (!stop)
-   for (unsigned int pi=0; pi<pdefs.size(); pi++)
+   if (penv->GetViewer())
    {
-      ompl::base::PathPtr path = pdefs[pi]->getSolutionPath();
-      ompl::geometric::PathGeometric * gpath = dynamic_cast<ompl::geometric::PathGeometric*>(path.get());
-      OpenRAVE::TrajectoryBasePtr ptraj = OpenRAVE::RaveCreateTrajectory(penv);
-      ptraj->Init(probot->GetActiveConfigurationSpecification());
-      for (int i=0; i<gpath->getStateCount(); i++)
-      {
-         ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s(space);
-         s = gpath->getState(i);
-         std::vector<OpenRAVE::dReal> vec(&s[0], &s[0]+probot->GetActiveDOF());
-         ptraj->Insert(i, vec);
-      }
-      OpenRAVE::planningutils::RetimeActiveDOFTrajectory(ptraj,probot,false,1.0,1.0,"","");
-      
-      /* place mug */
-      switch (pi)
-      {
-      case 0:
-         kb_mug->SetTransform(ortx_from_pose(pose_mugB));
-         break;
-      case 1:
-         kb_mug->SetTransform(
-            probot->GetActiveManipulator()->GetEndEffectorTransform()
-            * ortx_from_pose(pose_ee_palm)
-            * ortx_from_pose(pose_mug_grasp1).inverse());
-         probot->Grab(kb_mug);
-         break;
-      case 2:
-         kb_mug->SetTransform(ortx_from_pose(pose_mugD));
-         break;
-      }
-      
-      probot->GetController()->SetPath(ptraj);
+      printf("viewing trajs, press [Ctrl]+[C] to quit ...\n");
+      signal(SIGINT, sigint_handler);
       while (!stop)
+      for (unsigned int pi=0; pi<pdefs.size(); pi++)
       {
-         if (probot->GetController()->IsDone())
+         ompl::base::PathPtr path = pdefs[pi]->getSolutionPath();
+         ompl::geometric::PathGeometric * gpath = dynamic_cast<ompl::geometric::PathGeometric*>(path.get());
+         OpenRAVE::TrajectoryBasePtr ptraj = OpenRAVE::RaveCreateTrajectory(penv);
+         ptraj->Init(probot->GetActiveConfigurationSpecification());
+         for (int i=0; i<gpath->getStateCount(); i++)
+         {
+            ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s(space);
+            s = gpath->getState(i);
+            std::vector<OpenRAVE::dReal> vec(&s[0], &s[0]+probot->GetActiveDOF());
+            ptraj->Insert(i, vec);
+         }
+         OpenRAVE::planningutils::RetimeActiveDOFTrajectory(ptraj,probot,false,1.0,1.0,"","");
+         
+         /* place mug */
+         switch (pi)
+         {
+         case 0:
+            kb_mug->SetTransform(ortx_from_pose(pose_mugB));
             break;
+         case 1:
+            kb_mug->SetTransform(
+               probot->GetActiveManipulator()->GetEndEffectorTransform()
+               * ortx_from_pose(pose_ee_palm)
+               * ortx_from_pose(pose_mug_grasp1).inverse());
+            probot->Grab(kb_mug);
+            break;
+         case 2:
+            kb_mug->SetTransform(ortx_from_pose(pose_mugD));
+            break;
+         }
+         
+         probot->GetController()->SetPath(ptraj);
+         while (!stop)
+         {
+            if (probot->GetController()->IsDone())
+               break;
+            sleep(1);
+         }
+         
+         probot->Release(kb_mug);
+         
          sleep(1);
       }
-      
-      probot->Release(kb_mug);
-      
-      sleep(1);
    }
-#endif
    
    printf("destroying ...\n");
    penv->Destroy();
