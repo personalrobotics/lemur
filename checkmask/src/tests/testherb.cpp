@@ -388,7 +388,7 @@ int main(int argc, char * argv[])
    /* init openrave */
    OpenRAVE::RaveInitialize(true, OpenRAVE::Level_Info); /* plugins, level */
    penv = OpenRAVE::RaveCreateEnvironment();
-   //boost::thread viewerthread = boost::thread(viewermain, penv);
+   boost::thread viewerthread = boost::thread(viewermain, penv);
    
    /* set up */
 
@@ -471,7 +471,7 @@ int main(int argc, char * argv[])
    //kb_frame->SetTransform(probot->GetActiveManipulator()->GetEndEffectorTransform() * ortx_from_pose(pose_ee_palm));
    //printf("y:%f\n", probot->GetActiveManipulator()->GetEndEffectorTransform().trans.y);
    
-   // get ik solutions for mug in place B
+   // get ik solutions for mug in place T
    kb_mug->SetTransform(ortx_from_pose(pose_mugB));
    tx = kb_mug->GetTransform()
       * ortx_from_pose(pose_mug_grasp1)
@@ -490,7 +490,7 @@ int main(int argc, char * argv[])
       sleep(10);
    }
    
-   // get ik solutions for mug at drop
+   // get ik solutions for mug at D
    kb_mug->SetTransform(ortx_from_pose(pose_mug_drop));
    tx = kb_mug->GetTransform()
       * ortx_from_pose(pose_mug_grasp1)
@@ -695,7 +695,6 @@ int main(int argc, char * argv[])
    /* create planner (with dummy si based on our space) */
    checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
    p->set_radius(2.0);
-   p->set_resolution(0.05);
    p->set_batchsize(1000);
    
    const double cost_R = 38554193.0;
@@ -704,25 +703,25 @@ int main(int argc, char * argv[])
    const double cost_H =  1310076.5;
    const double cost_D =   197120.5;
    
-   //p->add_cfree(si_R, "R", cost_R);
-   //p->add_cfree(si_P, "P", cost_P);
-   //p->add_cfree(si_T, "T", cost_T);
-   //p->add_cfree(si_H, "H", cost_H);
-   //p->add_cfree(si_D, "D", cost_D);
+   p->add_cfree(si_R, "R", cost_R);
+   p->add_cfree(si_P, "P", cost_P);
+   p->add_cfree(si_T, "T", cost_T);
+   p->add_cfree(si_H, "H", cost_H);
+   p->add_cfree(si_D, "D", cost_D);
    p->add_cfree(si_RnT, "RnT", cost_R+cost_T);
    p->add_cfree(si_RnH, "RnH", cost_R+cost_H);
    p->add_cfree(si_RnD, "RnD", cost_R+cost_D);
-   p->add_cfree(si_PnT, "PnT", cost_P+cost_T);
-   p->add_cfree(si_PnH, "PnH", cost_P+cost_H);
-   p->add_cfree(si_PnD, "PnD", cost_P+cost_D);
+   //p->add_cfree(si_PnT, "PnT", cost_P+cost_T);
+   //p->add_cfree(si_PnH, "PnH", cost_P+cost_H);
+   //p->add_cfree(si_PnD, "PnD", cost_P+cost_D);
    
-   //p->add_inclusion(si_R, si_P);
-   //p->add_intersection(si_R, si_T, si_RnT);
-   //p->add_intersection(si_R, si_H, si_RnH);
-   //p->add_intersection(si_R, si_D, si_RnD);
-   p->add_inclusion(si_RnT, si_PnT);
-   p->add_inclusion(si_RnH, si_PnH);
-   p->add_inclusion(si_RnD, si_PnD);
+   p->add_inclusion(si_R, si_P);
+   p->add_intersection(si_R, si_T, si_RnT);
+   p->add_intersection(si_R, si_H, si_RnH);
+   p->add_intersection(si_R, si_D, si_RnD);
+   //p->add_inclusion(si_RnT, si_PnT);
+   //p->add_inclusion(si_RnH, si_PnH);
+   //p->add_inclusion(si_RnD, si_PnD);
    
 #else // rrt
 

@@ -1,13 +1,15 @@
 #include <openrave/openrave.h>
 //#include <openrave/planner.h>
 #include <openrave/plugin.h>
+#include <ompl/base/State.h>
+#include <ompl/base/StateSpace.h>
+#include <ompl/base/SpaceInformation.h>
+#include <ompl/base/Planner.h>
+#include <ompl/base/ProblemDefinition.h>
 
-//#include <ompl/base/spaces/RealVectorStateSpace.h>
-//#include <ompl/base/Planner.h>
-//#include <ompl/base/ProblemDefinition.h>
-//#include <ompl/base/ScopedState.h>
-//#include <ompl/base/SpaceInformation.h>
+#include <checkmask/graph.h>
 
+#include "params_checkmask.h"
 #include "planner_checkmask.h"
 
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)

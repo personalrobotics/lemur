@@ -175,7 +175,6 @@ public:
    // parameters
    void set_batchsize(int batchsize);
    void set_radius(double radius);
-   void set_resolution(double resolution);
    
    void set_dumpfile(const char * dumpfile);
    
@@ -236,7 +235,7 @@ private:
    // PRM parameters
    int batchsize;
    double radius;
-   double resolution;
+   double resolution; // from space
    
    // we have a graph g
    Graph g;
@@ -307,6 +306,8 @@ P::P(const ompl::base::StateSpacePtr & space,
    space(space), sampler(space->allocStateSampler())
 {
    printf("constructor called!\n");
+   this->resolution = space->getLongestValidSegmentFraction() * space->getMaximumExtent();
+   printf("resolution: %f\n", this->resolution);
 #ifdef DEBUG_DUMPFILE
    this->dump_fp = 0;
 #endif
@@ -330,6 +331,8 @@ void P::setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef)
       OMPL_INFORM("cfree not known, adding with default cost of 1.0");
       this->add_cfree(si, "", 1.0);
    }
+   // save in base class (we should just use this!)
+   this->pdef_ = pdef;
    // save pdef, ci for this problem
    this->pdef = pdef;
    this->pdef_ci = this->si_to_ci[si.get()];
@@ -460,11 +463,6 @@ void P::set_radius(double radius)
    this->radius = radius;
 }
 
-void P::set_resolution(double resolution)
-{
-   this->resolution = resolution;
-}
-
 void P::set_dumpfile(const char * dumpfile)
 {
 #ifdef DEBUG_DUMPFILE
@@ -477,6 +475,10 @@ void P::set_dumpfile(const char * dumpfile)
 
 void P::add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, double check_cost)
 {
+   // make sure we dont have any verties yet (-:
+   if (boost::num_vertices(this->g))
+      throw ompl::Exception("add_cfree cant currently add spaces with existing graph!");
+   
    // make sure it doesnt already exist
    if (this->si_to_ci.find(si.get()) != this->si_to_ci.end())
       throw ompl::Exception("add_cfree passed si we already know about!");

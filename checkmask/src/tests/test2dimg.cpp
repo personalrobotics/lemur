@@ -202,12 +202,13 @@ int main(int argc, char * argv[])
       bounds.setLow(1, 0.0); bounds.setHigh(1, width);
       space->as<ompl::base::RealVectorStateSpace>()->setBounds(bounds);
    }
+   /* set space resolution */
+   space->setLongestValidSegmentFraction(2.0 / space->getMaximumExtent());
    
    /* create planner */
    checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
    p->set_batchsize(100);
    p->set_radius(100.0);
-   p->set_resolution(2.0);
    p->set_dumpfile(argv[4]);
    
    /* create spaceinfos */

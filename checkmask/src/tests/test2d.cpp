@@ -114,12 +114,13 @@ int main(int argc, char * argv[])
       bounds.setLow(1, 0.0); bounds.setHigh(1, 1.0);
       space->as<ompl::base::RealVectorStateSpace>()->setBounds(bounds);
    }
+   /* set space resolution */
+   space->setLongestValidSegmentFraction(0.01 / space->getMaximumExtent());
    
    /* create planner */
    checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
    p->set_batchsize(100);
    p->set_radius(0.2);
-   p->set_resolution(0.01);
    
    /* space information containers for each cfree */
    si_r.reset(new ompl::base::SpaceInformation(space));

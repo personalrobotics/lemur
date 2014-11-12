@@ -40,6 +40,7 @@ add_executable(dijk src/tests/dijk.cpp)
 # openrave bindings
 add_definitions("-fno-strict-aliasing -Wall")
 add_library(or${PROJECT_NAME} MODULE src/orompl/plugin.cpp src/orompl/planner_checkmask.cpp)
+target_link_libraries(or${PROJECT_NAME} ${PROJECT_NAME})
 set_target_properties(or${PROJECT_NAME} PROPERTIES
    COMPILE_FLAGS "${OpenRAVE_CXX_FLAGS} -Wno-unknown-pragmas"
    LINK_FLAGS "${OpenRAVE_LINK_FLAGS}"
