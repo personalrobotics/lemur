@@ -21,6 +21,7 @@ public:
    // PRM parameters
    virtual void set_batchsize(int batchsize) = 0;
    virtual void set_radius(double radius) = 0;
+   virtual void set_lambda(double lambda) = 0;
    
    virtual void set_dumpfile(const char * dumpfile) = 0;
 

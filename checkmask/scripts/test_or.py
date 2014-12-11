@@ -1,6 +1,7 @@
 #!/usr/bin/env python2
 import atexit
 import math
+import sys
 import time
 import numpy
 import openravepy
@@ -26,13 +27,17 @@ pose_mugT = [ -0.3975, 1.61, 0.735, 0., 0., 1., 0. ] # table
 pose_mugD = [ -1.1, 2.3, 0.0, 0.,0.,M_SQRT1_2,-M_SQRT1_2 ] # bin
 pose_mug_drop = [ -1.1, 2.3, 0.735, 0.,0.,M_SQRT1_2,-M_SQRT1_2 ] # drop location
 
+if len(sys.argv) != 2:
+   print('Usage: {} <seed-int>'.format(sys.argv[0]))
+   exit(1)
+
 # create an environment, load the robot (wam)
 openravepy.RaveInitialize(True, level=openravepy.DebugLevel.Info)
 atexit.register(openravepy.RaveDestroy)
 e = openravepy.Environment()
 atexit.register(e.Destroy)
 
-e.SetViewer('qtcoin')
+#e.SetViewer('qtcoin')
 
 # add fixed objects (kitchen, table, bin)
 kb_kitchen = e.ReadKinBodyXMLFile('environments/pr_kitchen.kinbody.xml')
@@ -82,87 +87,89 @@ H = numpy.dot(
 mugiksdrop = r.GetActiveManipulator().FindIKSolutions(H, openravepy.IkFilterOptions.CheckEnvCollisions)
 
 
-# create the planner itself
-p = openravepy.RaveCreatePlanner(e, 'OmplCheckMask')
-
-
 # create the three problem definitions (encoded as planner parameters xmls)
 
+def s1():
+   r.Release(kb_mug)
+   kb_mug.SetTransform(H_from_pose(pose_mugT))
 p1 = openravepy.Planner.PlannerParameters()
 p1.SetExtraParameters(''
    + '<startstate>5.759 -1.972 -0.20 1.9 0. 0. 0.</startstate>\n'
    + '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in mugiksT])
 )
 
+def s2():
+   r.Release(kb_mug)
+   kb_mug.SetTransform(multidot(
+      r.GetActiveManipulator().GetEndEffectorTransform(),
+      H_from_pose(pose_ee_palm),
+      numpy.linalg.inv(H_from_pose(pose_mug_grasp1))
+      ))
+   r.Grab(kb_mug)
 p2 = openravepy.Planner.PlannerParameters()
 p2.SetExtraParameters(''
    + '\n'.join(['<startstate>{}</startstate>'.format(' '.join(str(v) for v in q)) for q in mugiksT])
    + '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in mugiksdrop])
 )
 
+def s3():
+   r.Release(kb_mug)
+   kb_mug.SetTransform(H_from_pose(pose_mugD))
 p3 = openravepy.Planner.PlannerParameters()
 p3.SetExtraParameters(''
    + '\n'.join(['<startstate>{}</startstate>'.format(' '.join(str(v) for v in q)) for q in mugiksdrop])
    + '<goalstate>5.759 -1.972 -0.20 1.9 0. 0. 0.</goalstate>\n'
 )
 
+plans = [[s1,p1],[s2,p2],[s3,p3]]
 
-# tell the planner about p1
-r.Release(kb_mug)
-kb_mug.SetTransform(H_from_pose(pose_mugT))
-p.InitPlan(r, p1)
+if False: # one planner instance
 
-# tell the planner about p2
-kb_mug.SetTransform(multidot(
-   r.GetActiveManipulator().GetEndEffectorTransform(),
-   H_from_pose(pose_ee_palm),
-   numpy.linalg.inv(H_from_pose(pose_mug_grasp1))
-   ))
-r.Grab(kb_mug)
-p.InitPlan(r, p2)
+   # create the planner itself
+   p = openravepy.RaveCreatePlanner(e, 'OmplCheckMask')
+   p.SendCommand('SetOMPLSeed {}'.format(int(sys.argv[1])))
 
-# tell the planner about p3
-r.Release(kb_mug)
-kb_mug.SetTransform(H_from_pose(pose_mugD))
-p.InitPlan(r, p3)
+   # do the planning
+   for plan in plans:
+      s,pp = plan
+      s()
+      p.InitPlan(r,pp)
+      t = openravepy.RaveCreateTrajectory(e, '')
+      p.PlanPath(t)
+      plan.append(t)
 
-# plan p1
-r.Release(kb_mug)
-kb_mug.SetTransform(H_from_pose(pose_mugT))
-p.InitPlan(r, p1)
-traj1 = openravepy.RaveCreateTrajectory(e, '')
-p.PlanPath(traj1)
+else: # separate instances
 
-# plan p2
-kb_mug.SetTransform(multidot(
-   r.GetActiveManipulator().GetEndEffectorTransform(),
-   H_from_pose(pose_ee_palm),
-   numpy.linalg.inv(H_from_pose(pose_mug_grasp1))
-   ))
-r.Grab(kb_mug)
-p.InitPlan(r, p2)
-traj2 = openravepy.RaveCreateTrajectory(e, '')
-p.PlanPath(traj2)
+   # do the planning
+   for plan in plans:
+      
+      # create the planner itself
+      p = openravepy.RaveCreatePlanner(e, 'OmplCheckMask')
+      p.SendCommand('SetOMPLSeed {}'.format(int(sys.argv[1])))
+      
+      s,pp = plan
+      s()
+      p.InitPlan(r,pp)
+      t = openravepy.RaveCreateTrajectory(e, '')
+      p.PlanPath(t)
+      plan.append(t)
 
-# plan p3
-r.Release(kb_mug)
-kb_mug.SetTransform(H_from_pose(pose_mugD))
-p.InitPlan(r, p3)
-traj3 = openravepy.RaveCreateTrajectory(e, '')
-p.PlanPath(traj3)
+   
+   
 
-trajs = [traj1, traj2, traj3]
-
-for traj in trajs:
-   openravepy.planningutils.RetimeActiveDOFTrajectory(traj,r,False,1.0,1.0,"","")
-
-while True:
-   print('executing trajectories ...')
-   for traj in trajs:
-      r.GetController().SetPath(traj);
-      while True:
-         if r.GetController().IsDone():
-            break;
+# retime and execute the trajectories
+if e.GetViewer():
+   for _,_,t in plans:
+      openravepy.planningutils.RetimeActiveDOFTrajectory(t,r,False,1.0,1.0,"","")
+   while True:
+      print('executing trajectories ...')
+      for s,_,t in plans:
+         s()
+         r.GetController().SetPath(t);
+         while True:
+            if r.GetController().IsDone():
+               break;
+            time.sleep(0.1)
          time.sleep(1)
 
 #p.SendCommand('ListSpaces')

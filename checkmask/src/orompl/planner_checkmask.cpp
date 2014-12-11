@@ -39,7 +39,7 @@ checkmask::OmplCheckMask::OmplCheckMask(OpenRAVE::EnvironmentBasePtr penv):
 {
    __description = "OmplCheckMask description";
    this->RegisterCommand("ListSpaces",boost::bind(&checkmask::OmplCheckMask::ListSpaces,this,_1,_2),"ListSpaces");
-
+   this->RegisterCommand("SetOMPLSeed",boost::bind(&checkmask::OmplCheckMask::SetOMPLSeed,this,_1,_2),"SetOMPLSeed");
    printf("constructed!\n");
 }
 
@@ -144,7 +144,9 @@ bool checkmask::OmplCheckMask::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::
 OpenRAVE::PlannerStatus checkmask::OmplCheckMask::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
 {
    // call planner
+   this->checktime = 0;
    ompl::base::PlannerStatus status = this->p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
+   printf("checktime: %llu\n", this->checktime);
    
    // check results
    printf("planner returned: %s\n", status.asString().c_str());
@@ -171,6 +173,15 @@ OpenRAVE::PlannerStatus checkmask::OmplCheckMask::PlanPath(OpenRAVE::TrajectoryB
 OpenRAVE::PlannerBase::PlannerParametersConstPtr checkmask::OmplCheckMask::GetParameters() const
 {
    return OpenRAVE::PlannerBase::PlannerParametersConstPtr();
+}
+
+bool checkmask::OmplCheckMask::SetOMPLSeed(std::ostream & sout, std::istream & sin)
+{
+   unsigned int seed;
+   sin >> seed;
+   printf("setting seed to %u!\n", seed);
+   ompl::RNG::setSeed(seed);
+   return true;
 }
 
 bool checkmask::OmplCheckMask::ListSpaces(std::ostream & sout, std::istream & sin)
@@ -688,6 +699,10 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
 
 bool checkmask::OmplCheckMask::ompl_isvalid(unsigned int sidx, const ompl::base::State * state)
 {
+   struct timespec tic;
+   struct timespec toc;
+   bool isvalid;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
    if (sidx != this->sidx_current)
    {
       // does sidx_current IMPLY sidx?
@@ -714,12 +729,15 @@ bool checkmask::OmplCheckMask::ompl_isvalid(unsigned int sidx, const ompl::base:
    this->robot->SetActiveDOFValues(adofvals);
    // do checks from space
    Space & s = this->spaces[sidx];
-   for (std::set<unsigned int>::iterator iilc=s.ilcs.begin(); iilc!=s.ilcs.end(); iilc++)
+   isvalid = true;
+   for (std::set<unsigned int>::iterator iilc=s.ilcs.begin(); isvalid && iilc!=s.ilcs.end(); iilc++)
    {
       InterLinkCheck & ilc = this->inter_link_checks[*iilc];
-      if (this->robot->GetEnv()->CheckCollision(ilc.link1, ilc.link2)) return false;
+      isvalid = !(this->robot->GetEnv()->CheckCollision(ilc.link1, ilc.link2));
    }
-   return true;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   this->checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   return isvalid;
 }
 
 bool checkmask::fuzzy_equals(const OpenRAVE::Transform & tx1, const OpenRAVE::Transform & tx2, OpenRAVE::dReal fuzz)

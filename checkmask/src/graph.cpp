@@ -15,7 +15,6 @@
 #include <checkmask/graph.h>
 
 //#define DEBUG_DUMPFILE 1
-//#define LEN_NOT_CHECKCOST 1
 
 namespace
 {
@@ -103,6 +102,7 @@ private:
    typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef boost::graph_traits<Graph>::vertex_iterator VertexIter;
    typedef boost::graph_traits<Graph>::edge_descriptor Edge;
+   typedef boost::graph_traits<Graph>::edge_iterator EdgeIter;
    typedef boost::graph_traits<Graph>::out_edge_iterator EdgeOutIter;
    
    // just kept in a map
@@ -175,6 +175,7 @@ public:
    // parameters
    void set_batchsize(int batchsize);
    void set_radius(double radius);
+   void set_lambda(double lambda);
    
    void set_dumpfile(const char * dumpfile);
    
@@ -235,6 +236,8 @@ private:
    // PRM parameters
    int batchsize;
    double radius;
+   double lambda;
+   
    double resolution; // from space
    
    // we have a graph g
@@ -302,7 +305,7 @@ checkmask::GraphPlanner * checkmask::GraphPlanner::create(const ompl::base::Stat
 P::P(const ompl::base::StateSpacePtr & space,
       const ompl::base::SpaceInformationPtr & si_bogus):
    checkmask::GraphPlanner(si_bogus, "CheckMaskGraph"),
-   batchsize(1), radius(1.0), resolution(0.01),
+   batchsize(1), radius(1.0), lambda(1.0), resolution(0.01),
    space(space), sampler(space->allocStateSampler())
 {
    printf("constructor called!\n");
@@ -463,6 +466,23 @@ void P::set_radius(double radius)
    this->radius = radius;
 }
 
+void P::set_lambda(double lambda)
+{
+   if (lambda < 0.0)
+   {
+      OMPL_WARN("lambda passed less than zero! setting to zero ...");
+      lambda = 0.0;
+   }
+   if (1.0 < lambda)
+   {
+      OMPL_WARN("lambda passed greater than one! setting to one ...");
+      lambda = 1.0;
+   }
+   if (!(0.0 <= lambda && lambda <= 1.0))
+      throw std::runtime_error("lambda not in range!");
+   this->lambda = lambda;
+}
+
 void P::set_dumpfile(const char * dumpfile)
 {
 #ifdef DEBUG_DUMPFILE
@@ -475,10 +495,6 @@ void P::set_dumpfile(const char * dumpfile)
 
 void P::add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, double check_cost)
 {
-   // make sure we dont have any verties yet (-:
-   if (boost::num_vertices(this->g))
-      throw ompl::Exception("add_cfree cant currently add spaces with existing graph!");
-   
    // make sure it doesnt already exist
    if (this->si_to_ci.find(si.get()) != this->si_to_ci.end())
       throw ompl::Exception("add_cfree passed si we already know about!");
@@ -492,6 +508,32 @@ void P::add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, do
    this->si_to_ci[si.get()] = this->cfrees.size();
    this->cfrees.push_back(Cfree(si, name, check_cost));
    this->recalc_truthtable();
+   
+   // extend all statuses with unknowns, and invalidate all estimates
+   if (boost::num_vertices(this->g))
+   {
+      OMPL_WARN("attempting experimental space addition with existing graph!");
+      for (std::pair<VertexIter,VertexIter> vp = boost::vertices(this->g);
+         vp.first!=vp.second; vp.first++)
+      {
+         Vertex v = *vp.first;
+         this->g[v].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
+         this->g[v].estimates.clear();
+         this->g[v].estimates.resize(this->cfrees.size()); // defaults to dirty
+      }
+      for (std::pair<EdgeIter,EdgeIter> ep = boost::edges(this->g);
+         ep.first!=ep.second; ep.first++)
+      {
+         Edge e = *ep.first;
+         for (unsigned int ei=0; ei<this->g[e].edgestates.size(); ei++)
+            this->g[e].edgestates[ei].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
+         this->g[e].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
+         this->g[e].estimates.clear();
+         this->g[e].estimates.resize(this->cfrees.size()); // defaults to dirty
+      }
+      // clear optimistic checks cache
+      this->optimistic_checks.clear();
+   }
 }
 
 void P::add_inclusion(
@@ -694,7 +736,7 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
       throw ompl::Exception("no optimal found!");
    
    // we have a winner!
-   printf("  we have a winner! cost:%f\n", optimal.first);
+   printf("  we have a winner! cost:%f, %u tests:\n", optimal.first, optimal.second.size());
    for (ti=0; ti<optimal.second.size(); ti++)
       printf("    test ci=%d desired=%c\n", optimal.second[ti].first, "FT"[optimal.second[ti].second]);
 
@@ -713,9 +755,6 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
    std::map<Vertex, DijkType> closed_bck;
    double cost_connection = HUGE_VAL;
    Vertex v_connection = GraphTypes::null_vertex();
-   // actually we should set these costs to the expense of checking the roots themselves,
-   // which will become important once we're doing multi-root stuff;
-   // TODO: does it matter that we're sort of double-counting the cost of the connection vertex?
    for (i=0; i<pdefdata.v_starts.size(); i++)
    {
       update_vertex_estimate(g[pdefdata.v_starts[i]], this->pdef_ci);
@@ -783,31 +822,20 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
          // get cumulative cost to the vertex
          double new_cost = top.v_cost;
          // add in half cost of the source vertex
-#ifdef LEN_NOT_CHECKCOST
-         new_cost += 0.0;
-#else
-         new_cost += 0.5 * g[top.v].estimates[this->pdef_ci].cost_remaining;
-#endif
+         new_cost += this->lambda * 0.5 * g[top.v].estimates[this->pdef_ci].cost_remaining;
          // get cost of the target (successor) vertex itself
          update_vertex_estimate(g[v_succ], this->pdef_ci);
          if (g[v_succ].statuses[this->pdef_ci] == STATUS_INVALID)
             continue;
-#ifdef LEN_NOT_CHECKCOST
-         new_cost += 0.0;
-#else
          if (g[v_succ].statuses[this->pdef_ci] == STATUS_UNKNOWN)
-            new_cost += 0.5 * g[v_succ].estimates[this->pdef_ci].cost_remaining;
-#endif
+            new_cost += this->lambda * 0.5 * g[v_succ].estimates[this->pdef_ci].cost_remaining;
          // get cost of the edge
          update_edge_estimate(g[e], this->pdef_ci);
          if (g[e].statuses[this->pdef_ci] == STATUS_INVALID)
             continue;
-#ifdef LEN_NOT_CHECKCOST
-         new_cost += g[e].euc_dist;
-#else
+         new_cost += (1.0 - this->lambda) * g[e].euc_dist;
          if (g[e].statuses[this->pdef_ci] == STATUS_UNKNOWN)
-            new_cost += g[e].estimates[this->pdef_ci].cost_remaining;
-#endif
+            new_cost += this->lambda * g[e].estimates[this->pdef_ci].cost_remaining;
          // add to open list
          open_mine->push(DijkType(new_cost, v_succ, top.v, e));
       }
@@ -1069,17 +1097,19 @@ void P::update_edge_estimate(struct EdgeProperties & ep, unsigned int ci_target)
    int ci;
    
    // assume the edge's meta statuses are up-to-date
+   
+   // given edge's meta statuses, calculate checks required w.r.t. ci_target
    const std::pair<double, std::vector<std::pair<int,bool> > > & checks
       = this->get_optimistic_checks(ep.statuses, ci_target);
    
    // visit each state on the edge
    // this is not perfect w.r.t. our cfree check model
    ep.estimates[ci_target].cost_remaining = 0.0;
-   ep.estimates[ci_target].cost_dirty = false;
    for (ei=0; ei<ep.edgestates.size(); ei++)
    {
       if (ep.edgestates[ei].statuses[ci_target] == STATUS_VALID)
-         continue;
+         continue; // no cost, already valid!
+      // sum up the cost of each required check!
       for (ti=0; ti<checks.second.size(); ti++)
       {
          ci = checks.second[ti].first;
@@ -1087,6 +1117,7 @@ void P::update_edge_estimate(struct EdgeProperties & ep, unsigned int ci_target)
             ep.estimates[ci_target].cost_remaining += this->cfrees[ci].check_cost;
       }
    }
+   ep.estimates[ci_target].cost_dirty = false;
 }
 
 inline

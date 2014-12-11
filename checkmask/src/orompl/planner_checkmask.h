@@ -92,6 +92,8 @@ public:
    ompl::base::StateSpacePtr ompl_space;
    checkmask::GraphPlanner * p;
    
+   unsigned long long checktime;
+   
    //ompl::base::StateSpacePtr space;
    //ompl::base::SpaceInformationPtr spaceinfo;
    //ompl::base::ProblemDefinitionPtr probdef;
@@ -110,6 +112,7 @@ public:
    OpenRAVE::PlannerBase::PlannerParametersConstPtr GetParameters() const;
    
    // SendCommand stuff
+   bool SetOMPLSeed(std::ostream & sout, std::istream & sin);
    bool ListSpaces(std::ostream & sout, std::istream & sin);
    
    // raises exception on inconsistency

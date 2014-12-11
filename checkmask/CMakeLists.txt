@@ -5,7 +5,8 @@ find_package(OMPL REQUIRED)
 find_package(Boost REQUIRED)
 find_package(OpenRAVE REQUIRED)
 catkin_package(
-   INCLUDE_DIRS include)
+   INCLUDE_DIRS include
+   LIBRARIES ${PROJECT_NAME})
 set(CMAKE_BUILD_TYPE Release)
 include_directories(
    include
