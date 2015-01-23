@@ -60,11 +60,93 @@ unsigned long long checktime;
  * step 1, in RnT
  * step 2, in RnH
  * step 3, in RnD
+ * 
+ * also [EXPERIMENTAL] RE and RS, both independent of moveable/grasped objects
  */
+
+#define RELS_BASELINE 1
+#define RELS_OG_ONLY 2
+#define RELS_SELFCC_ONLY 3
+#define RELS_OG_SELFCC 4
+
+#define BLACK_BOX_BROAD_PHASE 0
+//#define LAMBDA (0.0001)
+//#define LAMBDA (0.5)
+#define LAMBDA (0.9999)
+#define RELS 2
+
+// this is regardless of the mug location and grabbed state
+bool isvalid_now_PS(void)
+{
+   if (penv->CheckSelfCollision(probot_padded)) return false; // ignores grabbed bodies
+   return true;
+}
+
+// this is regardless of the mug location and grabbed state
+bool isvalid_now_PE(void)
+{
+   const std::vector<OpenRAVE::KinBody::LinkPtr> rlinks = probot_padded->GetLinks();
+   for (unsigned int i=0; i<rlinks.size(); i++)
+   {
+      if (penv->CheckCollision(rlinks[i], kb_kitchen)) return false;
+      if (penv->CheckCollision(rlinks[i], kb_table)) return false;
+      if (penv->CheckCollision(rlinks[i], kb_bin)) return false;
+   }
+   return true;
+}
+
+// this is regardless of the mug location and grabbed state
+bool isvalid_now_RS(void)
+{
+#ifdef BLACK_BOX_BROAD_PHASE
+   // DO SMART SHORT CIRCUIT
+   std::vector<OpenRAVE::dReal> adofvals;
+   probot->GetActiveDOFValues(adofvals);
+   probot_padded->SetActiveDOFValues(adofvals);
+   if (isvalid_now_PS())
+      return true;
+#endif
+
+   if (penv->CheckSelfCollision(probot)) return false; // ignores grabbed bodies
+   return true;
+}
+
+// this is regardless of the mug location and grabbed state
+bool isvalid_now_RE(void)
+{
+#ifdef BLACK_BOX_BROAD_PHASE
+   // DO SMART SHORT CIRCUIT
+   std::vector<OpenRAVE::dReal> adofvals;
+   probot->GetActiveDOFValues(adofvals);
+   probot_padded->SetActiveDOFValues(adofvals);
+   if (isvalid_now_PE())
+      return true;
+#endif
+
+   const std::vector<OpenRAVE::KinBody::LinkPtr> rlinks = probot->GetLinks();
+   for (unsigned int i=0; i<rlinks.size(); i++)
+   {
+      if (penv->CheckCollision(rlinks[i], kb_kitchen)) return false;
+      if (penv->CheckCollision(rlinks[i], kb_table)) return false;
+      if (penv->CheckCollision(rlinks[i], kb_bin)) return false;
+   }
+   return true;
+}
+
+bool isvalid_now_P(void);
 
 // this is regardless of the mug location and grabbed state
 bool isvalid_now_R(void)
 {
+#ifdef BLACK_BOX_BROAD_PHASE
+   // DO SMART SHORT CIRCUIT
+   std::vector<OpenRAVE::dReal> adofvals;
+   probot->GetActiveDOFValues(adofvals);
+   probot_padded->SetActiveDOFValues(adofvals);
+   if (isvalid_now_P())
+      return true;
+#endif
+   
    //if (probot->CheckSelfCollision()) return false;
    if (penv->CheckSelfCollision(probot)) return false; // ignores grabbed bodies
    //if (penv->CheckCollision(probot, kb_kitchen)) return false;
@@ -151,6 +233,39 @@ bool isvalid_now_H_padded(void)
    return true;
 }
 
+bool isvalid_RS(const ompl::base::State * s)
+{
+   struct timespec tic;
+   struct timespec toc;
+   bool isvalid;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   // regardless of mug location
+   double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+   std::vector<double> adofvals(q,q+7);
+   probot->SetActiveDOFValues(adofvals);
+   isvalid = isvalid_now_RS();
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   return isvalid;
+}
+
+bool isvalid_RE(const ompl::base::State * s)
+{
+   struct timespec tic;
+   struct timespec toc;
+   bool isvalid;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   // regardless of mug location
+   double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+   std::vector<double> adofvals(q,q+7);
+   probot->SetActiveDOFValues(adofvals);
+   isvalid = isvalid_now_RE();
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   return isvalid;
+}
+
+// SMART VERSION THAT INTERNALLY USES P!
 bool isvalid_R(const ompl::base::State * s)
 {
    struct timespec tic;
@@ -422,7 +537,7 @@ int main(int argc, char * argv[])
    probot->SetTransform(ortx_from_vpose(-0.3975,2.38,0., 0.,0.,-M_SQRT1_2,M_SQRT1_2));
    {
       double array[] = {
-         5.759, -1.972, -0.20, 1.9, 0., 0., 0., 0., 0., 0., 0., /* right */
+         5.759, -1.972, -0.20, 1.9, 0., 0., 0., 1.3,1.3,1.3,0., /* right */
          0.630, -1.900,  0.15, 1.9, 0., 0., 0., 2.3,2.3,2.3,0.  /* left */
       };
       std::vector<double> dofvals(array, array+sizeof(array)/sizeof(array[0]));
@@ -451,6 +566,7 @@ int main(int argc, char * argv[])
    probot_padded->SetActiveManipulator(probot->GetActiveManipulator()->GetName());
    probot_padded->SetActiveDOFs(probot->GetActiveDOFIndices());
    probot_padded->Enable(false);
+   probot_padded->SetVisible(false);
 #endif
    
    /* load ik */
@@ -552,7 +668,7 @@ int main(int argc, char * argv[])
          s->values[j] = rng.uniformReal(lowers[j], uppers[j]);
       
       clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
-      valid = isvalid_P(s.get());
+      valid = isvalid_RE(s.get());
       clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
       times[i] = (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
       
@@ -576,6 +692,10 @@ int main(int argc, char * argv[])
    
    
    /* create si for space */
+   ompl::base::SpaceInformationPtr si_RS(new ompl::base::SpaceInformation(space));
+   si_RS->setStateValidityChecker(&isvalid_RS);
+   ompl::base::SpaceInformationPtr si_RE(new ompl::base::SpaceInformation(space));
+   si_RE->setStateValidityChecker(&isvalid_RE);
    ompl::base::SpaceInformationPtr si_R(new ompl::base::SpaceInformation(space));
    si_R->setStateValidityChecker(&isvalid_R);
    ompl::base::SpaceInformationPtr si_P(new ompl::base::SpaceInformation(space));
@@ -598,6 +718,23 @@ int main(int argc, char * argv[])
    si_PnH->setStateValidityChecker(&isvalid_PnH);
    ompl::base::SpaceInformationPtr si_PnD(new ompl::base::SpaceInformation(space));
    si_PnD->setStateValidityChecker(&isvalid_PnD);
+   
+   // used for ONLY self-collision-checked PRM
+   ompl::base::SpaceInformationPtr si_R1E(new ompl::base::SpaceInformation(space));
+   si_R1E->setStateValidityChecker(&isvalid_RE);
+   ompl::base::SpaceInformationPtr si_R1(new ompl::base::SpaceInformation(space));
+   si_R1->setStateValidityChecker(&isvalid_R);
+   
+   ompl::base::SpaceInformationPtr si_R2E(new ompl::base::SpaceInformation(space));
+   si_R2E->setStateValidityChecker(&isvalid_RE);
+   ompl::base::SpaceInformationPtr si_R2(new ompl::base::SpaceInformation(space));
+   si_R2->setStateValidityChecker(&isvalid_R);
+   
+   ompl::base::SpaceInformationPtr si_R3E(new ompl::base::SpaceInformation(space));
+   si_R3E->setStateValidityChecker(&isvalid_RE);
+   ompl::base::SpaceInformationPtr si_R3(new ompl::base::SpaceInformation(space));
+   si_R3->setStateValidityChecker(&isvalid_R);
+   
    
    /* problem 1: plan from start to any mugikB */
    
@@ -696,32 +833,139 @@ int main(int argc, char * argv[])
    checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
    p->set_radius(2.0);
    p->set_batchsize(1000);
+   p->set_lambda(LAMBDA);
    
-   const double cost_R = 38554193.0;
-   const double cost_P =  1632685.0;
-   const double cost_T =   198423.5;
-   const double cost_H =  1310076.5;
-   const double cost_D =   197120.5;
+#if 0
+   // costs are in nanoseconds apparently
+   const double cost_RS = 28915645.0; // totally made up, maybe 3:1?
+   const double cost_RE =  9638549.0; // totally made up, maybe 3:1?
+   const double cost_R =  38554193.0;
+   const double cost_P =   1632685.0;
+   const double cost_T =    198423.5;
+   const double cost_H =   1310076.5;
+   const double cost_D =    197120.5;
+#endif
    
-   p->add_cfree(si_R, "R", cost_R);
-   p->add_cfree(si_P, "P", cost_P);
-   p->add_cfree(si_T, "T", cost_T);
-   p->add_cfree(si_H, "H", cost_H);
-   p->add_cfree(si_D, "D", cost_D);
+   const double cost_RS = 0.028915645; // totally made up, maybe 3:1?
+   const double cost_RE = 0.009638549; // totally made up, maybe 3:1?
+   const double cost_R =  0.038554193;
+   const double cost_P =  0.001632685;
+   const double cost_T =  0.000198423;
+   const double cost_H =  0.001310076;
+   const double cost_D =  0.000197120;
+   
+   
+   // the actual things
    p->add_cfree(si_RnT, "RnT", cost_R+cost_T);
    p->add_cfree(si_RnH, "RnH", cost_R+cost_H);
    p->add_cfree(si_RnD, "RnD", cost_R+cost_D);
+
+#if RELS == RELS_OG_ONLY
+
+   p->add_cfree(si_R, "R", cost_R);
+   p->add_cfree(si_T, "T", cost_T);
+   p->add_cfree(si_H, "H", cost_H);
+   p->add_cfree(si_D, "D", cost_D);
+
+   p->add_intersection(si_R, si_T, si_RnT);
+   p->add_intersection(si_R, si_H, si_RnH);
+   p->add_intersection(si_R, si_D, si_RnD);
+
+#endif
+
+#if RELS == RELS_SELFCC_ONLY
+
+   p->add_cfree(si_T, "T", cost_T);
+   p->add_cfree(si_H, "H", cost_H);
+   p->add_cfree(si_D, "D", cost_D);
+   p->add_cfree(si_RS, "RS", cost_RS);
+   p->add_cfree(si_R1E, "R1E", cost_RE);
+   p->add_cfree(si_R1,  "R1",  cost_R);
+   p->add_cfree(si_R2E, "R2E", cost_RE);
+   p->add_cfree(si_R2,  "R2",  cost_R);
+   p->add_cfree(si_R3E, "R3E", cost_RE);
+   p->add_cfree(si_R3,  "R3",  cost_R);
+   
+   p->add_intersection(si_RS, si_R1E, si_R1);
+   p->add_intersection(si_RS, si_R2E, si_R2);
+   p->add_intersection(si_RS, si_R3E, si_R3);
+   p->add_intersection(si_R1, si_T, si_RnT);
+   p->add_intersection(si_R2, si_H, si_RnH);
+   p->add_intersection(si_R3, si_D, si_RnD);
+
+#endif
+
+#if RELS == RELS_OG_SELFCC
+
+   p->add_cfree(si_RS, "RS", cost_RS);
+   p->add_cfree(si_RE, "RE", cost_RE);
+   p->add_cfree(si_R, "R", cost_R);
+   p->add_cfree(si_T, "T", cost_T);
+   p->add_cfree(si_H, "H", cost_H);
+   p->add_cfree(si_D, "D", cost_D);
+   
+   p->add_intersection(si_R, si_T, si_RnT);
+   p->add_intersection(si_R, si_H, si_RnH);
+   p->add_intersection(si_R, si_D, si_RnD);
+   p->add_intersection(si_RS, si_RE, si_R);
+
+#endif
+
+#if 0 // old and busted
+   p->add_cfree(si_RS, "RS", cost_RS);
+   p->add_cfree(si_RE, "RE", cost_RE);
+   
+   // for o/g relations
+   p->add_cfree(si_R, "R", cost_R);
+   p->add_cfree(si_T, "T", cost_T);
+   p->add_cfree(si_H, "H", cost_H);
+   p->add_cfree(si_D, "D", cost_D);
+   
+   //p->add_cfree(si_P, "P", cost_P);
+   // padded inter-step relations
    //p->add_cfree(si_PnT, "PnT", cost_P+cost_T);
    //p->add_cfree(si_PnH, "PnH", cost_P+cost_H);
    //p->add_cfree(si_PnD, "PnD", cost_P+cost_D);
    
-   p->add_inclusion(si_R, si_P);
+   // for keeping steps separate, but with self-cc prm
+   //p->add_cfree(si_R1E, "R1E", cost_RE);
+   //p->add_cfree(si_R1,  "R1",  cost_R);
+   //p->add_cfree(si_R2E, "R2E", cost_RE);
+   //p->add_cfree(si_R2,  "R2",  cost_R);
+   //p->add_cfree(si_R3E, "R3E", cost_RE);
+   //p->add_cfree(si_R3,  "R3",  cost_R);
+
+   p->add_intersection(si_RS, si_RE, si_R);
+
+   //p->add_inclusion(si_R, si_P);
+   
+   // inter-step relations
    p->add_intersection(si_R, si_T, si_RnT);
    p->add_intersection(si_R, si_H, si_RnH);
    p->add_intersection(si_R, si_D, si_RnD);
+   
+   // just padded relations (no inter-step)
    //p->add_inclusion(si_RnT, si_PnT);
    //p->add_inclusion(si_RnH, si_PnH);
    //p->add_inclusion(si_RnD, si_PnD);
+   
+   // for keeping steps separate, but with self-cc prm
+   //p->add_intersection(si_RS, si_R1E, si_R1);
+   //p->add_intersection(si_RS, si_R2E, si_R2);
+   //p->add_intersection(si_RS, si_R3E, si_R3);
+   //p->add_intersection(si_R1, si_T, si_RnT);
+   //p->add_intersection(si_R2, si_H, si_RnH);
+   //p->add_intersection(si_R3, si_D, si_RnD);
+#endif
+   
+   p->force_batch();
+   
+#if (RELS == RELS_SELFCC_ONLY) || (RELS == RELS_OG_SELFCC)
+   // check all edges for self collision! (-:
+   ompl::base::ProblemDefinitionPtr pdef_rs_bogus(new ompl::base::ProblemDefinition(si_RS));
+   p->setProblemDefinition(pdef_rs_bogus);
+   p->force_eval_everything();
+#endif
    
 #else // rrt
 
@@ -748,10 +992,27 @@ int main(int argc, char * argv[])
       checktimes.push_back(checktime);
    }
    
-   printf("checktimes:");
+   double sum;
+   
+   printf("      actual planning time (s):");
+   sum = 0.0;
    for (unsigned int pi=0; pi<checktimes.size(); pi++)
-      printf(" %llu", checktimes[pi]);
-   printf("\n");
+   {
+      printf(" %5.2f&s &", 1.0e-9*checktimes[pi]);
+      sum += 1.0e-9*checktimes[pi];
+   }
+   printf(" %5.2f&s\n", sum);
+
+   printf("returned solution length (rad):");
+   sum = 0.0;
+   for (unsigned int pi=0; pi<pdefs.size(); pi++)
+   {
+      ompl::base::PathPtr path = pdefs[pi]->getSolutionPath();
+      ompl::geometric::PathGeometric * gpath = dynamic_cast<ompl::geometric::PathGeometric*>(path.get());
+      printf(" %5.2f&rad &", gpath->length());
+      sum += gpath->length();
+   }
+   printf(" %5.2f&rad\n", sum);
 
    if (penv->GetViewer())
    {

@@ -188,6 +188,10 @@ public:
       const ompl::base::SpaceInformationPtr si_a,
       const ompl::base::SpaceInformationPtr si_b,
       const ompl::base::SpaceInformationPtr si_intersection);
+   
+   // extras
+   void force_batch();
+   virtual void force_eval_everything();
 
 private:
    // private methods
@@ -553,6 +557,42 @@ void P::add_intersection(
    this->intersections.push_back(Intersection(si_a, si_b, si_intersection));
    // we should check that the si's are known!
    this->recalc_truthtable();
+}
+
+// extras
+void P::force_batch()
+{
+   printf("forcing a batch . adding %d random vertices ...\n", this->batchsize);
+   for (int i=0; i<this->batchsize; i++)
+   {
+      ompl::base::State * s_new = this->space->allocState();
+      this->sampler->sampleUniform(s_new);
+      this->add_vertex(s_new);
+   }
+}
+
+void P::force_eval_everything()
+{
+   if (!this->pdef)
+      throw ompl::Exception("no problem definition set!");
+   
+   printf("force-evaluating everything given the current planning definition ...\n");
+   
+   // check validity of ALL edges
+   for (std::pair<EdgeIter,EdgeIter> ep = boost::edges(this->g);
+      ep.first!=ep.second; ep.first++)
+   {
+      Edge e = *ep.first;
+      isvalid_edge(g[e], this->pdef_ci, e);
+   }
+   
+   // check validity of ALL vertices
+   for (std::pair<VertexIter,VertexIter> vp = boost::vertices(this->g);
+      vp.first!=vp.second; vp.first++)
+   {
+      Vertex v = *vp.first;
+      isvalid_vertex(g[v], this->pdef_ci);
+   }
 }
 
 void P::recalc_truthtable()

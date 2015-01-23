@@ -40,6 +40,10 @@ public:
       const ompl::base::SpaceInformationPtr si_a,
       const ompl::base::SpaceInformationPtr si_b,
       const ompl::base::SpaceInformationPtr si_intersection) = 0;
+   
+   // extras
+   virtual void force_batch() = 0;
+   virtual void force_eval_everything() = 0; // just for the current problem definition!
 
 protected:
    GraphPlanner(const ompl::base::SpaceInformationPtr & si, const std::string & name):

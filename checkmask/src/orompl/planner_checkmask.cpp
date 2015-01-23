@@ -652,7 +652,10 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
          
          // add new intersection and spaces!
          if (bspaces_intersection.size() != 2)
+         {
+            printf("bspaces_intersection.size(): %lu\n", bspaces_intersection.size());
             throw OpenRAVE::openrave_exception("oops, need to add an intersection of not exactly two spaces!");
+         }
          
          Intersection isec;
          std::set<unsigned int>::iterator bspace_intersection = bspaces_intersection.begin();

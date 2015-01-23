@@ -4,9 +4,17 @@ find_package(catkin REQUIRED COMPONENTS roscpp)
 find_package(OMPL REQUIRED)
 find_package(Boost REQUIRED)
 find_package(OpenRAVE REQUIRED)
+
 catkin_package(
    INCLUDE_DIRS include
-   LIBRARIES ${PROJECT_NAME})
+   LIBRARIES ${PROJECT_NAME}
+)
+catkin_add_env_hooks("20.${PROJECT_NAME}"
+    SHELLS sh
+    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/catkin-env-hooks"
+)
+
+
 set(CMAKE_BUILD_TYPE Release)
 include_directories(
    include
@@ -47,7 +55,7 @@ set_target_properties(or${PROJECT_NAME} PROPERTIES
    LINK_FLAGS "${OpenRAVE_LINK_FLAGS}"
    PREFIX ""
    LIBRARY_OUTPUT_DIRECTORY
-   "${CATKIN_DEVEL_PREFIX}/${CATKIN_GLOBAL_LIB_DESTINATION}/openrave-${OpenRAVE_LIBRARY_SUFFIX}"
+   "${CATKIN_DEVEL_PREFIX}/lib/openrave-${OpenRAVE_LIBRARY_SUFFIX}"
 )
 
 install(TARGETS ${PROJECT_NAME} test2d dijk
