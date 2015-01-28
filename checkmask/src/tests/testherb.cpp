@@ -14,6 +14,9 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
+
+#include <ompl/geometric/planners/est/EST.h>
+#include <ompl/geometric/planners/kpiece/LBKPIECE1.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
 
 #include <checkmask/graph.h>
@@ -70,10 +73,17 @@ unsigned long long checktime;
 #define RELS_OG_SELFCC 4
 
 #define BLACK_BOX_BROAD_PHASE 0
-//#define LAMBDA (0.0001)
+#define LAMBDA (0.0001)
 //#define LAMBDA (0.5)
-#define LAMBDA (0.9999)
-#define RELS 2
+//#define LAMBDA (0.9999)
+#define RELS 1
+
+#define PLANNER_MULTISET 1
+#define PLANNER_RRT 2
+#define PLANNER_LBKPIECE1 3
+#define PLANNER_EST 4
+
+#define PLANNER PLANNER_EST
 
 // this is regardless of the mug location and grabbed state
 bool isvalid_now_PS(void)
@@ -497,13 +507,13 @@ int main(int argc, char * argv[])
       exit(1);
    }
    
-   printf("setting seed ...\n");
+   printf("setting seed to %d ...\n", atoi(argv[1]));
    ompl::RNG::setSeed(atoi(argv[1]));
    
    /* init openrave */
    OpenRAVE::RaveInitialize(true, OpenRAVE::Level_Info); /* plugins, level */
    penv = OpenRAVE::RaveCreateEnvironment();
-   boost::thread viewerthread = boost::thread(viewermain, penv);
+   //boost::thread viewerthread = boost::thread(viewermain, penv);
    
    /* set up */
 
@@ -825,9 +835,7 @@ int main(int argc, char * argv[])
    
    
    
-   
-   
-#if 1
+#if PLANNER == PLANNER_MULTISET
 
    /* create planner (with dummy si based on our space) */
    checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
@@ -966,20 +974,38 @@ int main(int argc, char * argv[])
    p->setProblemDefinition(pdef_rs_bogus);
    p->force_eval_everything();
 #endif
-   
-#else // rrt
 
-   ompl::base::Planner * p = new ompl::geometric::RRTConnect(pdef_1);
+#elif (PLANNER == PLANNER_RRT) || (PLANNER == PLANNER_LBKPIECE1) || (PLANNER == PLANNER_EST)
+
+   ompl::base::Planner * p;
+
+
+#else // PLANNER
+
+#error "planner not known!"
+
+#endif // PLANNER
    
-#endif
-   
-   
+
+
+#define PLANNER_MULTISET 1
+#define PLANNER_RRT 2
+#define PLANNER_LBKPIECE1 3
    
    
    for (unsigned int pi=0; pi<pdefs.size(); pi++)
    {
       printf("solving %u/%lu ...\n",pi+1,pdefs.size());
       checktime = 0;
+      
+#if PLANNER == PLANNER_RRT
+      p = new ompl::geometric::RRTConnect(pdefs[pi]->getSpaceInformation());
+#elif PLANNER == PLANNER_LBKPIECE1
+      p = new ompl::geometric::LBKPIECE1(pdefs[pi]->getSpaceInformation());
+#elif PLANNER == PLANNER_EST
+      p = new ompl::geometric::EST(pdefs[pi]->getSpaceInformation());
+#endif
+      
       p->setProblemDefinition(pdefs[pi]);
       ompl::base::PlannerStatus status = p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
       printf("planner returned: %s\n", status.asString().c_str());
@@ -988,6 +1014,11 @@ int main(int argc, char * argv[])
          fprintf(stderr,"no solution to problem 1 found after 600 seconds!\n");
          exit(1);
       }
+      
+#if (PLANNER == PLANNER_RRT) || (PLANNER == PLANNER_LBKPIECE1) || (PLANNER == PLANNER_EST)
+      delete p;
+#endif
+      
       printf("checktime: %llu\n", checktime);
       checktimes.push_back(checktime);
    }
