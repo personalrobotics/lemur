@@ -7,6 +7,7 @@
 #include <boost/function.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graph_traits.hpp>
+#include <ompl/base/goals/GoalSampleableRegion.h>
 #include <ompl/base/Planner.h>
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -108,13 +109,8 @@ private:
    // just kept in a map
    struct ProbDefData
    {
-      ProbDefData(ompl::base::ProblemDefinitionPtr pdef)
-      {
-         pis.use(pdef);
-      }
       std::vector<Vertex> v_starts;
       std::vector<Vertex> v_goals;
-      ompl::base::PlannerInputStates pis;
    };
    // kept in a vector,
    // also with map for cfree index [ci]
@@ -345,7 +341,7 @@ void P::setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef)
    this->pdef_ci = this->si_to_ci[si.get()];
    // if no pdef data already saved, make a new one
    if (this->pdefs.find(pdef) == this->pdefs.end())
-      this->pdefs.insert(std::make_pair(pdef,ProbDefData(pdef)));
+      this->pdefs.insert(std::make_pair(pdef,ProbDefData()));
 }
 
 ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition & ptc)
@@ -363,21 +359,29 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
       throw ompl::Exception("no problem definition data found!");
    ProbDefData & pdefdata = pdefs_it->second;
    
+   // ensure that the goal type has a finite number of samples (for now)
+   if (!this->pdef->getGoal())
+      throw ompl::Exception("no goal set!");
+   if (!this->pdef->getGoal()->hasType(ompl::base::GOAL_SAMPLEABLE_REGION))
+      throw ompl::Exception("goal is not sampleable!");
+   ompl::base::GoalSampleableRegion * goalset = this->pdef->getGoal()->as<ompl::base::GoalSampleableRegion>();
+   
    // make sure we've added our start and goal vertices to the graph
    // EVENTUALLY THIS SHOULD SEARCH THE GRARPH FOR EXISTING VERTICES!
-   while (const ompl::base::State * s = pdefdata.pis.nextStart())
+   while (pdefdata.v_starts.size() < this->pdef->getStartStateCount())
    {
+      const ompl::base::State * s = this->pdef->getStartState(pdefdata.v_starts.size());
       ompl::base::State * s_new = this->space->allocState();
       this->space->copyState(s_new, s);
       pdefdata.v_starts.push_back(this->add_vertex(s_new));
    }
-   while (pdefdata.pis.haveMoreGoalStates())
+   while (pdefdata.v_goals.size() < goalset->maxSampleCount() && goalset->canSample())
    {
-      const ompl::base::State * s = pdefdata.pis.nextGoal();
       ompl::base::State * s_new = this->space->allocState();
-      this->space->copyState(s_new, s);
+      goalset->sampleGoal(s_new);
       pdefdata.v_goals.push_back(this->add_vertex(s_new));
    }
+   
    if (!pdefdata.v_starts.size())
       throw ompl::Exception("no start states found!");
    if (!pdefdata.v_goals.size())
