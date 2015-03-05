@@ -38,8 +38,9 @@ checkmask::OmplCheckMask::OmplCheckMask(OpenRAVE::EnvironmentBasePtr penv):
    OpenRAVE::PlannerBase(penv), p(0)
 {
    __description = "OmplCheckMask description";
-   this->RegisterCommand("ListSpaces",boost::bind(&checkmask::OmplCheckMask::ListSpaces,this,_1,_2),"ListSpaces");
    this->RegisterCommand("SetOMPLSeed",boost::bind(&checkmask::OmplCheckMask::SetOMPLSeed,this,_1,_2),"SetOMPLSeed");
+   this->RegisterCommand("ListSpaces",boost::bind(&checkmask::OmplCheckMask::ListSpaces,this,_1,_2),"ListSpaces");
+   this->RegisterCommand("GetTimes",boost::bind(&checkmask::OmplCheckMask::GetTimes,this,_1,_2),"GetTimes");
    printf("constructed!\n");
 }
 
@@ -75,7 +76,41 @@ bool checkmask::OmplCheckMask::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::
    //throw OpenRAVE::openrave_exception(
    //   "OmplCheckMask planner does not support default PlannerParameters structure!");
    
-   this->check_setup(robot);
+   if (!this->robot)
+   {
+      this->robot = robot;
+      this->adofs = robot->GetActiveDOFIndices();
+      /* space: right arm dofs */
+      this->ompl_space.reset(new ompl::base::RealVectorStateSpace(robot->GetActiveDOF()));
+      {
+         /* state space set bounds */
+         ompl::base::RealVectorBounds bounds(robot->GetActiveDOF());
+         std::vector<OpenRAVE::dReal> lowers;
+         std::vector<OpenRAVE::dReal> uppers;
+         robot->GetActiveDOFLimits(lowers, uppers);
+         for (int i=0; i<robot->GetActiveDOF(); i++)
+            { bounds.setLow(i, lowers[i]); bounds.setHigh(i, uppers[i]); }
+         this->ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(bounds);
+         
+         /* set space resolution */
+         std::vector<OpenRAVE::dReal> dof_resolutions;
+         robot->GetActiveDOFResolutions(dof_resolutions);
+         double resolution = HUGE_VAL;
+         for (unsigned int i=0; i<dof_resolutions.size(); i++)
+            resolution = dof_resolutions[i] < resolution ? dof_resolutions[i] : resolution;
+         RAVELOG_INFO("setting resolution to %f rad!\n", resolution);
+         this->ompl_space->setLongestValidSegmentFraction(
+            resolution / this->ompl_space->getMaximumExtent());
+      }
+
+      // create planner itself
+      this->p = checkmask::GraphPlanner::create(this->ompl_space);
+      this->p->set_radius(2.0);
+      this->p->set_batchsize(1000);
+   }
+   
+   if (robot != this->robot || robot->GetActiveDOFIndices() != this->adofs)
+      throw OpenRAVE::openrave_exception("robot or active dofs not constant!");
    
    // get the current space from the environment
    Space s = this->get_current_space();
@@ -143,10 +178,27 @@ bool checkmask::OmplCheckMask::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::
 
 OpenRAVE::PlannerStatus checkmask::OmplCheckMask::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
 {
+   ompl::base::PlannerStatus status;
+   
    // call planner
+   this->n_checks = 0;
    this->checktime = 0;
-   ompl::base::PlannerStatus status = this->p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
-   printf("checktime: %llu\n", this->checktime);
+   this->totaltime = 0;
+   
+   struct timespec tic;
+   struct timespec toc;
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   
+   {
+      // Don't check collision with inactive links.
+      OpenRAVE::CollisionCheckerBasePtr const collision_checker = GetEnv()->GetCollisionChecker();
+      OpenRAVE::CollisionOptionsStateSaver const collision_saver(collision_checker, OpenRAVE::CO_ActiveDOFs, false);
+
+      status = this->p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
+   }
+   
+   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   this->totaltime = (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    
    // check results
    printf("planner returned: %s\n", status.asString().c_str());
@@ -222,37 +274,12 @@ bool checkmask::OmplCheckMask::ListSpaces(std::ostream & sout, std::istream & si
    return true;
 }
 
-void checkmask::OmplCheckMask::check_setup(OpenRAVE::RobotBasePtr robot)
+bool checkmask::OmplCheckMask::GetTimes(std::ostream & sout, std::istream & sin)
 {
-   if (this->robot)
-   {
-      if (robot != this->robot || robot->GetActiveDOFIndices() != this->adofs)
-         throw OpenRAVE::openrave_exception("robot or active dofs not constant!");
-      return;
-   }
-   
-   this->robot = robot;
-   this->adofs = robot->GetActiveDOFIndices();
-      
-   /* space: right arm dofs */
-   this->ompl_space.reset(new ompl::base::RealVectorStateSpace(robot->GetActiveDOF()));
-   /* state space set bounds */
-   {
-      ompl::base::RealVectorBounds bounds(robot->GetActiveDOF());
-      std::vector<OpenRAVE::dReal> lowers;
-		std::vector<OpenRAVE::dReal> uppers;
-      robot->GetActiveDOFLimits(lowers, uppers);
-      for (int i=0; i<robot->GetActiveDOF(); i++)
-         { bounds.setLow(i, lowers[i]); bounds.setHigh(i, uppers[i]); }
-      this->ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(bounds);
-   }
-   /* set space resolution */
-   this->ompl_space->setLongestValidSegmentFraction(0.05 / this->ompl_space->getMaximumExtent());
-   
-   // create planner itself
-   this->p = checkmask::GraphPlanner::create(this->ompl_space);
-   this->p->set_radius(2.0);
-   this->p->set_batchsize(1000);
+   sout << "checktime " << (1.0e-9 * this->checktime);
+   sout << " totaltime " << (1.0e-9 * this->totaltime);
+   sout << " n_checks " << this->n_checks;
+   return true;
 }
 
 checkmask::Space checkmask::OmplCheckMask::get_current_space(void)
@@ -706,6 +733,8 @@ bool checkmask::OmplCheckMask::ompl_isvalid(unsigned int sidx, const ompl::base:
    struct timespec toc;
    bool isvalid;
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   
+#if 0
    if (sidx != this->sidx_current)
    {
       // does sidx_current IMPLY sidx?
@@ -726,10 +755,14 @@ bool checkmask::OmplCheckMask::ompl_isvalid(unsigned int sidx, const ompl::base:
          throw OpenRAVE::openrave_exception("cannot currently check against a non-current space! (maybe logic not complete enough yet?)");
       }
    }
+#endif
+
    // set active dofs
    double * q = state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+this->ompl_space->getDimension());
-   this->robot->SetActiveDOFValues(adofvals);
+   this->robot->SetActiveDOFValues(adofvals, OpenRAVE::KinBody::CLA_Nothing);
+   
+#if 0
    // do checks from space
    Space & s = this->spaces[sidx];
    isvalid = true;
@@ -737,9 +770,16 @@ bool checkmask::OmplCheckMask::ompl_isvalid(unsigned int sidx, const ompl::base:
    {
       InterLinkCheck & ilc = this->inter_link_checks[*iilc];
       isvalid = !(this->robot->GetEnv()->CheckCollision(ilc.link1, ilc.link2));
+      if (!isvalid)
+         break;
    }
+#else
+   isvalid = !GetEnv()->CheckCollision(this->robot) && !this->robot->CheckSelfCollision();
+#endif
+
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    this->checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   this->n_checks++;
    return isvalid;
 }
 

@@ -1,12 +1,7 @@
 namespace checkmask
 {
 
-
 bool fuzzy_equals(const OpenRAVE::Transform & tx1, const OpenRAVE::Transform & tx2, OpenRAVE::dReal fuzz);
-
-
-
-
 
 struct TxAjoint
 {
@@ -92,7 +87,11 @@ public:
    ompl::base::StateSpacePtr ompl_space;
    checkmask::GraphPlanner * p;
    
-   unsigned long long checktime;
+   // cumulative time in the isvalid function
+   // cleared by PlanPath, retrieved by GetTimes
+   int n_checks;
+   unsigned long long int checktime;
+   unsigned long long int totaltime;
    
    //ompl::base::StateSpacePtr space;
    //ompl::base::SpaceInformationPtr spaceinfo;
@@ -114,6 +113,7 @@ public:
    // SendCommand stuff
    bool SetOMPLSeed(std::ostream & sout, std::istream & sin);
    bool ListSpaces(std::ostream & sout, std::istream & sin);
+   bool GetTimes(std::ostream & sout, std::istream & sin);
    
    // raises exception on inconsistency
    void check_setup(OpenRAVE::RobotBasePtr robot);
