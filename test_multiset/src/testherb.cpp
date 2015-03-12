@@ -53,7 +53,7 @@ const double pose_mugB[7] = { -0.3975, 1.61, 0.735, 0., 0., 1., 0. }; // table
 const double pose_mugD[7] = { -1.1, 2.3, 0.0, 0.,0.,M_SQRT1_2,-M_SQRT1_2 }; // bin
 const double pose_mug_drop[7] = { -1.1, 2.3, 0.735, 0.,0.,M_SQRT1_2,-M_SQRT1_2 }; // drop location
 
-unsigned long long checktime;
+unsigned long long g_checktime;
 
 /* spaces:
  * R: (robot) x (robot+kitchen+table+bin)
@@ -258,7 +258,7 @@ bool isvalid_RS(const ompl::base::State * s)
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_RS();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -274,7 +274,7 @@ bool isvalid_RE(const ompl::base::State * s)
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_RE();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -291,7 +291,7 @@ bool isvalid_R(const ompl::base::State * s)
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_R();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -307,7 +307,7 @@ bool isvalid_P(const ompl::base::State * s)
    probot_padded->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_P();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -324,7 +324,7 @@ bool isvalid_T(const ompl::base::State * s)
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_TD();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -344,7 +344,7 @@ bool isvalid_H(const ompl::base::State * s)
       * ortx_from_pose(pose_mug_grasp1).inverse());
    isvalid = isvalid_now_H();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -360,7 +360,7 @@ bool isvalid_D(const ompl::base::State * s)
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_TD();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -376,7 +376,7 @@ bool isvalid_RnT(const ompl::base::State * s)
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_R() && isvalid_now_TD();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -396,7 +396,7 @@ bool isvalid_RnH(const ompl::base::State * s)
       * ortx_from_pose(pose_mug_grasp1).inverse());
    isvalid = isvalid_now_R() && isvalid_now_H();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -412,7 +412,7 @@ bool isvalid_RnD(const ompl::base::State * s)
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_R() && isvalid_now_TD();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -428,7 +428,7 @@ bool isvalid_PnT(const ompl::base::State * s)
    probot_padded->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_P() && isvalid_now_TD_padded();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -448,7 +448,7 @@ bool isvalid_PnH(const ompl::base::State * s)
       * ortx_from_pose(pose_mug_grasp1).inverse());
    isvalid = isvalid_now_P() && isvalid_now_H_padded();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -464,7 +464,7 @@ bool isvalid_PnD(const ompl::base::State * s)
    probot_padded->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_P() && isvalid_now_TD_padded();
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
-   checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+   g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
 
@@ -847,8 +847,9 @@ int main(int argc, char * argv[])
    /* create planner */
    ompl_multiset::RoadmapPtr roadmap(
       new ompl_multiset::RoadmapSampledConst(space, 419884521, 1000, 2.0));
+   ompl_multiset::CachePtr cache(ompl_multiset::cache_create("mycache"));
    ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(
-      space, roadmap, ompl_multiset::CachePtr());
+      space, roadmap, cache);
    p->set_interroot_radius(2.0);
    p->set_lambda(LAMBDA);
    
@@ -976,6 +977,7 @@ int main(int argc, char * argv[])
 #endif
    
    p->force_batch();
+   p->cache_load();
    
 #if (RELS == RELS_SELFCC_ONLY) || (RELS == RELS_OG_SELFCC)
    // check all edges for self collision! (-:
@@ -1005,7 +1007,10 @@ int main(int argc, char * argv[])
    for (unsigned int pi=0; pi<pdefs.size(); pi++)
    {
       printf("solving %u/%lu ...\n",pi+1,pdefs.size());
-      checktime = 0;
+      g_checktime = 0;
+      
+      struct timespec tic;
+      struct timespec toc;
       
 #if PLANNER == PLANNER_RRT
       p = new ompl::geometric::RRTConnect(pdefs[pi]->getSpaceInformation());
@@ -1016,7 +1021,12 @@ int main(int argc, char * argv[])
 #endif
       
       p->setProblemDefinition(pdefs[pi]);
+      
+      clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
       ompl::base::PlannerStatus status = p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
+      clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+      unsigned long long plantime = (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
+      
       printf("planner returned: %s\n", status.asString().c_str());
       if (status != ompl::base::PlannerStatus::EXACT_SOLUTION)
       {
@@ -1028,9 +1038,12 @@ int main(int argc, char * argv[])
       delete p;
 #endif
       
-      printf("checktime: %llu\n", checktime);
-      checktimes.push_back(checktime);
+      printf("g_checktime: %llu\n", g_checktime);
+      printf("   plantime: %llu\n", plantime);
+      checktimes.push_back(g_checktime);
    }
+   
+   p->cache_save();
    
    double sum;
    

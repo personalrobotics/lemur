@@ -48,6 +48,10 @@ public:
    // extras
    virtual void force_batch() = 0;
    virtual void force_eval_everything() = 0; // just for the current problem definition!
+   
+   // load the roadmap and any si's from the cache
+   virtual void cache_load() = 0;
+   virtual void cache_save() = 0;
 
 protected:
    MultiSetPRM(const ompl::base::SpaceInformationPtr & si, const std::string & name):

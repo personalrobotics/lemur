@@ -67,10 +67,14 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
    // get the space id
    std::string space_id = ompl_multiset::space_id(roadmap->space);
    std::string roadmap_id = roadmap->get_id();
-   std::string hash = sha1("space " + space_id + " roadmap " + roadmap_id);
    
+   // get roadmap header
+   std::string header;
+   header += "space " + space_id + "\n";
+   header += "roadmap " + roadmap_id + "\n";
+
    // open file
-   boost::filesystem::path newpath = this->cache_dir / ("roadmap-" + hash + ".txt");
+   boost::filesystem::path newpath = this->cache_dir / ("roadmap-" + sha1(header) + ".txt");
    std::ifstream sin(newpath.string().c_str());
    if (!sin.good())
    {
@@ -106,6 +110,7 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
    {
       if (startswith(line,"subgraph "))
       {
+         //printf("sg\n");
          unsigned int line_gi;
          unsigned int line_nv;
          unsigned int line_ne;
@@ -117,37 +122,42 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
             throw std::runtime_error("bad cache file, error parsing subgraph!");
          if (line_gi != ng)
             throw std::runtime_error("bad cache file, subgraphs out of order!");
-         if (roadmap->subgraphs.size() < (line_gi+1))
+         if (roadmap->subgraphs.size() == line_gi)
          {
-            roadmap->subgraphs.resize(line_gi+1);
-            roadmap->subgraphs[line_gi] = ompl_multiset::Roadmap::SubGraph(
-               line_nv, line_ne, line_root_radius);
+            roadmap->subgraphs.push_back(ompl_multiset::Roadmap::SubGraph(
+               line_nv, line_ne, line_root_radius));
             extended = true;
          }
+         else if (roadmap->subgraphs.size() < line_gi)
+            throw std::runtime_error("bad cache file, subgraphs out of order!");
          ng++;
       }
       else if (startswith(line,"vertex "))
       {
+         //printf("v\n");
          unsigned int line_vi;
          int n_chars;
          sscanf(line.c_str(), "vertex %u %n", &line_vi, &n_chars);
          if (n_chars + 2*serlen != line.size())
             throw std::runtime_error("bad cache file, error parsing vertex!");
          if (line_vi != nv)
-            throw std::runtime_error("bad cache file, subgraphs out of order!");
-         if (roadmap->vertices.size() < (line_vi+1))
+            throw std::runtime_error("bad cache file, vertices out of order!");
+         if (roadmap->vertices.size() == line_vi)
          {
-            roadmap->vertices.resize(line_vi+1);
-            roadmap->vertices[line_vi] = roadmap->space->allocState();
+            ompl::base::State * s = roadmap->space->allocState();
             for (unsigned int i=0; i<serlen; i++)
-               sscanf(line.c_str()+n_chars+2*i, "%02x", &ser[i]);
-            roadmap->space->deserialize(roadmap->vertices[line_vi], &ser[0]);
+               sscanf(line.c_str()+n_chars+2*i, "%02hhx", &ser[i]);
+            roadmap->space->deserialize(s, &ser[0]);
+            roadmap->vertices.push_back(s);
             extended = true;
          }
+         else if (roadmap->vertices.size() < line_vi)
+            throw std::runtime_error("bad cache file, vertices out of order!");
          nv++;
       }
       else if (startswith(line,"edge "))
       {
+         //printf("e\n");
          unsigned int line_ei;
          unsigned int line_va;
          unsigned int line_vb;
@@ -158,16 +168,18 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
             throw std::runtime_error("bad cache file, error parsing edge!");
          if (line_ei != ne)
             throw std::runtime_error("bad cache file, edges out of order!");
-         if (roadmap->edges.size() < (line_ei+1))
+         if (roadmap->edges.size() == line_ei)
          {
-            roadmap->edges.resize(line_ei+1);
-            roadmap->edges[line_ei] = std::make_pair(line_va, line_vb);
+            roadmap->edges.push_back(std::make_pair(line_va, line_vb));
             extended = true;
          }
+         else if (roadmap->edges.size() < line_ei)
+            throw std::runtime_error("bad cache file, edges out of order!");
          ne++;
       }
       else if (startswith(line,"generator_data "))
       {
+         //printf("gen\n");
          if (generator_data.size())
             throw std::runtime_error("bad cache file, duplicate generator_data!");
          generator_data = line.substr(15);
@@ -190,14 +202,16 @@ void C::roadmap_save(ompl_multiset::Roadmap * roadmap)
    // get the space id
    std::string space_id = ompl_multiset::space_id(roadmap->space);
    std::string roadmap_id = roadmap->get_id();
-   std::string hash = sha1("space " + space_id + " roadmap " + roadmap_id);
+   
+   // get roadmap header
+   std::string header;
+   header += "space " + space_id + "\n";
+   header += "roadmap " + roadmap_id + "\n";
    
    // open file
-   boost::filesystem::path newpath = this->cache_dir / ("roadmap-" + hash + ".txt");
+   boost::filesystem::path newpath = this->cache_dir / ("roadmap-" + sha1(header) + ".txt");
    FILE * fp = fopen(newpath.string().c_str(), "w");
-   
-   fprintf(fp, "space %s\n", space_id.c_str());
-   fprintf(fp, "roadmap %s\n", roadmap_id.c_str());
+   fprintf(fp, "%s", header.c_str());
    
    // write subgraphs
    for (unsigned int gi=0; gi<roadmap->subgraphs.size(); gi++)
@@ -244,6 +258,85 @@ void C::si_load(
    std::vector< std::pair<unsigned int, bool> > & vertex_results,
    std::vector< std::pair<unsigned int, bool> > & edge_results)
 {
+   // get the header
+   std::string space_id = ompl_multiset::space_id(roadmap->space);
+   std::string roadmap_id = roadmap->get_id();
+   std::string header;
+   header += "space " + space_id + "\n";
+   header += "roadmap " + roadmap_id + "\n";
+   header += "subset " + set_id + "\n";
+   
+   // open file
+   boost::filesystem::path newpath = this->cache_dir / ("subset-" + sha1(header) + ".txt");
+   std::ifstream sin(newpath.string().c_str());
+   if (!sin.good())
+   {
+      printf("loading subset from cache failed, file not found?\n");
+      return;
+   }
+   
+   std::string line;
+   
+   // space id line first
+   getline(sin, line);
+   if (!startswith(line,"space "))
+      throw std::runtime_error("bad cache file, no space id!");
+   if (line.substr(6) != space_id)
+      throw std::runtime_error("bad cache file, space id mismatch!");
+   
+   // roadmap id line next
+   getline(sin, line);
+   if (!startswith(line,"roadmap "))
+      throw std::runtime_error("bad cache file, no roadmap id!");
+   if (line.substr(8) != roadmap_id)
+      throw std::runtime_error("bad cache file, roadmap id mismatch!");
+   
+   // subset id line next
+   getline(sin, line);
+   if (!startswith(line,"subset "))
+      throw std::runtime_error("bad cache file, no roadmap id!");
+   if (line.substr(7) != set_id)
+      throw std::runtime_error("bad cache file, subset id mismatch!");
+   
+   while (getline(sin, line))
+   {
+      if (startswith(line,"vertex "))
+      {
+         unsigned int line_vi;
+         char line_validity;
+         bool validity;
+         int n_chars;
+         sscanf(line.c_str(), "vertex %u %c%n", &line_vi, &line_validity, &n_chars);
+         if (n_chars != line.size())
+            throw std::runtime_error("bad cache file, error parsing vertex!");
+         if (line_validity == 'V')
+            validity = true;
+         else if (line_validity == 'I')
+            validity = false;
+         else
+            throw std::runtime_error("bad cache file, vertex validity not known!");
+         vertex_results.push_back(std::make_pair(line_vi,validity));
+      }
+      else if (startswith(line,"edge "))
+      {
+         unsigned int line_ei;
+         char line_validity;
+         bool validity;
+         int n_chars;
+         sscanf(line.c_str(), "edge %u %c%n", &line_ei, &line_validity, &n_chars);
+         if (n_chars != line.size())
+            throw std::runtime_error("bad cache file, error parsing vertex!");
+         if (line_validity == 'V')
+            validity = true;
+         else if (line_validity == 'I')
+            validity = false;
+         else
+            throw std::runtime_error("bad cache file, edge validity not known!");
+         edge_results.push_back(std::make_pair(line_ei,validity));
+      }
+      else
+         throw std::runtime_error(sf("bad cache file, unknown line: %s", line.c_str()));
+   }
 }
 
 void C::si_save(
@@ -251,5 +344,32 @@ void C::si_save(
    std::vector< std::pair<unsigned int, bool> > & vertex_results,
    std::vector< std::pair<unsigned int, bool> > & edge_results)
 {
+   // get the header
+   std::string space_id = ompl_multiset::space_id(roadmap->space);
+   std::string roadmap_id = roadmap->get_id();
+   std::string header;
+   header += "space " + space_id + "\n";
+   header += "roadmap " + roadmap_id + "\n";
+   header += "subset " + set_id + "\n";
+   
+   // open file
+   boost::filesystem::path newpath = this->cache_dir / ("subset-" + sha1(header) + ".txt");
+   FILE * fp = fopen(newpath.string().c_str(), "w");
+   fprintf(fp, "%s", header.c_str());
+   
+   for (unsigned int ri=0; ri<vertex_results.size(); ri++)
+   {
+      fprintf(fp, "vertex %u %c\n",
+         vertex_results[ri].first,
+         vertex_results[ri].second ? 'V' : 'I');
+   }
+   for (unsigned int ri=0; ri<edge_results.size(); ri++)
+   {
+      fprintf(fp, "edge %u %c\n",
+         edge_results[ri].first,
+         edge_results[ri].second ? 'V' : 'I');
+   }
+   
+   fclose(fp);
 }
 

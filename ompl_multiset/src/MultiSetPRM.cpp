@@ -190,7 +190,10 @@ public:
    
    // extras
    void force_batch();
-   virtual void force_eval_everything();
+   void force_eval_everything();
+   
+   void cache_load();
+   void cache_save();
 
 private:
    // private methods
@@ -234,14 +237,19 @@ private:
    void update_vertex_estimate(struct VertexProperties & vp, unsigned int ci);
    void update_edge_estimate(struct EdgeProperties & ep, unsigned int ci);
    
+   // these two correctly set dirty bits
    bool isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target);
    bool isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e);
+   
+   // this doesnt set estimate dirty bits or anything
+   void implies_statuses(std::vector<enum CheckStatus> & statuses);
    
    const std::vector<int> & get_edgeperm(int n);
 
    
    // private members
    const ompl_multiset::RoadmapPtr roadmap;
+   const ompl_multiset::CachePtr cache;
    
    // map from roadmap v/e ids to my boost vertex/edge descriptors
    unsigned int roadmap_subgraphs_used;
@@ -277,7 +285,6 @@ private:
    // known cfrees and their costs
    std::vector<Cfree> cfrees;
    std::map<ompl::base::SpaceInformation*, unsigned int> si_to_ci;
-   //std::vector< std::pair<ompl::base::SpaceInformationPtr,double> > sis;
    
    // maintain list of si relations
    // (inclusions, intersections, etc)
@@ -325,7 +332,7 @@ P::P(const ompl::base::StateSpacePtr space,
       const ompl_multiset::CachePtr cache,
       const ompl::base::SpaceInformationPtr si_bogus):
    ompl_multiset::MultiSetPRM(si_bogus, "MultiSetPRM"),
-   roadmap(roadmap), roadmap_subgraphs_used(0),
+   roadmap(roadmap), cache(cache), roadmap_subgraphs_used(0),
    interroot_radius(1.0), lambda(1.0),
    space(space)
 {
@@ -650,6 +657,126 @@ void P::force_eval_everything()
    {
       Vertex v = *vp.first;
       isvalid_vertex(g[v], this->pdef_ci);
+   }
+}
+
+void P::cache_load()
+{
+   if (!this->cache)
+   {
+      OMPL_WARN("MultiSetPRM::cache_load() called, but no cache provided!");
+      return;
+   }
+   // load into roadmap
+   this->cache->roadmap_load(this->roadmap.get());
+   // for each si
+   std::set<Vertex> vertices_touched;
+   std::set<Edge> edges_touched;
+   for (unsigned int ci=0; ci<this->cfrees.size(); ci++)
+   {
+      // save all known roadmap results
+      std::vector< std::pair<unsigned int, bool> > vertex_results;
+      std::vector< std::pair<unsigned int, bool> > edge_results;
+      // load!
+      this->cache->si_load(this->roadmap.get(), this->cfrees[ci].name,
+         vertex_results, edge_results);
+      // vertices
+      for (unsigned int ri=0; ri<vertex_results.size(); ri++)
+      {
+         unsigned int vi = vertex_results[ri].first;
+         if (this->roadmap_vertices.size() <= vi)
+            continue;
+         Vertex v = this->roadmap_vertices[vi];
+         g[v].statuses[ci] = vertex_results[ri].second ? STATUS_VALID : STATUS_INVALID;
+         vertices_touched.insert(v);
+      }
+      // edges
+      for (unsigned int ri=0; ri<edge_results.size(); ri++)
+      {
+         unsigned int ei = edge_results[ri].first;
+         if (this->roadmap_edges.size() <= ei)
+            continue;
+         Edge e = this->roadmap_edges[ei];
+         // meta-status
+         g[e].statuses[ci] = edge_results[ri].second ? STATUS_VALID : STATUS_INVALID;
+         // sub statues
+         // this is an approximation;
+         // if the meta-status is INVALID,
+         // some of the sub states may actually be VALID or UNKNOWN,
+         // but i dont know how i should set them
+         for (unsigned int esi=0; esi<g[e].edgestates.size(); esi++)
+            g[e].edgestates[esi].statuses[ci] = edge_results[ri].second ? STATUS_VALID : STATUS_INVALID;
+         edges_touched.insert(e);
+      }
+   }
+   // calculate cross-ci status implications for touched elements
+   // and set dirty bits
+   for (std::set<Vertex>::iterator it=vertices_touched.begin(); it!=vertices_touched.end(); it++)
+   {
+      this->implies_statuses(g[*it].statuses);
+      for (unsigned int ci=0; ci<g[*it].estimates.size(); ci++)
+         g[*it].estimates[ci].cost_dirty = true;
+   }
+   for (std::set<Edge>::iterator it=edges_touched.begin(); it!=edges_touched.end(); it++)
+   {
+      this->implies_statuses(g[*it].statuses);
+      for (unsigned int esi=0; esi<g[*it].edgestates.size(); esi++)
+         this->implies_statuses(g[*it].edgestates[esi].statuses);
+      for (unsigned int ci=0; ci<g[*it].estimates.size(); ci++)
+         g[*it].estimates[ci].cost_dirty = true;
+   }
+}
+
+void P::cache_save()
+{
+   if (!this->cache)
+   {
+      OMPL_WARN("MultiSetPRM::cache_save() called, but no cache provided!");
+      return;
+   }
+   // save from roadmap
+   this->cache->roadmap_save(this->roadmap.get());
+   // for each si
+   for (unsigned int ci=0; ci<this->cfrees.size(); ci++)
+   {
+      // save all known roadmap results
+      std::vector< std::pair<unsigned int, bool> > vertex_results;
+      std::vector< std::pair<unsigned int, bool> > edge_results;
+      // vertices
+      for (unsigned int vi=0; vi<this->roadmap_vertices.size(); vi++)
+      {
+         Vertex v = this->roadmap_vertices[vi];
+         switch (g[v].statuses[ci])
+         {
+         case STATUS_VALID:
+            vertex_results.push_back(std::make_pair(vi,true));
+            break;
+         case STATUS_INVALID:
+            vertex_results.push_back(std::make_pair(vi,false));
+            break;
+         case STATUS_UNKNOWN:
+            break;
+         }
+      }
+      // edges
+      for (unsigned int ei=0; ei<this->roadmap_edges.size(); ei++)
+      {
+         Edge e = this->roadmap_edges[ei];
+         switch (g[e].statuses[ci])
+         {
+         case STATUS_VALID:
+            edge_results.push_back(std::make_pair(ei,true));
+            break;
+         case STATUS_INVALID:
+            edge_results.push_back(std::make_pair(ei,false));
+            break;
+         case STATUS_UNKNOWN:
+            break;
+         }
+      }
+      // save!
+      this->cache->si_save(this->roadmap.get(), this->cfrees[ci].name,
+         vertex_results, edge_results);
    }
 }
 
@@ -1271,41 +1398,7 @@ bool P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
       }
       
       // what does this imply for all our other statuses?
-      std::list< std::vector<bool> > truths = this->truthtable;
-      for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end();)
-      {
-         for (ci=0; ci<vp.statuses.size(); ci++)
-         {
-            if (vp.statuses[ci] == STATUS_UNKNOWN)
-               continue;
-            if ((vp.statuses[ci]==STATUS_VALID) != (*it)[ci])
-               break;
-         }
-         if (ci<vp.statuses.size())
-            it = truths.erase(it);
-         else
-            it++;
-      }
-      for (ci=0; ci<vp.statuses.size(); ci++)
-      {
-         bool found_true = false;
-         bool found_false = false;
-         for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end(); it++)
-         {
-            if ((*it)[ci])
-               found_true = true;
-            else
-               found_false = true;
-         }
-         if (found_true && found_false)
-            continue;
-         if (!found_true && !found_false)
-            throw ompl::Exception("inconsistent statuses!");
-         if (found_true && !found_false)
-            vp.statuses[ci] = STATUS_VALID;
-         if (!found_true && found_false)
-            vp.statuses[ci] = STATUS_INVALID;
-      }
+      this->implies_statuses(vp.statuses);
       
 #ifdef DEBUG_DUMPFILE
       if (this->dump_fp)
@@ -1362,42 +1455,8 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
                ep.edgestates[ei].statuses[ci] = STATUS_INVALID;
          }
          
-         // what does this imply for all our other statuses?
-         std::list< std::vector<bool> > truths = this->truthtable;
-         for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end();)
-         {
-            for (ci=0; ci<ep.edgestates[ei].statuses.size(); ci++)
-            {
-               if (ep.edgestates[ei].statuses[ci] == STATUS_UNKNOWN)
-                  continue;
-               if ((ep.edgestates[ei].statuses[ci]==STATUS_VALID) != (*it)[ci])
-                  break;
-            }
-            if (ci<ep.edgestates[ei].statuses.size())
-               it = truths.erase(it);
-            else
-               it++;
-         }
-         for (ci=0; ci<ep.edgestates[ei].statuses.size(); ci++)
-         {
-            bool found_true = false;
-            bool found_false = false;
-            for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end(); it++)
-            {
-               if ((*it)[ci])
-                  found_true = true;
-               else
-                  found_false = true;
-            }
-            if (found_true && found_false)
-               continue;
-            if (!found_true && !found_false)
-               throw ompl::Exception("inconsistent statuses!");
-            if (found_true && !found_false)
-               ep.edgestates[ei].statuses[ci] = STATUS_VALID;
-            if (!found_true && found_false)
-               ep.edgestates[ei].statuses[ci] = STATUS_INVALID;
-         }
+         // what does this imply for all our other statuses (at the edge point only)?
+         this->implies_statuses(ep.edgestates[ei].statuses);
          
          /* fail early if we know we're invalid w.r.t. ci_target */
          if (ep.edgestates[ei].statuses[ci_target] == STATUS_INVALID)
@@ -1440,4 +1499,45 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
       return true;
    else
       return false;
+}
+
+inline
+void P::implies_statuses(std::vector<enum CheckStatus> & statuses)
+{
+   int ci;
+   std::list< std::vector<bool> > truths = this->truthtable;
+   for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end();)
+   {
+      for (ci=0; ci<statuses.size(); ci++)
+      {
+         if (statuses[ci] == STATUS_UNKNOWN)
+            continue;
+         if ((statuses[ci]==STATUS_VALID) != (*it)[ci])
+            break;
+      }
+      if (ci<statuses.size())
+         it = truths.erase(it);
+      else
+         it++;
+   }
+   for (ci=0; ci<statuses.size(); ci++)
+   {
+      bool found_true = false;
+      bool found_false = false;
+      for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end(); it++)
+      {
+         if ((*it)[ci])
+            found_true = true;
+         else
+            found_false = true;
+      }
+      if (found_true && found_false)
+         continue;
+      if (!found_true && !found_false)
+         throw ompl::Exception("inconsistent statuses!");
+      if (found_true && !found_false)
+         statuses[ci] = STATUS_VALID;
+      if (!found_true && found_false)
+         statuses[ci] = STATUS_INVALID;
+   }
 }
