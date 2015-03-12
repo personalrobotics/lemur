@@ -10,6 +10,10 @@
 #include <ompl/base/ScopedState.h>
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapSampledConst.h>
+#include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
 int read_png(const char * filename, int * pwidth, int * pheight, unsigned char ** pdata)
@@ -206,9 +210,11 @@ int main(int argc, char * argv[])
    space->setLongestValidSegmentFraction(2.0 / space->getMaximumExtent());
    
    /* create planner */
-   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space);
-   p->set_batchsize(100);
-   p->set_radius(100.0);
+   ompl_multiset::RoadmapPtr roadmap(
+      new ompl_multiset::RoadmapSampledConst(space, 419884521, 100, 100.0));
+   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space,
+      roadmap, ompl_multiset::CachePtr());
+   p->set_interroot_radius(100.0);
    p->set_dumpfile(argv[4]);
    
    /* create spaceinfos */

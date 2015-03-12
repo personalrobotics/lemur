@@ -7,6 +7,8 @@
 #include <ompl/base/Planner.h>
 #include <ompl/base/ProblemDefinition.h>
 
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
 #include "params_checkmask.h"

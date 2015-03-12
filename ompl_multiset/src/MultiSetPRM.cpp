@@ -13,6 +13,8 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
 
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
 //#define DEBUG_DUMPFILE 1
@@ -159,8 +161,10 @@ private:
 
 public:
 
-   P(const ompl::base::StateSpacePtr & space,
-      const ompl::base::SpaceInformationPtr & si_bogus);
+   P(const ompl::base::StateSpacePtr space,
+      const ompl_multiset::RoadmapPtr roadmap,
+      const ompl_multiset::CachePtr cache,
+      const ompl::base::SpaceInformationPtr si_bogus);
    ~P(void);
 
    // ompl planner interface
@@ -169,8 +173,7 @@ public:
    void clear(void);
    
    // parameters
-   void set_batchsize(int batchsize);
-   void set_radius(double radius);
+   void set_interroot_radius(double interroot_radius);
    void set_lambda(double lambda);
    
    void set_dumpfile(const char * dumpfile);
@@ -213,10 +216,16 @@ private:
    
    bool isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es);
    
+   void add_subgraph();
+   
    // this takes ownership of the state
-   // this also adds edges within the specified radius (currently 0.2)
+   // does not add any edges!
    Vertex add_vertex(ompl::base::State * s);
+   
    Edge add_edge(Vertex va, Vertex vb);
+   
+   // assume vroot isnt in this->v_roots[] yet
+   void add_initial_root_edges(Vertex vroot);
    
    // ok, this is where the magic happens!
    // hopefully this will be inlined
@@ -232,10 +241,17 @@ private:
 
    
    // private members
+   const ompl_multiset::RoadmapPtr roadmap;
+   
+   // map from roadmap v/e ids to my boost vertex/edge descriptors
+   unsigned int roadmap_subgraphs_used;
+   std::vector<Vertex> roadmap_vertices;
+   std::vector<Edge> roadmap_edges;
+   
+   std::vector<Vertex> v_roots;
    
    // PRM parameters
-   int batchsize;
-   double radius;
+   double interroot_radius;
    double lambda;
    
    double resolution; // from space
@@ -248,7 +264,6 @@ private:
    // (of course we can handle many different spaceinformations,
    //  as long as they all share the same space and parameters
    ompl::base::StateSpacePtr space;
-   ompl::base::StateSamplerPtr sampler;
    
    // the current problem definition
    ompl::base::ProblemDefinitionPtr pdef;
@@ -290,7 +305,10 @@ private:
 } // anonymous namespace
 
 // static creation method
-ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(const ompl::base::StateSpacePtr & space)
+ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(
+   const ompl::base::StateSpacePtr space,
+   const ompl_multiset::RoadmapPtr roadmap,
+   const ompl_multiset::CachePtr cache)
 {
    ompl::base::SpaceInformationPtr si_bogus(new ompl::base::SpaceInformation(space));
    si_bogus->setStateValidityChecker(
@@ -299,15 +317,20 @@ ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(const ompl::base
       )
    );
    si_bogus->setup();
-   return new P(space, si_bogus);
+   return new P(space, roadmap, cache, si_bogus);
 }
 
-P::P(const ompl::base::StateSpacePtr & space,
-      const ompl::base::SpaceInformationPtr & si_bogus):
+P::P(const ompl::base::StateSpacePtr space,
+      const ompl_multiset::RoadmapPtr roadmap,
+      const ompl_multiset::CachePtr cache,
+      const ompl::base::SpaceInformationPtr si_bogus):
    ompl_multiset::MultiSetPRM(si_bogus, "MultiSetPRM"),
-   batchsize(1), radius(1.0), lambda(1.0), resolution(0.01),
-   space(space), sampler(space->allocStateSampler())
+   roadmap(roadmap), roadmap_subgraphs_used(0),
+   interroot_radius(1.0), lambda(1.0),
+   space(space)
 {
+   if (this->roadmap->space != space)
+      throw ompl::Exception("roadmap's space doesnt match planner's space!");
    printf("constructor called!\n");
    this->resolution = space->getLongestValidSegmentFraction() * space->getMaximumExtent();
    printf("resolution: %f\n", this->resolution);
@@ -367,19 +390,25 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
    ompl::base::GoalSampleableRegion * goalset = this->pdef->getGoal()->as<ompl::base::GoalSampleableRegion>();
    
    // make sure we've added our start and goal vertices to the graph
-   // EVENTUALLY THIS SHOULD SEARCH THE GRARPH FOR EXISTING VERTICES!
+   // EVENTUALLY THIS SHOULD SEARCH THE GRAPH FOR EXISTING VERTICES!
    while (pdefdata.v_starts.size() < this->pdef->getStartStateCount())
    {
       const ompl::base::State * s = this->pdef->getStartState(pdefdata.v_starts.size());
       ompl::base::State * s_new = this->space->allocState();
       this->space->copyState(s_new, s);
-      pdefdata.v_starts.push_back(this->add_vertex(s_new));
+      Vertex v = this->add_vertex(s_new);
+      this->add_initial_root_edges(v);
+      pdefdata.v_starts.push_back(v);
+      v_roots.push_back(v);
    }
    while (pdefdata.v_goals.size() < goalset->maxSampleCount() && goalset->canSample())
    {
       ompl::base::State * s_new = this->space->allocState();
       goalset->sampleGoal(s_new);
-      pdefdata.v_goals.push_back(this->add_vertex(s_new));
+      Vertex v = this->add_vertex(s_new);
+      this->add_initial_root_edges(v);
+      pdefdata.v_goals.push_back(v);
+      v_roots.push_back(v);
    }
    
    if (!pdefdata.v_starts.size())
@@ -401,13 +430,8 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
       success = this->dijkstras_bidirectional(pdefdata, path_vs, path_es, cost_estimate);
       if (!success)
       {
-         printf("no connection found! adding %d random vertices ...\n", this->batchsize);
-         for (int i=0; i<this->batchsize; i++)
-         {
-            ompl::base::State * s_new = this->space->allocState();
-            this->sampler->sampleUniform(s_new);
-            this->add_vertex(s_new);
-         }
+         printf("no connection found! considering next subgraph [%u] ...\n", this->roadmap_subgraphs_used);
+         this->add_subgraph();
          continue;
       }
       
@@ -464,14 +488,9 @@ void P::clear(void)
    throw std::runtime_error("clear not implemented!");
 }
 
-void P::set_batchsize(int batchsize)
+void P::set_interroot_radius(double interroot_radius)
 {
-   this->batchsize = batchsize;
-}
-
-void P::set_radius(double radius)
-{
-   this->radius = radius;
+   this->interroot_radius = interroot_radius;
 }
 
 void P::set_lambda(double lambda)
@@ -566,21 +585,48 @@ void P::add_intersection(
 // extras
 void P::force_batch()
 {
-   printf("forcing a batch . adding %d random vertices ...\n", this->batchsize);
-   for (int i=0; i<this->batchsize; i++)
+   printf("force considering next subgraph [%u] ...\n", this->roadmap_subgraphs_used);
+   this->add_subgraph();
+}
+
+void P::add_subgraph()
+{
+   // new subgraph to include
+   // ensure new subgraph is generated
+   unsigned int gi = this->roadmap_subgraphs_used;
+   this->roadmap->subgraphs_generate(gi+1);
+   ompl_multiset::Roadmap::SubGraph & sg = this->roadmap->subgraphs[gi];
+   
+   // add new vertices
+   while (this->roadmap_vertices.size() < sg.nv)
    {
       ompl::base::State * s_new = this->space->allocState();
-      this->sampler->sampleUniform(s_new);
+      this->space->copyState(s_new, this->roadmap->vertices[this->roadmap_vertices.size()]);
+      Vertex v = this->add_vertex(s_new);
+      this->roadmap_vertices.push_back(v);
       
-      if (i==0)
+      // add new edges to roots?
+      for (unsigned int vi=0; vi<this->v_roots.size(); vi++)
       {
-         double * q = s_new->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-         printf("first sampled state (random): %f %f %f %f %f %f %f\n",
-            q[0], q[1], q[2], q[3], q[4], q[5], q[6]);
+         Vertex root = this->v_roots[vi];
+         double dist = this->space->distance(s_new, this->g[root].s);
+         if (sg.root_radius < dist)
+            continue;
+         this->add_edge(v, root);
       }
-      
-      this->add_vertex(s_new);
    }
+   
+   // add new edges between roadmap vertices
+   while (this->roadmap_edges.size() < sg.ne)
+   {
+      std::pair<unsigned int, unsigned int> & re = this->roadmap->edges[this->roadmap_edges.size()];
+      Vertex va = this->roadmap_vertices[re.first];
+      Vertex vb = this->roadmap_vertices[re.second];
+      Edge e = this->add_edge(va, vb);
+      this->roadmap_edges.push_back(e);
+   }
+   
+   this->roadmap_subgraphs_used++;
 }
 
 void P::force_eval_everything()
@@ -1013,6 +1059,7 @@ P::Vertex P::add_vertex(ompl::base::State * s)
       for (int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
    }
 #endif
+#if 0
    // for now, we find nearest neighbors by just iterating over
    // all existing vertices
    for (std::pair<VertexIter,VertexIter> vp = boost::vertices(this->g);
@@ -1026,6 +1073,7 @@ P::Vertex P::add_vertex(ompl::base::State * s)
          continue;
       this->add_edge(v, n);
    }
+#endif
    return v;
 }
 
@@ -1073,6 +1121,35 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
          this->g[e].statuses[i] = STATUS_VALID;
    }
    return e;
+}
+
+void P::add_initial_root_edges(Vertex vroot)
+{
+   // iterate over all fixed-roadmap (non-root) vertices
+   // and connect to them based on the subgraph's root_radius
+   unsigned int vi=0;
+   for (unsigned int gi=0; gi<this->roadmap_subgraphs_used; gi++)
+   {
+      ompl_multiset::Roadmap::SubGraph & sg = this->roadmap->subgraphs[gi];
+      for (; vi<sg.nv; vi++)
+      {
+         Vertex v = this->roadmap_vertices[vi];
+         double dist = this->space->distance(this->g[vroot].s, this->g[v].s);
+         if (sg.root_radius < dist)
+            continue;
+         this->add_edge(vroot, v);
+      }
+   }
+   // iterate over all existing roots
+   // and connect to them based on some random radius parameter
+   for (vi=0; vi<this->v_roots.size(); vi++)
+   {
+      Vertex v = this->v_roots[vi];
+      double dist = this->space->distance(this->g[vroot].s, this->g[v].s);
+      if (this->interroot_radius < dist)
+         continue;
+      this->add_edge(vroot, v);
+   }
 }
 
 // from calc_order_endgood

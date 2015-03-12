@@ -9,11 +9,21 @@ namespace ompl_multiset
 class Roadmap
 {
 public:
+   struct SubGraph
+   {
+      unsigned int nv;
+      unsigned int ne;
+      double root_radius;
+      SubGraph(unsigned int nv, unsigned int ne, double root_radius):
+         nv(nv), ne(ne), root_radius(root_radius) {}
+      SubGraph(): nv(0), ne(0), root_radius(0.) {}
+   };
+
    const ompl::base::StateSpacePtr space;
    // these hold computed information
    std::vector< ompl::base::State * > vertices;
    std::vector< std::pair<unsigned int, unsigned int> > edges;
-   std::vector< std::pair<unsigned int, unsigned int> > subgraphs; // nv, ne
+   std::vector< SubGraph > subgraphs; // nv, ne
    
    Roadmap(ompl::base::StateSpacePtr space): space(space) {};
    virtual ~Roadmap() {};
@@ -31,5 +41,7 @@ public:
    virtual void generator_save(std::string & data) = 0;
    virtual void generator_load(std::string & data) = 0;
 };
+
+typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
 } // namespace ompl_multiset

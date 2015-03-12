@@ -2,7 +2,6 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
-#include <openssl/sha.h>
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
 #include <boost/functional/hash.hpp>
@@ -10,38 +9,11 @@
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/SpaceID.h>
 #include <ompl_multiset/Cache.h>
+#include <ompl_multiset/util.h>
+
+using namespace ompl_multiset::util; // for sf, startswith, sha1, double_to_text
 
 namespace {
-
-bool startswith(std::string s, std::string prefix)
-{
-   return s.substr(0,prefix.size()) == prefix;
-}
-
-std::string sf(const char * fmt, ...)
-{
-  va_list ap;
-  va_start(ap, fmt);
-  int size = vsnprintf(0, 0, fmt, ap);
-  va_end(ap);
-  char * buf = new char[size+1];
-  va_start(ap, fmt);
-  vsnprintf(buf, size+1, fmt, ap);
-  va_end(ap);
-  std::string ret = std::string(buf);
-  delete[] buf;
-  return ret;
-}
-
-std::string sha1(std::string in)
-{
-   unsigned char hashed[20];
-   SHA1((const unsigned char *)in.c_str(), in.size(), hashed); // openssl
-   std::string out;
-   for (int i=0; i<20; i++)
-      out += sf("%02x", hashed[i]);
-   return out;
-}
 
 class C : public ompl_multiset::Cache
 {
@@ -137,9 +109,10 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
          unsigned int line_gi;
          unsigned int line_nv;
          unsigned int line_ne;
+         double line_root_radius;
          int n_chars;
-         sscanf(line.c_str(), "subgraph %u nv %u ne %u%n",
-            &line_gi, &line_nv, &line_ne, &n_chars);
+         sscanf(line.c_str(), "subgraph %u nv %u ne %u root_radius %lf%n",
+            &line_gi, &line_nv, &line_ne, &line_root_radius, &n_chars);
          if (n_chars != line.size())
             throw std::runtime_error("bad cache file, error parsing subgraph!");
          if (line_gi != ng)
@@ -147,7 +120,8 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
          if (roadmap->subgraphs.size() < (line_gi+1))
          {
             roadmap->subgraphs.resize(line_gi+1);
-            roadmap->subgraphs[line_gi] = std::make_pair(line_nv, line_ne);
+            roadmap->subgraphs[line_gi] = ompl_multiset::Roadmap::SubGraph(
+               line_nv, line_ne, line_root_radius);
             extended = true;
          }
          ng++;
@@ -228,9 +202,10 @@ void C::roadmap_save(ompl_multiset::Roadmap * roadmap)
    // write subgraphs
    for (unsigned int gi=0; gi<roadmap->subgraphs.size(); gi++)
    {
-      fprintf(fp, "subgraph %u nv %u ne %u\n", gi,
-         roadmap->subgraphs[gi].first,
-         roadmap->subgraphs[gi].second);
+      fprintf(fp, "subgraph %u nv %u ne %u root_radius %s\n", gi,
+         roadmap->subgraphs[gi].nv,
+         roadmap->subgraphs[gi].ne,
+         double_to_text(roadmap->subgraphs[gi].root_radius).c_str());
    }
    
    // write vertices

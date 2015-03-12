@@ -19,6 +19,9 @@
 #include <ompl/geometric/planners/kpiece/LBKPIECE1.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
 
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapSampledConst.h>
+#include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
 OpenRAVE::Transform ortx_from_pose(const double pose[7])
@@ -73,10 +76,10 @@ unsigned long long checktime;
 #define RELS_OG_SELFCC 4
 
 #define BLACK_BOX_BROAD_PHASE 0
-#define LAMBDA (0.0001)
+//#define LAMBDA (0.0001)
 //#define LAMBDA (0.5)
-//#define LAMBDA (0.9999)
-#define RELS 1
+#define LAMBDA (0.9999)
+#define RELS 2
 
 #define PLANNER_MULTISET 1
 #define PLANNER_RRT 2
@@ -841,10 +844,12 @@ int main(int argc, char * argv[])
    
 #if PLANNER == PLANNER_MULTISET
 
-   /* create planner (with dummy si based on our space) */
-   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space);
-   p->set_radius(2.0);
-   p->set_batchsize(1000);
+   /* create planner */
+   ompl_multiset::RoadmapPtr roadmap(
+      new ompl_multiset::RoadmapSampledConst(space, 419884521, 1000, 2.0));
+   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(
+      space, roadmap, ompl_multiset::CachePtr());
+   p->set_interroot_radius(2.0);
    p->set_lambda(LAMBDA);
    
 #if 0

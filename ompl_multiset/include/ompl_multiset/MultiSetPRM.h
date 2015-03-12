@@ -2,6 +2,8 @@
 #include <string>
 #include <vector>
 #include <ompl/base/Planner.h>
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/Cache.h>
 */
 
 namespace ompl_multiset
@@ -10,7 +12,10 @@ namespace ompl_multiset
 class MultiSetPRM : public ompl::base::Planner
 {
 public:
-   static MultiSetPRM * create(const ompl::base::StateSpacePtr & space);
+   static MultiSetPRM * create(
+      const ompl::base::StateSpacePtr space,
+      const ompl_multiset::RoadmapPtr roadmap,
+      const ompl_multiset::CachePtr cache);
    virtual ~MultiSetPRM(void) {};
 
    // ompl planner interface
@@ -19,8 +24,7 @@ public:
    virtual void clear(void) = 0;
    
    // PRM parameters
-   virtual void set_batchsize(int batchsize) = 0;
-   virtual void set_radius(double radius) = 0;
+   virtual void set_interroot_radius(double interroot_radius) = 0;
    virtual void set_lambda(double lambda) = 0;
    
    virtual void set_dumpfile(const char * dumpfile) = 0;

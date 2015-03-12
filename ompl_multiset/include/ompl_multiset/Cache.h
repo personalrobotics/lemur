@@ -29,6 +29,8 @@ public:
       std::vector< std::pair<unsigned int, bool> > & edge_results) = 0;
 };
 
+typedef boost::shared_ptr<Cache> CachePtr;
+
 Cache * cache_create(std::string cache_dir);
    
 } // namespace ompl_multiset

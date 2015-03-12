@@ -4,20 +4,17 @@ namespace ompl_multiset
 
 // for now this is an r-disk prm,
 // uniform milestone sampling with given seed,
-// with decreasing edge radius based on the rrt* shrinking ball
 // uses the space's default sampler
-// i think this is a batched version of frazzoli's PRM*?
-// gamma_rel > 1 for optimality?
-class RoadmapSampledDensified : public Roadmap
+class RoadmapSampledConst : public Roadmap
 {
 public:
    // required methods
-   RoadmapSampledDensified(
+   RoadmapSampledConst(
       const ompl::base::StateSpacePtr space,
       unsigned int seed,
       unsigned int batch_n, // number of milestones per subgraph (batch)
-      double gamma_rel);
-   ~RoadmapSampledDensified();
+      double radius);
+   ~RoadmapSampledConst();
    
    std::string get_id();
    
@@ -31,8 +28,7 @@ private:
    std::string id;
    ompl::base::StateSamplerPtr sampler;
    unsigned int batch_n;
-   double gamma;
-   unsigned int d;
+   double radius;
 };
 
 } // namespace ompl_multiset

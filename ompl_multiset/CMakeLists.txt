@@ -24,9 +24,11 @@ link_libraries(
 add_library(${PROJECT_NAME}
    src/Cache.cpp
    src/MultiSetPRM.cpp
+   src/RoadmapSampledConst.cpp
    src/RoadmapSampledDensified.cpp
    src/SamplerGenMonkeyPatch.cpp
-   src/SpaceID.cpp)
+   src/SpaceID.cpp
+   src/util.cpp)
 
 add_executable(test_rng_monkeypatch src/test_rng_monkeypatch.cpp)
 target_link_libraries(test_rng_monkeypatch ${PROJECT_NAME})

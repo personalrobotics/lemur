@@ -11,6 +11,9 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
 
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapSampledConst.h>
+#include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
 #include "params_checkmask.h"
@@ -104,9 +107,11 @@ bool or_multiset::MultiSetPRM::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::
       }
 
       // create planner itself
-      this->p = ompl_multiset::MultiSetPRM::create(this->ompl_space);
-      this->p->set_radius(2.0);
-      this->p->set_batchsize(1000);
+      ompl_multiset::RoadmapPtr roadmap(
+         new ompl_multiset::RoadmapSampledConst(this->ompl_space, 419884521, 1000, 2.0));
+      this->p = ompl_multiset::MultiSetPRM::create(this->ompl_space,
+         roadmap, ompl_multiset::CachePtr());
+      this->p->set_interroot_radius(2.0);
    }
    
    if (robot != this->robot || robot->GetActiveDOFIndices() != this->adofs)

@@ -10,6 +10,9 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapSampledConst.h>
+#include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
 double checkcost_measured;
@@ -118,9 +121,11 @@ int main(int argc, char * argv[])
    space->setLongestValidSegmentFraction(0.01 / space->getMaximumExtent());
    
    /* create planner */
-   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space);
-   p->set_batchsize(100);
-   p->set_radius(0.2);
+   ompl_multiset::RoadmapPtr roadmap(
+      new ompl_multiset::RoadmapSampledConst(space, 419884521, 100, 0.2));
+   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space,
+      roadmap, ompl_multiset::CachePtr());
+   p->set_interroot_radius(0.2);
    
    /* space information containers for each cfree */
    si_r.reset(new ompl::base::SpaceInformation(space));

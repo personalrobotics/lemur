@@ -26,7 +26,7 @@ int main()
    }
 #endif   
    
-#if 1
+#if 0
    {
       ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(7));
       ompl::base::RealVectorBounds bounds(7);
