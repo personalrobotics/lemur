@@ -7,14 +7,14 @@
 #include <ompl/base/Planner.h>
 #include <ompl/base/ProblemDefinition.h>
 
-#include <checkmask/graph.h>
+#include <ompl_multiset/MultiSetPRM.h>
 
 #include "params_checkmask.h"
 #include "planner_checkmask.h"
 
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {
-   info.interfacenames[OpenRAVE::PT_Planner].push_back("OmplCheckMask");
+   info.interfacenames[OpenRAVE::PT_Planner].push_back("MultiSetPRM");
 }
 
 OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
@@ -23,8 +23,8 @@ OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
    std::istream& sinput,
    OpenRAVE::EnvironmentBasePtr penv)
 {
-   if((type == OpenRAVE::PT_Planner) && (interfacename == "omplcheckmask"))
-      return OpenRAVE::InterfaceBasePtr(new checkmask::OmplCheckMask(penv));
+   if((type == OpenRAVE::PT_Planner) && (interfacename == "multisetprm"))
+      return OpenRAVE::InterfaceBasePtr(new or_multiset::MultiSetPRM(penv));
    return OpenRAVE::InterfaceBasePtr();
 }
 

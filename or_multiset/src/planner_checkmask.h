@@ -1,4 +1,4 @@
-namespace checkmask
+namespace or_multiset
 {
 
 bool fuzzy_equals(const OpenRAVE::Transform & tx1, const OpenRAVE::Transform & tx2, OpenRAVE::dReal fuzz);
@@ -59,7 +59,7 @@ struct Intersection
    unsigned int intersection;
 };
 
-class OmplCheckMask : public OpenRAVE::PlannerBase
+class MultiSetPRM : public OpenRAVE::PlannerBase
 {
 public:
 
@@ -85,7 +85,7 @@ public:
    unsigned int sidx_current;
    
    ompl::base::StateSpacePtr ompl_space;
-   checkmask::GraphPlanner * p;
+   ompl_multiset::MultiSetPRM * p;
    
    // cumulative time in the isvalid function
    // cleared by PlanPath, retrieved by GetTimes
@@ -99,8 +99,8 @@ public:
    //ompl::base::PlannerPtr planner;
    //boost::shared_ptr<pr_constraint::HolonomicConstraint> holonomic_constraint;
 
-   OmplCheckMask(OpenRAVE::EnvironmentBasePtr penv);
-   ~OmplCheckMask();
+   MultiSetPRM(OpenRAVE::EnvironmentBasePtr penv);
+   ~MultiSetPRM();
    
    bool InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & isParameters);
    bool InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::PlannerBase::PlannerParametersConstPtr params);
@@ -131,4 +131,4 @@ public:
    bool ompl_isvalid(unsigned int sidx, const ompl::base::State * s);
 };
 
-} /* namespace pr_constraint_or_ompl */
+} /* namespace or_multiset */

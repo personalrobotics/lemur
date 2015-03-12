@@ -4,14 +4,14 @@
 #include <ompl/base/Planner.h>
 */
 
-namespace checkmask
+namespace ompl_multiset
 {
 
-class GraphPlanner : public ompl::base::Planner
+class MultiSetPRM : public ompl::base::Planner
 {
 public:
-   static GraphPlanner * create(const ompl::base::StateSpacePtr & space);
-   virtual ~GraphPlanner(void) {};
+   static MultiSetPRM * create(const ompl::base::StateSpacePtr & space);
+   virtual ~MultiSetPRM(void) {};
 
    // ompl planner interface
    virtual void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef) = 0;
@@ -46,9 +46,9 @@ public:
    virtual void force_eval_everything() = 0; // just for the current problem definition!
 
 protected:
-   GraphPlanner(const ompl::base::SpaceInformationPtr & si, const std::string & name):
+   MultiSetPRM(const ompl::base::SpaceInformationPtr & si, const std::string & name):
       ompl::base::Planner(si,name) {}
 };
 
-} // namespace checkmask
+} // namespace ompl_multiset_prm
 

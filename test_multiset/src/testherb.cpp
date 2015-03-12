@@ -19,7 +19,7 @@
 #include <ompl/geometric/planners/kpiece/LBKPIECE1.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
 
-#include <checkmask/graph.h>
+#include <ompl_multiset/MultiSetPRM.h>
 
 OpenRAVE::Transform ortx_from_pose(const double pose[7])
 {
@@ -83,7 +83,7 @@ unsigned long long checktime;
 #define PLANNER_LBKPIECE1 3
 #define PLANNER_EST 4
 
-#define PLANNER PLANNER_EST
+#define PLANNER PLANNER_MULTISET
 
 // this is regardless of the mug location and grabbed state
 bool isvalid_now_PS(void)
@@ -649,7 +649,11 @@ int main(int argc, char * argv[])
 		std::vector<OpenRAVE::dReal> uppers;
       probot->GetActiveDOFLimits(lowers, uppers);
       for (int i=0; i<probot->GetActiveDOF(); i++)
-         { bounds.setLow(i, lowers[i]); bounds.setHigh(i, uppers[i]); }
+      {
+         bounds.setLow(i, lowers[i]);
+         bounds.setHigh(i, uppers[i]);
+         printf("bounds for dof %d: %.20f,%.20f\n", lowers[i], uppers[i]);
+      }
       space->as<ompl::base::RealVectorStateSpace>()->setBounds(bounds);
    }
    /* set space resolution */
@@ -838,7 +842,7 @@ int main(int argc, char * argv[])
 #if PLANNER == PLANNER_MULTISET
 
    /* create planner (with dummy si based on our space) */
-   checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
+   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space);
    p->set_radius(2.0);
    p->set_batchsize(1000);
    p->set_lambda(LAMBDA);

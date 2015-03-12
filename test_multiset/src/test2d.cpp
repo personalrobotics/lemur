@@ -10,7 +10,7 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
-#include <checkmask/graph.h>
+#include <ompl_multiset/MultiSetPRM.h>
 
 double checkcost_measured;
 
@@ -118,7 +118,7 @@ int main(int argc, char * argv[])
    space->setLongestValidSegmentFraction(0.01 / space->getMaximumExtent());
    
    /* create planner */
-   checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
+   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space);
    p->set_batchsize(100);
    p->set_radius(0.2);
    

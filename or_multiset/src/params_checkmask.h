@@ -1,5 +1,5 @@
 
-namespace checkmask
+namespace or_multiset
 {
 
 // <startstate> and <goalstate> can be specified multiple times
@@ -120,4 +120,4 @@ protected:
 typedef boost::shared_ptr<PlannerParameters> PlannerParametersPtr;
 typedef boost::shared_ptr<PlannerParameters const> PlannerParametersConstPtr;
 
-}
+} // namespace or_multiset

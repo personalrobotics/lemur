@@ -13,7 +13,7 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
 
-#include <checkmask/graph.h>
+#include <ompl_multiset/MultiSetPRM.h>
 
 //#define DEBUG_DUMPFILE 1
 
@@ -58,7 +58,7 @@ std::vector<int> perm_edgestates(int n)
    return perm;
 }
 
-class P : public checkmask::GraphPlanner
+class P : public ompl_multiset::MultiSetPRM
 {
 private:
    // types
@@ -290,7 +290,7 @@ private:
 } // anonymous namespace
 
 // static creation method
-checkmask::GraphPlanner * checkmask::GraphPlanner::create(const ompl::base::StateSpacePtr & space)
+ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(const ompl::base::StateSpacePtr & space)
 {
    ompl::base::SpaceInformationPtr si_bogus(new ompl::base::SpaceInformation(space));
    si_bogus->setStateValidityChecker(
@@ -304,7 +304,7 @@ checkmask::GraphPlanner * checkmask::GraphPlanner::create(const ompl::base::Stat
 
 P::P(const ompl::base::StateSpacePtr & space,
       const ompl::base::SpaceInformationPtr & si_bogus):
-   checkmask::GraphPlanner(si_bogus, "CheckMaskGraph"),
+   ompl_multiset::MultiSetPRM(si_bogus, "MultiSetPRM"),
    batchsize(1), radius(1.0), lambda(1.0), resolution(0.01),
    space(space), sampler(space->allocStateSampler())
 {
@@ -571,6 +571,14 @@ void P::force_batch()
    {
       ompl::base::State * s_new = this->space->allocState();
       this->sampler->sampleUniform(s_new);
+      
+      if (i==0)
+      {
+         double * q = s_new->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         printf("first sampled state (random): %f %f %f %f %f %f %f\n",
+            q[0], q[1], q[2], q[3], q[4], q[5], q[6]);
+      }
+      
       this->add_vertex(s_new);
    }
 }

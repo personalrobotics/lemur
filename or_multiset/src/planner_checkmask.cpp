@@ -11,7 +11,7 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
 
-#include <checkmask/graph.h>
+#include <ompl_multiset/MultiSetPRM.h>
 
 #include "params_checkmask.h"
 #include "planner_checkmask.h"
@@ -34,35 +34,35 @@ std::string sf(const char * fmt, ...)
 } // anonymous namespace
 
 
-checkmask::OmplCheckMask::OmplCheckMask(OpenRAVE::EnvironmentBasePtr penv):
+or_multiset::MultiSetPRM::MultiSetPRM(OpenRAVE::EnvironmentBasePtr penv):
    OpenRAVE::PlannerBase(penv), p(0)
 {
    __description = "OmplCheckMask description";
-   this->RegisterCommand("SetOMPLSeed",boost::bind(&checkmask::OmplCheckMask::SetOMPLSeed,this,_1,_2),"SetOMPLSeed");
-   this->RegisterCommand("ListSpaces",boost::bind(&checkmask::OmplCheckMask::ListSpaces,this,_1,_2),"ListSpaces");
-   this->RegisterCommand("GetTimes",boost::bind(&checkmask::OmplCheckMask::GetTimes,this,_1,_2),"GetTimes");
+   this->RegisterCommand("SetOMPLSeed",boost::bind(&or_multiset::MultiSetPRM::SetOMPLSeed,this,_1,_2),"SetOMPLSeed");
+   this->RegisterCommand("ListSpaces",boost::bind(&or_multiset::MultiSetPRM::ListSpaces,this,_1,_2),"ListSpaces");
+   this->RegisterCommand("GetTimes",boost::bind(&or_multiset::MultiSetPRM::GetTimes,this,_1,_2),"GetTimes");
    printf("constructed!\n");
 }
 
-checkmask::OmplCheckMask::~OmplCheckMask()
+or_multiset::MultiSetPRM::~MultiSetPRM()
 {
    if (this->p) delete this->p;
    printf("destructed!\n");
 }
 
-bool checkmask::OmplCheckMask::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & sin)
+bool or_multiset::MultiSetPRM::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & sin)
 {
-   checkmask::PlannerParametersPtr my_params(new checkmask::PlannerParameters());
+   or_multiset::PlannerParametersPtr my_params(new or_multiset::PlannerParameters());
    sin >> *my_params;
    RAVELOG_WARN("skipping custom PlannerParameters validation due to exception!\n");
    //my_params->Validate();
    return this->InitPlan(robot, my_params);
 }
 
-bool checkmask::OmplCheckMask::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::PlannerBase::PlannerParametersConstPtr params)
+bool or_multiset::MultiSetPRM::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::PlannerBase::PlannerParametersConstPtr params)
 {
    // is this one of ours?
-   checkmask::PlannerParametersConstPtr my_params = boost::dynamic_pointer_cast<checkmask::PlannerParameters const>(params);
+   or_multiset::PlannerParametersConstPtr my_params = boost::dynamic_pointer_cast<or_multiset::PlannerParameters const>(params);
    if (!my_params)
    {
       // if not, serialize and call our serialized constructor
@@ -104,7 +104,7 @@ bool checkmask::OmplCheckMask::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::
       }
 
       // create planner itself
-      this->p = checkmask::GraphPlanner::create(this->ompl_space);
+      this->p = ompl_multiset::MultiSetPRM::create(this->ompl_space);
       this->p->set_radius(2.0);
       this->p->set_batchsize(1000);
    }
@@ -176,7 +176,7 @@ bool checkmask::OmplCheckMask::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::
    return true;
 }
 
-OpenRAVE::PlannerStatus checkmask::OmplCheckMask::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
+OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
 {
    ompl::base::PlannerStatus status;
    
@@ -222,12 +222,12 @@ OpenRAVE::PlannerStatus checkmask::OmplCheckMask::PlanPath(OpenRAVE::TrajectoryB
    return OpenRAVE::PS_HasSolution;
 }
 
-OpenRAVE::PlannerBase::PlannerParametersConstPtr checkmask::OmplCheckMask::GetParameters() const
+OpenRAVE::PlannerBase::PlannerParametersConstPtr or_multiset::MultiSetPRM::GetParameters() const
 {
    return OpenRAVE::PlannerBase::PlannerParametersConstPtr();
 }
 
-bool checkmask::OmplCheckMask::SetOMPLSeed(std::ostream & sout, std::istream & sin)
+bool or_multiset::MultiSetPRM::SetOMPLSeed(std::ostream & sout, std::istream & sin)
 {
    unsigned int seed;
    sin >> seed;
@@ -236,7 +236,7 @@ bool checkmask::OmplCheckMask::SetOMPLSeed(std::ostream & sout, std::istream & s
    return true;
 }
 
-bool checkmask::OmplCheckMask::ListSpaces(std::ostream & sout, std::istream & sin)
+bool or_multiset::MultiSetPRM::ListSpaces(std::ostream & sout, std::istream & sin)
 {
    printf("ListSpaces called!\n");
    
@@ -274,7 +274,7 @@ bool checkmask::OmplCheckMask::ListSpaces(std::ostream & sout, std::istream & si
    return true;
 }
 
-bool checkmask::OmplCheckMask::GetTimes(std::ostream & sout, std::istream & sin)
+bool or_multiset::MultiSetPRM::GetTimes(std::ostream & sout, std::istream & sin)
 {
    sout << "checktime " << (1.0e-9 * this->checktime);
    sout << " totaltime " << (1.0e-9 * this->totaltime);
@@ -282,7 +282,7 @@ bool checkmask::OmplCheckMask::GetTimes(std::ostream & sout, std::istream & sin)
    return true;
 }
 
-checkmask::Space checkmask::OmplCheckMask::get_current_space(void)
+or_multiset::Space or_multiset::MultiSetPRM::get_current_space(void)
 {
    bool success;
    
@@ -554,7 +554,7 @@ checkmask::Space checkmask::OmplCheckMask::get_current_space(void)
    return s;
 }
 
-unsigned int checkmask::OmplCheckMask::insert_space(Space s)
+unsigned int or_multiset::MultiSetPRM::insert_space(Space s)
 {
    // does this space already exist?
    unsigned int space_idx;
@@ -617,7 +617,7 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
          this->base_spaces.insert(this->spaces.size());
          bs_true.ompl_si.reset(new ompl::base::SpaceInformation(this->ompl_space));
          bs_true.ompl_si->setStateValidityChecker(
-            boost::bind(&checkmask::OmplCheckMask::ompl_isvalid, this, this->spaces.size(), _1));
+            boost::bind(&or_multiset::MultiSetPRM::ompl_isvalid, this, this->spaces.size(), _1));
          this->p->add_cfree(bs_true.ompl_si, sf("space-%u",this->spaces.size()), bs_true.ilcs.size()+1);
          this->spaces.push_back(bs_true);
          
@@ -625,7 +625,7 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
          this->base_spaces.insert(this->spaces.size());
          bs_false.ompl_si.reset(new ompl::base::SpaceInformation(this->ompl_space));
          bs_false.ompl_si->setStateValidityChecker(
-            boost::bind(&checkmask::OmplCheckMask::ompl_isvalid, this, this->spaces.size(), _1));
+            boost::bind(&or_multiset::MultiSetPRM::ompl_isvalid, this, this->spaces.size(), _1));
          this->p->add_cfree(bs_false.ompl_si, sf("space-%u",this->spaces.size()), bs_false.ilcs.size()+1);
          this->spaces.push_back(bs_false);
          
@@ -672,7 +672,7 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
             this->base_spaces.insert(this->spaces.size());
             s_new.ompl_si.reset(new ompl::base::SpaceInformation(this->ompl_space));
             s_new.ompl_si->setStateValidityChecker(
-               boost::bind(&checkmask::OmplCheckMask::ompl_isvalid, this, this->spaces.size(), _1));
+               boost::bind(&or_multiset::MultiSetPRM::ompl_isvalid, this, this->spaces.size(), _1));
             this->p->add_cfree(s_new.ompl_si, sf("space-%u",this->spaces.size()), s_new.ilcs.size()+1);
             this->spaces.push_back(s_new);
          }
@@ -698,7 +698,7 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
          //   printf("  [%u]\n", *bspace);
          s.ompl_si.reset(new ompl::base::SpaceInformation(this->ompl_space));
          s.ompl_si->setStateValidityChecker(
-            boost::bind(&checkmask::OmplCheckMask::ompl_isvalid, this, this->spaces.size(), _1));
+            boost::bind(&or_multiset::MultiSetPRM::ompl_isvalid, this, this->spaces.size(), _1));
          this->p->add_cfree(s.ompl_si, sf("space-%u",this->spaces.size()), s.ilcs.size()+1);
          space_idx = this->spaces.size();
          this->spaces.push_back(s);
@@ -717,7 +717,7 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
          this->base_spaces.insert(this->spaces.size());
          s.ompl_si.reset(new ompl::base::SpaceInformation(this->ompl_space));
          s.ompl_si->setStateValidityChecker(
-            boost::bind(&checkmask::OmplCheckMask::ompl_isvalid, this, this->spaces.size(), _1));
+            boost::bind(&or_multiset::MultiSetPRM::ompl_isvalid, this, this->spaces.size(), _1));
          this->p->add_cfree(s.ompl_si, sf("space-%u",this->spaces.size()), s.ilcs.size());
          space_idx = this->spaces.size();
          this->spaces.push_back(s);
@@ -727,7 +727,7 @@ unsigned int checkmask::OmplCheckMask::insert_space(Space s)
    return space_idx;
 }
 
-bool checkmask::OmplCheckMask::ompl_isvalid(unsigned int sidx, const ompl::base::State * state)
+bool or_multiset::MultiSetPRM::ompl_isvalid(unsigned int sidx, const ompl::base::State * state)
 {
    struct timespec tic;
    struct timespec toc;
@@ -783,7 +783,7 @@ bool checkmask::OmplCheckMask::ompl_isvalid(unsigned int sidx, const ompl::base:
    return isvalid;
 }
 
-bool checkmask::fuzzy_equals(const OpenRAVE::Transform & tx1, const OpenRAVE::Transform & tx2, OpenRAVE::dReal fuzz)
+bool or_multiset::fuzzy_equals(const OpenRAVE::Transform & tx1, const OpenRAVE::Transform & tx2, OpenRAVE::dReal fuzz)
 {
    if (fabs(tx1.trans.x - tx2.trans.x) > fuzz) return false;
    if (fabs(tx1.trans.y - tx2.trans.y) > fuzz) return false;

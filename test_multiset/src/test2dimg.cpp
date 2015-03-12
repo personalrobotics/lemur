@@ -10,7 +10,7 @@
 #include <ompl/base/ScopedState.h>
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
-#include <checkmask/graph.h>
+#include <ompl_multiset/MultiSetPRM.h>
 
 int read_png(const char * filename, int * pwidth, int * pheight, unsigned char ** pdata)
 {
@@ -206,7 +206,7 @@ int main(int argc, char * argv[])
    space->setLongestValidSegmentFraction(2.0 / space->getMaximumExtent());
    
    /* create planner */
-   checkmask::GraphPlanner * p = checkmask::GraphPlanner::create(space);
+   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space);
    p->set_batchsize(100);
    p->set_radius(100.0);
    p->set_dumpfile(argv[4]);
