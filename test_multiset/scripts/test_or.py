@@ -27,10 +27,6 @@ pose_mugT = [ -0.3975, 1.61, 0.735, 0., 0., 1., 0. ] # table
 pose_mugD = [ -1.1, 2.3, 0.0, 0.,0.,M_SQRT1_2,-M_SQRT1_2 ] # bin
 pose_mug_drop = [ -1.1, 2.3, 0.735, 0.,0.,M_SQRT1_2,-M_SQRT1_2 ] # drop location
 
-if len(sys.argv) != 2:
-   print('Usage: {} <seed-int>'.format(sys.argv[0]))
-   exit(1)
-
 # create an environment, load the robot (wam)
 openravepy.RaveInitialize(True, level=openravepy.DebugLevel.Info)
 atexit.register(openravepy.RaveDestroy)
@@ -137,8 +133,7 @@ plans = [[s1,p1],[s2,p2],[s3,p3]]
 if False: # one planner instance
 
    # create the planner itself
-   p = openravepy.RaveCreatePlanner(e, 'OmplCheckMask')
-   p.SendCommand('SetOMPLSeed {}'.format(int(sys.argv[1])))
+   p = openravepy.RaveCreatePlanner(e, 'MultiSetPRM')
 
    # do the planning
    for plan in plans:
@@ -155,16 +150,22 @@ else: # separate instances
    for plan in plans:
       
       # create the planner itself
-      p = openravepy.RaveCreatePlanner(e, 'OmplCheckMask')
-      p.SendCommand('SetOMPLSeed {}'.format(int(sys.argv[1])))
+      p = openravepy.RaveCreatePlanner(e, 'MultiSetPRM')
       
       s,pp = plan
       s()
       p.InitPlan(r,pp)
+      
+      print('calling ListSpaces ...')
+      p.SendCommand('ListSpaces')
+      
+      exit()
+      
       t = openravepy.RaveCreateTrajectory(e, '')
       p.PlanPath(t)
       plan.append(t)
 
+      exit()
    
    
 

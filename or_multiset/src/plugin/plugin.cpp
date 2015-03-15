@@ -11,12 +11,16 @@
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
+#include <or_multiset/inter_link_checks.h>
+
 #include "params_checkmask.h"
 #include "planner_checkmask.h"
+#include "module_subset_manager.h"
 
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {
    info.interfacenames[OpenRAVE::PT_Planner].push_back("MultiSetPRM");
+   info.interfacenames[OpenRAVE::PT_Module].push_back("SubsetManager");
 }
 
 OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
@@ -27,6 +31,8 @@ OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
 {
    if((type == OpenRAVE::PT_Planner) && (interfacename == "multisetprm"))
       return OpenRAVE::InterfaceBasePtr(new or_multiset::MultiSetPRM(penv));
+   if((type == OpenRAVE::PT_Module) && (interfacename == "subsetmanager"))
+      return OpenRAVE::InterfaceBasePtr(new or_multiset::ModuleSubsetManager(penv));
    return OpenRAVE::InterfaceBasePtr();
 }
 
