@@ -213,8 +213,17 @@ private:
    
    // given the current problem,
    // try to get a path!
-   // return true on success
-   bool dijkstras_bidirectional(ProbDefData & pdefdata,
+   // return pair:
+   //   first: optimistic feasible path found
+   //   second: at lease one start and goal are optimistic feasible
+   enum DijkResult
+   {
+      DIJK_SUCCESS,
+      DIJK_NO_PATH,
+      DIJK_NO_STARTS,
+      DIJK_NO_GOALS
+   };
+   enum DijkResult dijkstras_bidirectional(ProbDefData & pdefdata,
       std::list<Vertex> & path_vs, std::list<Edge> & path_es, double & cost_estimate);
    
    bool isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es);
@@ -434,15 +443,27 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
       std::list<Vertex> path_vs;
       std::list<Edge> path_es;
       double cost_estimate;
-      success = this->dijkstras_bidirectional(pdefdata, path_vs, path_es, cost_estimate);
-      if (!success)
+      enum DijkResult dijk_result = this->dijkstras_bidirectional(pdefdata, path_vs, path_es, cost_estimate);
+      switch (dijk_result)
       {
+      case DIJK_SUCCESS:
+         break;
+      case DIJK_NO_STARTS:
+         return ompl::base::PlannerStatus::INVALID_START;
+      case DIJK_NO_GOALS:
+         return ompl::base::PlannerStatus::INVALID_GOAL;
+      case DIJK_NO_PATH:
          printf("no connection found! considering next subgraph [%u] ...\n", this->roadmap_subgraphs_used);
          this->add_subgraph();
          continue;
       }
       
-      printf("found potential path!\n");
+      printf("found potential path w/ cost estimate %f!\n", cost_estimate);
+      
+      printf("   path_vs:");
+      for (std::list<Vertex>::iterator it_v=path_vs.begin(); it_v!=path_vs.end(); it_v++)
+         printf(" %u", *it_v);
+      printf("\n");
       
 #ifdef DEBUG_DUMPFILE
       if (this->dump_fp)
@@ -970,7 +991,7 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
 }
 
 inline
-bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
+enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
    std::list<Vertex> & path_vs, std::list<Edge> & path_es, double & cost_estimate)
 {
    int i;
@@ -982,18 +1003,32 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
    Vertex v_connection = GraphTypes::null_vertex();
    for (i=0; i<pdefdata.v_starts.size(); i++)
    {
-      update_vertex_estimate(g[pdefdata.v_starts[i]], this->pdef_ci);
-      open_fwd.push(DijkType(
-         0.5*g[pdefdata.v_starts[i]].estimates[this->pdef_ci].cost_remaining,
-         pdefdata.v_starts[i], GraphTypes::null_vertex(), Edge()));
+      Vertex v = pdefdata.v_starts[i];
+      update_vertex_estimate(g[v], this->pdef_ci);
+      if (g[v].statuses[this->pdef_ci] == STATUS_INVALID)
+         continue;
+      double cost = 0.0;
+      if (g[v].statuses[this->pdef_ci] == STATUS_UNKNOWN)
+         cost += 0.5*g[v].estimates[this->pdef_ci].cost_remaining;
+      open_fwd.push(DijkType(cost,
+         v, GraphTypes::null_vertex(), Edge()));
    }
+   if (open_fwd.empty())
+      return DIJK_NO_STARTS;
    for (i=0; i<pdefdata.v_goals.size(); i++)
    {
-      update_vertex_estimate(g[pdefdata.v_goals[i]], this->pdef_ci);
-      open_bck.push(DijkType(
-         0.5*g[pdefdata.v_goals[i]].estimates[this->pdef_ci].cost_remaining,
-         pdefdata.v_goals[i], GraphTypes::null_vertex(), Edge()));
+      Vertex v = pdefdata.v_goals[i];
+      update_vertex_estimate(g[v], this->pdef_ci);
+      if (g[v].statuses[this->pdef_ci] == STATUS_INVALID)
+         continue;
+      double cost = 0.0;
+      if (g[v].statuses[this->pdef_ci] == STATUS_UNKNOWN)
+         cost += 0.5*g[v].estimates[this->pdef_ci].cost_remaining;
+      open_bck.push(DijkType(cost,
+         v, GraphTypes::null_vertex(), Edge()));
    }
+   if (open_bck.empty())
+      return DIJK_NO_GOALS;
    while (!open_fwd.empty() && !open_bck.empty())
    {
       std::priority_queue<DijkType> * open_mine;
@@ -1066,7 +1101,7 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
       }
    }
    if (v_connection == GraphTypes::null_vertex())
-      return false;
+      return DIJK_NO_PATH;
    // return cost estimate
    cost_estimate = cost_connection;
    // create the path
@@ -1087,7 +1122,7 @@ bool P::dijkstras_bidirectional(ProbDefData & pdefdata,
       path_vs.push_back(it->second.v_parent);
       path_es.push_back(it->second.e_to_parent);
    }
-   return true;
+   return DIJK_SUCCESS;
 }
 
 bool P::isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es)

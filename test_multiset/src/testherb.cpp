@@ -76,10 +76,10 @@ unsigned long long g_checktime;
 #define RELS_OG_SELFCC 4
 
 #define BLACK_BOX_BROAD_PHASE 0
-//#define LAMBDA (0.0001)
+#define LAMBDA (0.0001)
 //#define LAMBDA (0.5)
-#define LAMBDA (0.9999)
-#define RELS 2
+//#define LAMBDA (0.9999)
+#define RELS 1
 
 #define PLANNER_MULTISET 1
 #define PLANNER_RRT 2
@@ -847,9 +847,9 @@ int main(int argc, char * argv[])
    /* create planner */
    ompl_multiset::RoadmapPtr roadmap(
       new ompl_multiset::RoadmapSampledConst(space, 419884521, 1000, 2.0));
-   ompl_multiset::CachePtr cache(ompl_multiset::cache_create("mycache"));
+   //ompl_multiset::CachePtr cache(ompl_multiset::cache_create("mycache"));
    ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(
-      space, roadmap, cache);
+      space, roadmap, ompl_multiset::CachePtr());
    p->set_interroot_radius(2.0);
    p->set_lambda(LAMBDA);
    
@@ -976,8 +976,8 @@ int main(int argc, char * argv[])
    //p->add_intersection(si_R3, si_D, si_RnD);
 #endif
    
-   p->force_batch();
-   p->cache_load();
+   //p->force_batch();
+   //p->cache_load();
    
 #if (RELS == RELS_SELFCC_ONLY) || (RELS == RELS_OG_SELFCC)
    // check all edges for self collision! (-:

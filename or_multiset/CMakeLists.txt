@@ -33,7 +33,7 @@ add_library(${PROJECT_NAME} src/inter_link_checks.cpp)
 # openrave bindings
 add_library(${PROJECT_NAME}_orplugin MODULE
    src/plugin/module_subset_manager.cpp
-   src/plugin/planner_checkmask.cpp
+   src/plugin/planner_multiset_prm.cpp
    src/plugin/plugin.cpp)
 target_link_libraries(${PROJECT_NAME}_orplugin ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES

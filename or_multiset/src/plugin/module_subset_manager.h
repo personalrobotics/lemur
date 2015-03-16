@@ -14,9 +14,10 @@ struct SubsetReport
       OpenRAVE::dReal cost;
       
       // function will be empty if subset membership can't be tested
+      // note this will hold shared pointers to subsets and robots and the like
       boost::function<bool (std::vector<OpenRAVE::dReal> &)> indicator;
    };
-   std::set<Subset> subsets;
+   std::vector<Subset> subsets;
    
    std::string current_subset;
    
@@ -25,14 +26,14 @@ struct SubsetReport
       std::string subset;
       std::string superset;
    };
-   std::set<Inclusion> inclusions;
+   std::vector<Inclusion> inclusions;
    
    struct Intersection
    {
       std::string subset;
       std::vector<std::string> supersets;
    };
-   std::set<Intersection> intersections;
+   std::vector<Intersection> intersections;
 };
 
 /* for now, we maintain separate subsets for each
@@ -53,6 +54,10 @@ class ModuleSubsetManager : public OpenRAVE::ModuleBase
 {
 public:
    const OpenRAVE::EnvironmentBasePtr penv;
+   
+   // all modules in an environment must have a unique non-empty name
+   // this is set on add
+   std::string name;
 
    // subsets point to ilcs
    struct Subset
@@ -85,11 +90,30 @@ public:
    
    // base subsets MUST be disjoint!
    
-   // subsets that upstream cares about,
-   // so we keep pointers to them;
-   // these are often derived subsets,
-   // but can also point directly to base subsets
-   std::set< boost::shared_ptr<Subset> > persistent_subsets;
+   struct SpaceKey
+   {
+      std::string robot_name;
+      std::vector<int> active_dofs;
+      bool operator==(const SpaceKey & rhs) const
+      {
+         return robot_name == rhs.robot_name && active_dofs == rhs.active_dofs;
+      }
+      bool operator<(const SpaceKey & rhs) const
+      {
+         return robot_name < rhs.robot_name || (robot_name == rhs.robot_name && active_dofs < rhs.active_dofs);
+      }
+   };
+   struct Space
+   {
+      OpenRAVE::RobotBaseWeakPtr robot;
+      
+      // subsets that upstream cares about,
+      // so we keep pointers to them;
+      // these are often derived subsets,
+      // but can also point directly to base subsets
+      std::set< boost::shared_ptr<Subset> > persistent_subsets;
+   };
+   std::map<SpaceKey, Space> spaces;
    
    // methods
 
@@ -97,13 +121,28 @@ public:
    virtual ~ModuleSubsetManager();
    
    // on environment add/remove
-   virtual int main(const std::string& cmd);
+   virtual int main(const std::string & cmd);
    virtual void Destroy();
    
+   bool GetName(std::ostream & sout, std::istream & sin);
    // usage:
    // "TagCurrentSubset robotname tagname true|false"
    bool TagCurrentSubset(std::ostream & sout, std::istream & sin);
-
+   bool DumpSubsets(std::ostream & sout, std::istream & sin);
+   
+   // space guaranteed to match passed robot
+   // as long as we have a pointer to it
+   Space & get_current_space(const OpenRAVE::RobotBasePtr robot);
+   
+   std::set< boost::shared_ptr<Subset> >
+   get_existing_subsets(
+      const Space & space);
+   
+   boost::shared_ptr<Subset>
+   retrieve_subset(
+      Space & space,
+      const std::vector<InterLinkCheck> ilcs_vec,
+      bool make_persistent);
    
    // tag current subset if it exists
    // and create it, if persistent
@@ -117,9 +156,16 @@ public:
    // this will add persistency to this set!
    // this is primarily where names come from!
    // once a name comes out of this, it's persistent!
-   void get_report(
+   void get_current_report(
       const OpenRAVE::RobotBasePtr robot,
       SubsetReport & report);
+   
+   void dump_subsets(const OpenRAVE::RobotBasePtr robot, std::string dotfile);
+   
+   bool indicator(
+      boost::shared_ptr<Subset> subset,
+      OpenRAVE::RobotBasePtr robot,
+      std::vector<OpenRAVE::dReal> & adofvals);
 };
 
 } // namespace or_multiset

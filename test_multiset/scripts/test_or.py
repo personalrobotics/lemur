@@ -1,4 +1,6 @@
 #!/usr/bin/env python2
+from __future__ import print_function, unicode_literals, absolute_import, division
+
 import atexit
 import math
 import sys
@@ -63,7 +65,7 @@ r = e.ReadRobotXMLFile('robots/herb2_padded_nosensors.robot.xml')
 e.Add(r)
 r.SetTransform(H_from_pose([-0.3975,2.38,0., 0.,0.,-M_SQRT1_2,M_SQRT1_2]));
 dofvals = [
-   5.759, -1.972, -0.20, 1.9, 0., 0., 0., 1.3,1.3,1.3,0., # right
+   5.759, -1.972, -0.22, 1.9, 0., 0., 0., 1.3,1.3,1.3,0., # right
    0.630, -1.900,  0.15, 1.9, 0., 0., 0., 2.3,2.3,2.3,0.  # left
 ]
 r.SetDOFValues(dofvals,range(len(dofvals)))
@@ -97,9 +99,9 @@ def s1():
    r.Release(kb_mug)
    kb_mug.SetTransform(H_from_pose(pose_mugT))
    #r.SetDOFValues([0.,0.,0.,0.],[7,8,9,10]) # open
-p1 = openravepy.Planner.PlannerParameters()
-p1.SetExtraParameters(''
-   + '<startstate>5.759 -1.972 -0.20 1.9 0. 0. 0.</startstate>\n'
+pp1 = openravepy.Planner.PlannerParameters()
+pp1.SetExtraParameters(''
+   + '<startstate>5.759 -1.972 -0.22 1.9 0. 0. 0.</startstate>\n'
    + '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in mugiksT])
 )
 
@@ -112,8 +114,8 @@ def s2():
       ))
    #r.SetDOFValues([1.5,1.5,1.5,0.],[7,8,9,10]) # closed
    r.Grab(kb_mug)
-p2 = openravepy.Planner.PlannerParameters()
-p2.SetExtraParameters(''
+pp2 = openravepy.Planner.PlannerParameters()
+pp2.SetExtraParameters(''
    + '\n'.join(['<startstate>{}</startstate>'.format(' '.join(str(v) for v in q)) for q in mugiksT])
    + '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in mugiksdrop])
 )
@@ -122,13 +124,54 @@ def s3():
    r.Release(kb_mug)
    kb_mug.SetTransform(H_from_pose(pose_mugD))
    #r.SetDOFValues([0.,0.,0.,0.],[7,8,9,10]) # open
-p3 = openravepy.Planner.PlannerParameters()
-p3.SetExtraParameters(''
+pp3 = openravepy.Planner.PlannerParameters()
+pp3.SetExtraParameters(''
    + '\n'.join(['<startstate>{}</startstate>'.format(' '.join(str(v) for v in q)) for q in mugiksdrop])
-   + '<goalstate>5.759 -1.972 -0.20 1.9 0. 0. 0.</goalstate>\n'
+   + '<goalstate>5.759 -1.972 -0.22 1.9 0. 0. 0.</goalstate>\n'
 )
 
-plans = [[s1,p1],[s2,p2],[s3,p3]]
+plans = [[s1,pp1],[s2,pp2],[s3,pp3]]
+
+m2 = openravepy.RaveCreateModule(e, 'SubsetManager')
+e.Add(m2, False, 'ssm2')
+
+m = openravepy.RaveCreateModule(e, 'SubsetManager')
+e.Add(m, False, 'ssm')
+
+s1()
+m.SendCommand('TagCurrentSubset {} setup1 true'.format(r.GetName()))
+
+s2()
+m.SendCommand('TagCurrentSubset {} setup2 true'.format(r.GetName()))
+
+s3()
+m.SendCommand('TagCurrentSubset {} setup3 true'.format(r.GetName()))
+
+
+p = openravepy.RaveCreatePlanner(e, 'MultiSetPRM')
+p.SendCommand('UseSubsetManager ssm')
+
+# plan 1
+s1()
+p.InitPlan(r,pp1)
+t = openravepy.RaveCreateTrajectory(e, '')
+p.PlanPath(t)
+
+print(t)
+
+len_rad = 0.0
+for i in range(1,t.GetNumWaypoints()):
+   va = t.GetWaypoint(i-1)
+   vb = t.GetWaypoint(i)
+   len_rad += numpy.linalg.norm(va - vb)
+
+print('found length:', len_rad)
+
+print('bailing early ...')
+exit()
+
+
+
 
 if False: # one planner instance
 
