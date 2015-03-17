@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 2.8.3)
 project(test_multiset)
 find_package(catkin REQUIRED COMPONENTS ompl_multiset)
 find_package(OMPL REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS thread)
 find_package(OpenRAVE REQUIRED)
 
 catkin_package()
@@ -16,6 +16,7 @@ include_directories(
 link_libraries(
    ${catkin_LIBRARIES}
    ${OMPL_LIBRARIES}
+   ${Boost_LIBRARIES}
    ${OpenRAVE_LIBRARIES}
    ${OpenRAVE_CORE_LIBRARIES}
    rt) # for clock_gettime

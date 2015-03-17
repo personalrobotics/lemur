@@ -123,8 +123,8 @@ int main(int argc, char * argv[])
    /* create planner */
    ompl_multiset::RoadmapPtr roadmap(
       new ompl_multiset::RoadmapSampledConst(space, 419884521, 100, 0.2));
-   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space,
-      roadmap, ompl_multiset::CachePtr());
+   ompl_multiset::MultiSetPRM * p
+      = ompl_multiset::MultiSetPRM::create(space, roadmap);
    p->set_interroot_radius(0.2);
    
    /* space information containers for each cfree */

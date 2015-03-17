@@ -76,10 +76,10 @@ unsigned long long g_checktime;
 #define RELS_OG_SELFCC 4
 
 #define BLACK_BOX_BROAD_PHASE 0
-#define LAMBDA (0.0001)
+//#define LAMBDA (0.0001)
 //#define LAMBDA (0.5)
-//#define LAMBDA (0.9999)
-#define RELS 1
+#define LAMBDA (0.9999)
+#define RELS 3
 
 #define PLANNER_MULTISET 1
 #define PLANNER_RRT 2
@@ -847,9 +847,10 @@ int main(int argc, char * argv[])
    /* create planner */
    ompl_multiset::RoadmapPtr roadmap(
       new ompl_multiset::RoadmapSampledConst(space, 419884521, 1000, 2.0));
-   //ompl_multiset::CachePtr cache(ompl_multiset::cache_create("mycache"));
-   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(
-      space, roadmap, ompl_multiset::CachePtr());
+   ompl_multiset::CachePtr cache;
+   // cache.reset(ompl_multiset::cache_create("mycache"));
+   ompl_multiset::MultiSetPRM * p
+      = ompl_multiset::MultiSetPRM::create(space, roadmap);
    p->set_interroot_radius(2.0);
    p->set_lambda(LAMBDA);
    
@@ -872,18 +873,26 @@ int main(int argc, char * argv[])
    const double cost_H =  0.001310076;
    const double cost_D =  0.000197120;
    
-   
    // the actual things
-   p->add_cfree(si_RnT, "RnT", cost_R+cost_T);
-   p->add_cfree(si_RnH, "RnH", cost_R+cost_H);
-   p->add_cfree(si_RnD, "RnD", cost_R+cost_D);
+   //p->add_cfree(si_RnT, "RnT", cost_R+cost_T);
+   //p->add_cfree(si_RnH, "RnH", cost_R+cost_H);
+   //p->add_cfree(si_RnD, "RnD", cost_R+cost_D);
+
+   p->add_cfree(si_RnT, "RnT", (60.0e-6)*(630+19+1));
+   p->add_cfree(si_RnH, "RnH", (60.0e-6)*(630+35+1));
+   p->add_cfree(si_RnD, "RnD", (60.0e-6)*(630+19+1));
 
 #if RELS == RELS_OG_ONLY
 
-   p->add_cfree(si_R, "R", cost_R);
-   p->add_cfree(si_T, "T", cost_T);
-   p->add_cfree(si_H, "H", cost_H);
-   p->add_cfree(si_D, "D", cost_D);
+   //p->add_cfree(si_R, "R", cost_R);
+   //p->add_cfree(si_T, "T", cost_T);
+   //p->add_cfree(si_H, "H", cost_H);
+   //p->add_cfree(si_D, "D", cost_D);
+   
+   p->add_cfree(si_R, "R", (60.0e-6)*(630+1));
+   p->add_cfree(si_T, "T", (60.0e-6)*(19+1));
+   p->add_cfree(si_H, "H", (60.0e-6)*(35+1));
+   p->add_cfree(si_D, "D", (60.0e-6)*(19+1));
 
    p->add_intersection(si_R, si_T, si_RnT);
    p->add_intersection(si_R, si_H, si_RnH);
@@ -977,13 +986,17 @@ int main(int argc, char * argv[])
 #endif
    
    //p->force_batch();
-   //p->cache_load();
+   //if (cache)
+   //   p->cache_load(cache);
    
 #if (RELS == RELS_SELFCC_ONLY) || (RELS == RELS_OG_SELFCC)
    // check all edges for self collision! (-:
-   ompl::base::ProblemDefinitionPtr pdef_rs_bogus(new ompl::base::ProblemDefinition(si_RS));
-   p->setProblemDefinition(pdef_rs_bogus);
-   p->force_eval_everything();
+   //ompl::base::ProblemDefinitionPtr pdef_rs_bogus(new ompl::base::ProblemDefinition(si_RS));
+   //p->setProblemDefinition(pdef_rs_bogus);
+   //p->force_eval_everything();
+   
+   p->use_num_subgraphs(1);
+   p->eval_everything(si_RS);
 #endif
 
 #elif (PLANNER == PLANNER_RRT) || (PLANNER == PLANNER_LBKPIECE1) || (PLANNER == PLANNER_EST)
@@ -1043,7 +1056,8 @@ int main(int argc, char * argv[])
       checktimes.push_back(g_checktime);
    }
    
-   p->cache_save();
+   if (cache)
+      p->cache_save(cache);
    
    double sum;
    

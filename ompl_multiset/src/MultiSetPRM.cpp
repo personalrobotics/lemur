@@ -150,20 +150,18 @@ private:
    };
    struct Intersection
    {
-      Intersection(const ompl::base::SpaceInformationPtr si_a,
-         const ompl::base::SpaceInformationPtr si_b,
-         const ompl::base::SpaceInformationPtr si_intersection):
-         si_a(si_a), si_b(si_b), si_intersection(si_intersection) {}
-      ompl::base::SpaceInformationPtr si_a;
-      ompl::base::SpaceInformationPtr si_b;
+      Intersection(
+         const ompl::base::SpaceInformationPtr si_intersection,
+         const std::vector<ompl::base::SpaceInformationPtr> si_supersets):
+         si_intersection(si_intersection), si_supersets(si_supersets) {}
       ompl::base::SpaceInformationPtr si_intersection;
+      std::vector<ompl::base::SpaceInformationPtr> si_supersets;
    };
 
 public:
 
    P(const ompl::base::StateSpacePtr space,
       const ompl_multiset::RoadmapPtr roadmap,
-      const ompl_multiset::CachePtr cache,
       const ompl::base::SpaceInformationPtr si_bogus);
    ~P(void);
 
@@ -187,13 +185,16 @@ public:
       const ompl::base::SpaceInformationPtr si_a,
       const ompl::base::SpaceInformationPtr si_b,
       const ompl::base::SpaceInformationPtr si_intersection);
+   void add_intersection(
+      const ompl::base::SpaceInformationPtr si_intersection,
+      const std::vector<ompl::base::SpaceInformationPtr> si_supersets);
    
    // extras
-   void force_batch();
-   void force_eval_everything();
+   void use_num_subgraphs(unsigned int num);
+   void eval_everything(const ompl::base::SpaceInformationPtr si);
    
-   void cache_load();
-   void cache_save();
+   void cache_load(const ompl_multiset::CachePtr cache);
+   void cache_save(const ompl_multiset::CachePtr cache);
 
 private:
    // private methods
@@ -258,7 +259,6 @@ private:
    
    // private members
    const ompl_multiset::RoadmapPtr roadmap;
-   const ompl_multiset::CachePtr cache;
    
    // map from roadmap v/e ids to my boost vertex/edge descriptors
    unsigned int roadmap_subgraphs_used;
@@ -323,8 +323,7 @@ private:
 // static creation method
 ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(
    const ompl::base::StateSpacePtr space,
-   const ompl_multiset::RoadmapPtr roadmap,
-   const ompl_multiset::CachePtr cache)
+   const ompl_multiset::RoadmapPtr roadmap)
 {
    ompl::base::SpaceInformationPtr si_bogus(new ompl::base::SpaceInformation(space));
    si_bogus->setStateValidityChecker(
@@ -333,15 +332,14 @@ ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(
       )
    );
    si_bogus->setup();
-   return new P(space, roadmap, cache, si_bogus);
+   return new P(space, roadmap, si_bogus);
 }
 
 P::P(const ompl::base::StateSpacePtr space,
       const ompl_multiset::RoadmapPtr roadmap,
-      const ompl_multiset::CachePtr cache,
       const ompl::base::SpaceInformationPtr si_bogus):
    ompl_multiset::MultiSetPRM(si_bogus, "MultiSetPRM"),
-   roadmap(roadmap), cache(cache), roadmap_subgraphs_used(0),
+   roadmap(roadmap), roadmap_subgraphs_used(0),
    interroot_radius(1.0), lambda(1.0),
    space(space)
 {
@@ -605,16 +603,30 @@ void P::add_intersection(
    const ompl::base::SpaceInformationPtr si_b,
    const ompl::base::SpaceInformationPtr si_intersection)
 {
-   this->intersections.push_back(Intersection(si_a, si_b, si_intersection));
+   std::vector<ompl::base::SpaceInformationPtr> si_supersets;
+   si_supersets.push_back(si_a);
+   si_supersets.push_back(si_b);
+   this->intersections.push_back(Intersection(si_intersection, si_supersets));
    // we should check that the si's are known!
    this->recalc_truthtable();
 }
 
-// extras
-void P::force_batch()
+void P::add_intersection(
+   const ompl::base::SpaceInformationPtr si_intersection,
+   const std::vector<ompl::base::SpaceInformationPtr> si_supersets)
 {
-   printf("force considering next subgraph [%u] ...\n", this->roadmap_subgraphs_used);
-   this->add_subgraph();
+   this->intersections.push_back(Intersection(si_intersection, si_supersets));
+   // we should check that the si's are known!
+   this->recalc_truthtable();
+}
+
+void P::use_num_subgraphs(unsigned int num)
+{
+   while (this->roadmap_subgraphs_used < num)
+   {
+      printf("force considering next subgraph [%u] ...\n", this->roadmap_subgraphs_used);
+      this->add_subgraph();
+   }
 }
 
 void P::add_subgraph()
@@ -657,19 +669,23 @@ void P::add_subgraph()
    this->roadmap_subgraphs_used++;
 }
 
-void P::force_eval_everything()
+void P::eval_everything(const ompl::base::SpaceInformationPtr si)
 {
-   if (!this->pdef)
-      throw ompl::Exception("no problem definition set!");
-   
-   printf("force-evaluating everything given the current planning definition ...\n");
+   // do we need to add this si with a default cost?
+   // also get check index for this subset
+   if (this->si_to_ci.find(si.get()) == this->si_to_ci.end())
+   {
+      OMPL_WARN("cfree not known, adding with default cost of 1.0");
+      this->add_cfree(si, "", 1.0);
+   }
+   int ci = this->si_to_ci[si.get()];
    
    // check validity of ALL edges
    for (std::pair<EdgeIter,EdgeIter> ep = boost::edges(this->g);
       ep.first!=ep.second; ep.first++)
    {
       Edge e = *ep.first;
-      isvalid_edge(g[e], this->pdef_ci, e);
+      isvalid_edge(g[e], ci, e);
    }
    
    // check validity of ALL vertices
@@ -677,19 +693,14 @@ void P::force_eval_everything()
       vp.first!=vp.second; vp.first++)
    {
       Vertex v = *vp.first;
-      isvalid_vertex(g[v], this->pdef_ci);
+      isvalid_vertex(g[v], ci);
    }
 }
 
-void P::cache_load()
+void P::cache_load(const ompl_multiset::CachePtr cache)
 {
-   if (!this->cache)
-   {
-      OMPL_WARN("MultiSetPRM::cache_load() called, but no cache provided!");
-      return;
-   }
    // load into roadmap
-   this->cache->roadmap_load(this->roadmap.get());
+   cache->roadmap_load(this->roadmap.get());
    // for each si
    std::set<Vertex> vertices_touched;
    std::set<Edge> edges_touched;
@@ -699,7 +710,7 @@ void P::cache_load()
       std::vector< std::pair<unsigned int, bool> > vertex_results;
       std::vector< std::pair<unsigned int, bool> > edge_results;
       // load!
-      this->cache->si_load(this->roadmap.get(), this->cfrees[ci].name,
+      cache->si_load(this->roadmap.get(), this->cfrees[ci].name,
          vertex_results, edge_results);
       // vertices
       for (unsigned int ri=0; ri<vertex_results.size(); ri++)
@@ -748,15 +759,10 @@ void P::cache_load()
    }
 }
 
-void P::cache_save()
+void P::cache_save(const ompl_multiset::CachePtr cache)
 {
-   if (!this->cache)
-   {
-      OMPL_WARN("MultiSetPRM::cache_save() called, but no cache provided!");
-      return;
-   }
    // save from roadmap
-   this->cache->roadmap_save(this->roadmap.get());
+   cache->roadmap_save(this->roadmap.get());
    // for each si
    for (unsigned int ci=0; ci<this->cfrees.size(); ci++)
    {
@@ -796,7 +802,7 @@ void P::cache_save()
          }
       }
       // save!
-      this->cache->si_save(this->roadmap.get(), this->cfrees[ci].name,
+      cache->si_save(this->roadmap.get(), this->cfrees[ci].name,
          vertex_results, edge_results);
    }
 }
@@ -805,6 +811,7 @@ void P::recalc_truthtable()
 {
    int ci;
    unsigned int ui;
+   unsigned int ui2;
    
    printf("recalculating truthtable ...\n");
    
@@ -853,10 +860,15 @@ void P::recalc_truthtable()
       // intersections
       for (ui=0; ui<this->intersections.size(); ui++)
       {
-         unsigned int ci_a = this->si_to_ci[this->intersections[ui].si_a.get()];
-         unsigned int ci_b = this->si_to_ci[this->intersections[ui].si_b.get()];
+         bool rhs = true;
+         for (ui2=0; ui2<this->intersections[ui].si_supersets.size(); ui2++)
+         {
+            unsigned int ci_superset = this->si_to_ci[this->intersections[ui].si_supersets[ui2].get()];
+            rhs = rhs && (*it)[ci_superset];
+         }
          unsigned int ci_intersection = this->si_to_ci[this->intersections[ui].si_intersection.get()];
-         if ((*it)[ci_intersection] == (!(*it)[ci_a] || !(*it)[ci_b]))
+         //if ((*it)[ci_intersection] == (!(*it)[ci_a] || !(*it)[ci_b]))
+         if ((*it)[ci_intersection] != rhs)
          {
             it = this->truthtable.erase(it);
             break;

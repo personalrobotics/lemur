@@ -271,9 +271,11 @@ void C::si_load(
    std::ifstream sin(newpath.string().c_str());
    if (!sin.good())
    {
-      printf("loading subset from cache failed, file not found?\n");
+      printf("loading subset %s from cache failed, file not found?\n", set_id.c_str());
       return;
    }
+   
+   printf("yes, loading subset %s from file!\n", set_id.c_str());
    
    std::string line;
    

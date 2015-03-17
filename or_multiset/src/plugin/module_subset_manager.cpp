@@ -143,12 +143,12 @@ bool or_multiset::ModuleSubsetManager::DumpSubsets(std::ostream & sout, std::ist
          args.push_back(arg);
       }
       if (args.size() != 2)
-         throw OpenRAVE::openrave_exception("ListSubsets args not correct!");
+         throw OpenRAVE::openrave_exception("DumpSubsets args not correct!");
       // robot
       std::string robotname = args[0];
       robot = this->penv->GetRobot(robotname);
       if (!robot)
-         throw OpenRAVE::openrave_exception("ListSubsets robot not found!");
+         throw OpenRAVE::openrave_exception("DumpSubsets robot not found!");
       dotfile = args[1];
    }
    this->dump_subsets(robot, dotfile);
@@ -364,11 +364,16 @@ void or_multiset::ModuleSubsetManager::tag_current_subset(
    // are we trying to assign a new tag?
    if (new_tag.size())
    {
+      // are we trying to assign to an already tagged subset?
       if (subset->tag.size() && new_tag != subset->tag)
          throw OpenRAVE::openrave_exception(sf(
             "trying to assign a subset tag %s, but it already has one %s!",
             new_tag.c_str(), subset->tag.c_str()));
-      subset->tag = new_tag;
+      // make sure this space doesnt already have a subset with this tag
+      bool success = this->set_subset_tag(space, subset, new_tag);
+      if (!success)
+         throw OpenRAVE::openrave_exception(
+            "trying to assign a subset tag, but exising subset already has this tag!");
    }
 }
 
@@ -395,25 +400,45 @@ void or_multiset::ModuleSubsetManager::get_current_report(
    
    // compose report
    std::set< boost::shared_ptr<Subset> > existing_subsets = this->get_existing_subsets(space);
+   
+   // subsets (this will also assign names if necessary)
    for (sspp=existing_subsets.begin(); sspp!=existing_subsets.end(); sspp++)
    {
       // subsets
       or_multiset::SubsetReport::Subset report_subset;
-      report_subset.name = (*sspp)->tag;
-      report_subset.cost = 0.001 * (*sspp)->ilcs.size();
       
-      if (report_subset.name == "setup1")
+      // name
+      if (!(*sspp)->tag.size())
       {
-         RAVELOG_WARN("hardcoding setup1 cost ...\n");
-         report_subset.cost = 0.038752616;
+         // make sure name is unique!
+         unsigned int i;
+         for (i=0; i<100; i++)
+         {
+            std::string new_tag = sf("untagged_%02u", i);
+            bool success = this->set_subset_tag(space, *sspp, new_tag);
+            if (success)
+               break;
+         }
+         if (!(i<100))
+            throw OpenRAVE::openrave_exception(
+               "couldnt generate a unique untagged name!");
       }
+      report_subset.name = (*sspp)->tag;
       
+      // cost
+      report_subset.cost = 60.0e-6 * ((*sspp)->ilcs.size()+1);
+      
+      // we need to validate that this check CAN be performed
+      // in the current environment!
       report_subset.indicator = boost::bind(
             &or_multiset::ModuleSubsetManager::indicator, this,
             (*sspp), robot, _1);
       
       report.subsets.push_back(report_subset);
-      
+   }
+   
+   for (sspp=existing_subsets.begin(); sspp!=existing_subsets.end(); sspp++)
+   {   
       // intersections if we're derived
       if ((*sspp)->base_subsets.size())
       {
@@ -495,6 +520,29 @@ void or_multiset::ModuleSubsetManager::dump_subsets(const OpenRAVE::RobotBasePtr
    }
 }
 
+bool or_multiset::ModuleSubsetManager::set_subset_tag(
+   Space & space, boost::shared_ptr<Subset> subset, std::string new_tag)
+{
+   // does this space already have a subset with this tag?
+   std::map< std::string, boost::weak_ptr<Subset> >::iterator it;
+   it = space.named_subsets.find(new_tag);
+   if (it != space.named_subsets.end())
+   {
+      boost::shared_ptr<Subset> existing_subset = it->second.lock();
+      if (existing_subset)
+      {
+         if (existing_subset->tag == new_tag)
+            return false;
+      }
+      else
+         space.named_subsets.erase(it);
+   }
+   // ok, we're good to go!
+   subset->tag = new_tag;
+   space.named_subsets[new_tag] = subset;
+   return true;
+}
+
 bool or_multiset::ModuleSubsetManager::indicator(
    boost::shared_ptr<Subset> subset,
    OpenRAVE::RobotBasePtr robot,
@@ -502,8 +550,6 @@ bool or_multiset::ModuleSubsetManager::indicator(
 {
    bool isvalid;
    std::set< boost::shared_ptr<InterLinkCheck> >::iterator iilc;
-   
-   //printf("   checking against subset %s ...\n", subset->tag.c_str());
    
    robot->SetActiveDOFValues(adofvals, OpenRAVE::KinBody::CLA_Nothing);
    

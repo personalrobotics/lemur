@@ -14,8 +14,7 @@ class MultiSetPRM : public ompl::base::Planner
 public:
    static MultiSetPRM * create(
       const ompl::base::StateSpacePtr space,
-      const ompl_multiset::RoadmapPtr roadmap,
-      const ompl_multiset::CachePtr cache);
+      const ompl_multiset::RoadmapPtr roadmap);
    virtual ~MultiSetPRM(void) {};
 
    // ompl planner interface
@@ -44,14 +43,17 @@ public:
       const ompl::base::SpaceInformationPtr si_a,
       const ompl::base::SpaceInformationPtr si_b,
       const ompl::base::SpaceInformationPtr si_intersection) = 0;
+   virtual void add_intersection(
+      const ompl::base::SpaceInformationPtr si_intersection,
+      const std::vector<ompl::base::SpaceInformationPtr> si_supersets) = 0;
    
    // extras
-   virtual void force_batch() = 0;
-   virtual void force_eval_everything() = 0; // just for the current problem definition!
+   virtual void use_num_subgraphs(unsigned int num) = 0;
+   virtual void eval_everything(const ompl::base::SpaceInformationPtr si) = 0;
    
    // load the roadmap and any si's from the cache
-   virtual void cache_load() = 0;
-   virtual void cache_save() = 0;
+   virtual void cache_load(const ompl_multiset::CachePtr cache) = 0;
+   virtual void cache_save(const ompl_multiset::CachePtr cache) = 0;
 
 protected:
    MultiSetPRM(const ompl::base::SpaceInformationPtr & si, const std::string & name):

@@ -18,7 +18,6 @@
 
 #include <or_multiset/inter_link_checks.h>
 
-#include "params_checkmask.h"
 #include "module_subset_manager.h"
 #include "planner_multiset_prm.h"
 
@@ -39,7 +38,174 @@ std::string sf(const char * fmt, ...)
   return ret;
 }
 
+std::vector<std::string> args_from_sin(std::istream & sin)
+{
+   std::vector<std::string> args;
+   for (;;)
+   {
+      std::string arg;
+      sin >> arg;
+      if (sin.fail())
+         break;
+      args.push_back(arg);
+   }
+   return args;
+}
+
 } // anonymous namespace
+
+
+or_multiset::MultiSetPRM::PlannerParameters::PlannerParameters():
+   eval_subgraphs(0), lambda(1.0), interroot_radius(1.0)
+{
+   _vXMLParameters.push_back("startstate");
+   _vXMLParameters.push_back("goalstate");
+   _vXMLParameters.push_back("eval_subgraphs");
+   _vXMLParameters.push_back("lambda");
+   _vXMLParameters.push_back("interroot_radius");
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::serialize_startstates(std::ostream& sout) const
+{
+   for (unsigned int si=0; si<startstates.size(); si++)
+   {
+      sout << "<startstate>";
+      for (unsigned int j=0; j<this->startstates[si].size(); j++)
+      {
+         if (j) sout << " ";
+         sout << this->startstates[si][j];
+      }
+      sout << "</startstate>" << std::endl;
+   }
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::serialize_goalstates(std::ostream& sout) const
+{
+   for (unsigned int si=0; si<goalstates.size(); si++)
+   {
+      sout << "<goalstate>";
+      for (unsigned int j=0; j<this->goalstates[si].size(); j++)
+      {
+         if (j) sout << " ";
+         sout << this->goalstates[si][j];
+      }
+      sout << "</goalstate>" << std::endl;
+   }
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::serialize_eval_subgraphs(std::ostream & sout) const
+{
+   sout << "<eval_subgraphs>";
+   sout << this->eval_subgraphs;
+   sout << "</eval_subgraphs>";
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::serialize_lambda(std::ostream& sout) const
+{
+   sout << "<lambda>";
+   sout << this->lambda;
+   sout << "</lambda>";
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::serialize_interroot_radius(std::ostream& sout) const
+{
+   sout << "<interroot_radius>";
+   sout << this->interroot_radius;
+   sout << "</interroot_radius>";
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::deserialize_startstate(std::istream & sin)
+{
+   std::vector<OpenRAVE::dReal> state;
+   while (sin.good())
+   {
+      OpenRAVE::dReal val;
+      sin >> val;
+      state.push_back(val);
+   }
+   this->startstates.push_back(state);
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::deserialize_goalstate(std::istream & sin)
+{
+   std::vector<OpenRAVE::dReal> state;
+   while (sin.good())
+   {
+      OpenRAVE::dReal val;
+      sin >> val;
+      state.push_back(val);
+   }
+   this->goalstates.push_back(state);
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::deserialize_eval_subgraphs(std::istream & sin)
+{
+   sin >> this->eval_subgraphs;
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::deserialize_lambda(std::istream & sin)
+{
+   sin >> this->lambda;
+}
+
+void or_multiset::MultiSetPRM::PlannerParameters::deserialize_interroot_radius(std::istream & sin)
+{
+   sin >> this->interroot_radius;
+}
+
+bool or_multiset::MultiSetPRM::PlannerParameters::serialize(std::ostream& sout, int options) const
+{
+   if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
+      return false;
+   this->serialize_startstates(sout);
+   this->serialize_goalstates(sout);
+   return !!sout;
+}
+
+OpenRAVE::BaseXMLReader::ProcessElement or_multiset::MultiSetPRM::PlannerParameters::startElement(
+   const std::string & name, const OpenRAVE::AttributesList & atts)
+{
+   if (el_deserializing.size())
+      return PE_Ignore;
+   // ask base calss
+   enum OpenRAVE::BaseXMLReader::ProcessElement base;
+   base = OpenRAVE::PlannerBase::PlannerParameters::startElement(name,atts);
+   if (base != PE_Pass) return base;
+   // can we handle it?
+   if (name == "startstate"
+      || name == "goalstate"
+      || name == "eval_subgraphs"
+      || name == "lambda"
+      || name == "interroot_radius")
+   {
+      el_deserializing = name;
+      return PE_Support;
+   }
+   return PE_Pass;
+}
+
+bool or_multiset::MultiSetPRM::PlannerParameters::endElement(const std::string & name)
+{
+   if (!el_deserializing.size())
+      return OpenRAVE::PlannerBase::PlannerParameters::endElement(name);
+   if (name == el_deserializing)
+   {
+      if (el_deserializing == "startstate")
+         this->deserialize_startstate(_ss);
+      if (el_deserializing == "goalstate")
+         this->deserialize_goalstate(_ss);
+      if (el_deserializing == "eval_subgraphs")
+         this->deserialize_eval_subgraphs(_ss);
+      if (el_deserializing == "lambda")
+         this->deserialize_lambda(_ss);
+      if (el_deserializing == "interroot_radius")
+         this->deserialize_interroot_radius(_ss);
+   }
+   else
+      RAVELOG_WARN("closing tag doesnt match opening tag!\n");
+   el_deserializing.clear();
+   return false;
+}
 
 
 or_multiset::MultiSetPRM::MultiSetPRM(OpenRAVE::EnvironmentBasePtr penv):
@@ -52,18 +218,24 @@ or_multiset::MultiSetPRM::MultiSetPRM(OpenRAVE::EnvironmentBasePtr penv):
    this->RegisterCommand("GetTimes",
       boost::bind(&or_multiset::MultiSetPRM::GetTimes,this,_1,_2),
       "GetTimes");
-   printf("constructed!\n");
+   this->RegisterCommand("CacheSetLocation",
+      boost::bind(&or_multiset::MultiSetPRM::CacheSetLocation,this,_1,_2),
+      "CacheSetLocation");
+   this->RegisterCommand("CacheLoad",
+      boost::bind(&or_multiset::MultiSetPRM::CacheLoad,this,_1,_2),
+      "CacheLoad");
+   this->RegisterCommand("CacheSave",
+      boost::bind(&or_multiset::MultiSetPRM::CacheSave,this,_1,_2),
+      "CacheSave");
 }
 
 or_multiset::MultiSetPRM::~MultiSetPRM()
 {
-   //if (this->p) delete this->p;
-   printf("destructed!\n");
 }
 
 bool or_multiset::MultiSetPRM::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & sin)
 {
-   or_multiset::PlannerParametersPtr my_params(new or_multiset::PlannerParameters());
+   PlannerParametersPtr my_params(new PlannerParameters());
    sin >> *my_params;
    RAVELOG_WARN("skipping custom PlannerParameters validation due to exception!\n");
    //my_params->Validate();
@@ -73,7 +245,7 @@ bool or_multiset::MultiSetPRM::InitPlan(OpenRAVE::RobotBasePtr robot, std::istre
 bool or_multiset::MultiSetPRM::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::PlannerBase::PlannerParametersConstPtr params)
 {
    // is this one of ours?
-   or_multiset::PlannerParametersConstPtr my_params = boost::dynamic_pointer_cast<or_multiset::PlannerParameters const>(params);
+   PlannerParametersConstPtr my_params = boost::dynamic_pointer_cast<PlannerParameters const>(params);
    if (!my_params)
    {
       // if not, serialize and call our serialized constructor
@@ -85,7 +257,7 @@ bool or_multiset::MultiSetPRM::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::
    return this->InitMyPlan(robot, my_params);
 }
    
-bool or_multiset::MultiSetPRM::InitMyPlan(OpenRAVE::RobotBasePtr robot, or_multiset::PlannerParametersConstPtr params)
+bool or_multiset::MultiSetPRM::InitMyPlan(OpenRAVE::RobotBasePtr robot, PlannerParametersConstPtr params)
 {   
    // save the robot and active dofs
    if (!this->setup_isvalid(robot))
@@ -93,11 +265,10 @@ bool or_multiset::MultiSetPRM::InitMyPlan(OpenRAVE::RobotBasePtr robot, or_multi
       RAVELOG_INFO("doing MultiSetPRM setup ...\n");
       this->setup(robot);
    }
-   
+
    // get subset manager (will construct private if not attached)
-   boost::shared_ptr<or_multiset::ModuleSubsetManager> ssm = this->get_subset_manager();
-   if (!ssm)
-      throw OpenRAVE::openrave_exception("could not retreive a subset manager!");
+   // this can throw
+   update_planner_current_subsets(robot);
    
    // save params
    this->params = params;
@@ -109,18 +280,9 @@ OpenRAVE::PlannerBase::PlannerParametersConstPtr or_multiset::MultiSetPRM::GetPa
    return this->params;
 }
 
-OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
+std::string or_multiset::MultiSetPRM::update_planner_current_subsets(
+   OpenRAVE::RobotBasePtr robot)
 {
-   ompl::base::PlannerStatus status;
-   
-   // get robot and ensure setup validity
-   OpenRAVE::RobotBasePtr robot(this->robot.lock());
-   if (!robot || !this->setup_isvalid(robot))
-      throw OpenRAVE::openrave_exception("something changed with robot or active dofs or something!");
-   
-   if (!this->params)
-      throw OpenRAVE::openrave_exception("no params! was initplan called?");
-   
    // get subset manager (will construct private if not attached)
    boost::shared_ptr<or_multiset::ModuleSubsetManager> ssm = this->get_subset_manager();
    if (!ssm)
@@ -155,15 +317,79 @@ OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryB
    }
    
    // tell planner about any new intersections
-   RAVELOG_WARN("we're not yet telling planner about intersections ...\n");
+   for (unsigned int si=0; si<report.intersections.size(); si++)
+   {
+      or_multiset::SubsetReport::Intersection & isec
+         = report.intersections[si];
+      std::pair<std::string, std::vector<std::string> > pair
+         = std::make_pair(isec.subset, isec.supersets);
+      if (this->intersections.find(pair) == this->intersections.end())
+      {
+         // find subset
+         std::map<std::string, ompl::base::SpaceInformationPtr>::iterator
+            info_subset = this->subsets.find(isec.subset);
+         if (info_subset == this->subsets.end())
+            throw OpenRAVE::openrave_exception(sf(
+               "couldnt find subset %s!",isec.subset.c_str()));
+         // find each superset
+         std::string supersets_string;
+         std::vector<ompl::base::SpaceInformationPtr> supersets;
+         for (unsigned int ui=0; ui<isec.supersets.size(); ui++)
+         {
+            std::map<std::string, ompl::base::SpaceInformationPtr>::iterator
+               info_superset = this->subsets.find(isec.supersets[ui]);
+            if (info_superset == this->subsets.end())
+               throw OpenRAVE::openrave_exception(sf(
+                  "couldnt find subset %s!",isec.supersets[ui].c_str()));
+            supersets.push_back(info_superset->second);
+            if (supersets_string.size())
+               supersets_string += " n ";
+            supersets_string += "\"" + isec.supersets[ui] + "\"";
+         }
+         this->ompl_planner->add_intersection(
+            info_subset->second, supersets);
+         this->intersections.insert(pair);
+         RAVELOG_INFO("added intersection \"%s\" = %s\n",
+            isec.subset.c_str(),
+            supersets_string.c_str());
+      }
+   }
+   
+   RAVELOG_WARN("we're not yet telling planner about inclusions ...\n");
+   
+   return report.current_subset;
+}
+
+OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
+{
+   ompl::base::PlannerStatus status;
+   
+   // get robot and ensure setup validity
+   OpenRAVE::RobotBasePtr robot(this->robot.lock());
+   if (!robot || !this->setup_isvalid(robot))
+      throw OpenRAVE::openrave_exception("something changed with robot or active dofs or something!");
+   
+   if (!this->params)
+      throw OpenRAVE::openrave_exception("no params! was initplan called?");
+   
+   // this can throw
+   std::string current_subset = update_planner_current_subsets(robot);
    
    // get current subset
-   RAVELOG_INFO("planning in subset \"%s\" ...\n", report.current_subset.c_str());
+   RAVELOG_INFO("planning in subset \"%s\" ...\n", current_subset.c_str());
    std::map<std::string, ompl::base::SpaceInformationPtr>::iterator
-      subset_it = this->subsets.find(report.current_subset);
+      subset_it = this->subsets.find(current_subset);
    if (subset_it == this->subsets.end())
       throw OpenRAVE::openrave_exception("cannot find current subset!");
-   
+      
+   if (this->params->eval_subgraphs)
+   {
+      RAVELOG_INFO("evaluating everything ...\n");
+      this->ompl_planner->use_num_subgraphs(this->params->eval_subgraphs);
+      this->ompl_planner->eval_everything(subset_it->second);
+      return OpenRAVE::PS_HasSolution;
+   }
+
    // create a new problem definition
    ompl::base::ProblemDefinitionPtr pdef(
       new ompl::base::ProblemDefinition(subset_it->second));
@@ -207,6 +433,10 @@ OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryB
    
    // tell the planner about our problem definition
    this->ompl_planner->setProblemDefinition(pdef);
+   
+   // set planner parameters
+   this->ompl_planner->set_interroot_radius(this->params->interroot_radius); // 2.0
+   this->ompl_planner->set_lambda(this->params->lambda); // 0.0001
    
    // call planner
    this->n_checks = 0;
@@ -252,23 +482,11 @@ OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryB
 
 bool or_multiset::MultiSetPRM::UseSubsetManager(std::ostream & sout, std::istream & sin)
 {
-   std::string name;
-   
    // parse args
-   {
-      std::vector<std::string> args;
-      for (;;)
-      {
-         std::string arg;
-         sin >> arg;
-         if (sin.fail())
-            break;
-         args.push_back(arg);
-      }
-      if (args.size() != 1)
-         throw OpenRAVE::openrave_exception("TagCurrentSubset args not correct!");
-      name = args[0];
-   }
+   std::vector<std::string> args = args_from_sin(sin);
+   if (args.size() != 1)
+      throw OpenRAVE::openrave_exception("UseSubsetManager args not correct!");
+   std::string name = args[0];
    
    // find the subset manager module in the env with this name
    std::vector< boost::shared_ptr<or_multiset::ModuleSubsetManager> > matches;
@@ -300,6 +518,45 @@ bool or_multiset::MultiSetPRM::UseSubsetManager(std::ostream & sout, std::istrea
    
    this->subset_manager = matches[0];
    this->private_subset_manager.reset();
+   return true;
+}
+
+bool or_multiset::MultiSetPRM::CacheSetLocation(std::ostream & sout, std::istream & sin)
+{
+   // parse args
+   std::vector<std::string> args = args_from_sin(sin);
+   if (args.size() != 1)
+      throw OpenRAVE::openrave_exception("CacheSetLocation args not correct!");
+   std::string location = args[0];
+   this->cache.reset(ompl_multiset::cache_create(location));
+   return true;
+}
+
+bool or_multiset::MultiSetPRM::CacheLoad(std::ostream & sout, std::istream & sin)
+{
+   // parse args
+   std::vector<std::string> args = args_from_sin(sin);
+   if (args.size() != 1)
+      throw OpenRAVE::openrave_exception("CacheLoad args not correct!");
+   int use_num_subgraphs = atoi(args[0].c_str());
+   // check internal state
+   if (!this->ompl_planner)
+      throw OpenRAVE::openrave_exception("CacheLoad called with no planner!");
+   if (!this->cache)
+      throw OpenRAVE::openrave_exception("CacheLoad called with no cache!");
+   // do it!
+   this->ompl_planner->use_num_subgraphs(use_num_subgraphs);
+   this->ompl_planner->cache_load(this->cache);
+   return true;
+}
+
+bool or_multiset::MultiSetPRM::CacheSave(std::ostream & sout, std::istream & sin)
+{
+   if (!this->ompl_planner)
+      throw OpenRAVE::openrave_exception("CacheSave called with no planner!");
+   if (!this->cache)
+      throw OpenRAVE::openrave_exception("CacheSave called with no cache!");
+   this->ompl_planner->cache_save(this->cache);
    return true;
 }
 
@@ -364,11 +621,10 @@ void or_multiset::MultiSetPRM::setup(OpenRAVE::RobotBasePtr robot)
    // create planner itself
    ompl_multiset::RoadmapPtr roadmap(
       new ompl_multiset::RoadmapSampledConst(this->ompl_space, 419884521, 1000, 2.0));
-   this->ompl_planner.reset(ompl_multiset::MultiSetPRM::create(this->ompl_space,
-      roadmap, ompl_multiset::CachePtr()));
-   this->ompl_planner->set_interroot_radius(2.0);
-   this->ompl_planner->set_lambda(0.0001);
+   this->ompl_planner.reset(ompl_multiset::MultiSetPRM::create(
+      this->ompl_space, roadmap));
    this->subsets.clear();
+   this->intersections.clear();
 }
 
 // check of the robot, adofs, bounds

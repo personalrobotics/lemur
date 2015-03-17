@@ -212,8 +212,8 @@ int main(int argc, char * argv[])
    /* create planner */
    ompl_multiset::RoadmapPtr roadmap(
       new ompl_multiset::RoadmapSampledConst(space, 419884521, 100, 100.0));
-   ompl_multiset::MultiSetPRM * p = ompl_multiset::MultiSetPRM::create(space,
-      roadmap, ompl_multiset::CachePtr());
+   ompl_multiset::MultiSetPRM * p
+      = ompl_multiset::MultiSetPRM::create(space, roadmap);
    p->set_interroot_radius(100.0);
    p->set_dumpfile(argv[4]);
    

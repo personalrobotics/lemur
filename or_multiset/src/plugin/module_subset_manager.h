@@ -112,6 +112,9 @@ public:
       // these are often derived subsets,
       // but can also point directly to base subsets
       std::set< boost::shared_ptr<Subset> > persistent_subsets;
+      
+      // subsets that have names
+      std::map< std::string, boost::weak_ptr<Subset> > named_subsets;
    };
    std::map<SpaceKey, Space> spaces;
    
@@ -161,6 +164,13 @@ public:
       SubsetReport & report);
    
    void dump_subsets(const OpenRAVE::RobotBasePtr robot, std::string dotfile);
+   
+   // attempt to add a tag to a subset,
+   // guarantees that the tag is unique within the space
+   bool set_subset_tag(
+      Space & space,
+      boost::shared_ptr<Subset> subset,
+      std::string new_tag);
    
    bool indicator(
       boost::shared_ptr<Subset> subset,
