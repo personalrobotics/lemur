@@ -56,13 +56,15 @@ std::vector<std::string> args_from_sin(std::istream & sin)
 
 
 or_multiset::MultiSetPRM::PlannerParameters::PlannerParameters():
-   eval_subgraphs(0), lambda(1.0), interroot_radius(1.0)
+   eval_subgraphs(0), lambda(1.0), interroot_radius(1.0),
+   timelimit(600.0)
 {
    _vXMLParameters.push_back("startstate");
    _vXMLParameters.push_back("goalstate");
    _vXMLParameters.push_back("eval_subgraphs");
    _vXMLParameters.push_back("lambda");
    _vXMLParameters.push_back("interroot_radius");
+   _vXMLParameters.push_back("timelimit");
 }
 
 void or_multiset::MultiSetPRM::PlannerParameters::serialize_startstates(std::ostream& sout) const
@@ -114,6 +116,13 @@ void or_multiset::MultiSetPRM::PlannerParameters::serialize_interroot_radius(std
    sout << "</interroot_radius>";
 }
 
+void or_multiset::MultiSetPRM::PlannerParameters::serialize_timelimit(std::ostream& sout) const
+{
+   sout << "<timelimit>";
+   sout << this->timelimit;
+   sout << "</timelimit>";
+}
+
 void or_multiset::MultiSetPRM::PlannerParameters::deserialize_startstate(std::istream & sin)
 {
    std::vector<OpenRAVE::dReal> state;
@@ -153,12 +162,21 @@ void or_multiset::MultiSetPRM::PlannerParameters::deserialize_interroot_radius(s
    sin >> this->interroot_radius;
 }
 
+void or_multiset::MultiSetPRM::PlannerParameters::deserialize_timelimit(std::istream & sin)
+{
+   sin >> this->timelimit;
+}
+
 bool or_multiset::MultiSetPRM::PlannerParameters::serialize(std::ostream& sout, int options) const
 {
    if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
       return false;
    this->serialize_startstates(sout);
    this->serialize_goalstates(sout);
+   this->serialize_eval_subgraphs(sout);
+   this->serialize_lambda(sout);
+   this->serialize_interroot_radius(sout);
+   this->serialize_timelimit(sout);
    return !!sout;
 }
 
@@ -176,7 +194,8 @@ OpenRAVE::BaseXMLReader::ProcessElement or_multiset::MultiSetPRM::PlannerParamet
       || name == "goalstate"
       || name == "eval_subgraphs"
       || name == "lambda"
-      || name == "interroot_radius")
+      || name == "interroot_radius"
+      || name == "timelimit")
    {
       el_deserializing = name;
       return PE_Support;
@@ -200,6 +219,8 @@ bool or_multiset::MultiSetPRM::PlannerParameters::endElement(const std::string &
          this->deserialize_lambda(_ss);
       if (el_deserializing == "interroot_radius")
          this->deserialize_interroot_radius(_ss);
+      if (el_deserializing == "timelimit")
+         this->deserialize_timelimit(_ss);
    }
    else
       RAVELOG_WARN("closing tag doesnt match opening tag!\n");
@@ -209,12 +230,16 @@ bool or_multiset::MultiSetPRM::PlannerParameters::endElement(const std::string &
 
 
 or_multiset::MultiSetPRM::MultiSetPRM(OpenRAVE::EnvironmentBasePtr penv):
-   OpenRAVE::PlannerBase(penv), penv(penv)
+   OpenRAVE::PlannerBase(penv), penv(penv),
+   roadmap_string("class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2")
 {
    __description = "OmplCheckMask description";
    this->RegisterCommand("UseSubsetManager",
       boost::bind(&or_multiset::MultiSetPRM::UseSubsetManager,this,_1,_2),
       "UseSubsetManager");
+   this->RegisterCommand("SetRoadmap",
+      boost::bind(&or_multiset::MultiSetPRM::SetRoadmap,this,_1,_2),
+      "SetRoadmap");
    this->RegisterCommand("GetTimes",
       boost::bind(&or_multiset::MultiSetPRM::GetTimes,this,_1,_2),
       "GetTimes");
@@ -435,8 +460,8 @@ OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryB
    this->ompl_planner->setProblemDefinition(pdef);
    
    // set planner parameters
-   this->ompl_planner->set_interroot_radius(this->params->interroot_radius); // 2.0
-   this->ompl_planner->set_lambda(this->params->lambda); // 0.0001
+   this->ompl_planner->set_interroot_radius(this->params->interroot_radius);
+   this->ompl_planner->set_lambda(this->params->lambda);
    
    // call planner
    this->n_checks = 0;
@@ -447,13 +472,7 @@ OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryB
    struct timespec toc;
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
    
-   {
-      // Don't check collision with inactive links.
-      //OpenRAVE::CollisionCheckerBasePtr const collision_checker = GetEnv()->GetCollisionChecker();
-      //OpenRAVE::CollisionOptionsStateSaver const collision_saver(collision_checker, OpenRAVE::CO_ActiveDOFs, false);
-
-      status = this->ompl_planner->solve(ompl::base::timedPlannerTerminationCondition(600.0));
-   }
+   status = this->ompl_planner->solve(ompl::base::timedPlannerTerminationCondition(this->params->timelimit));
    
    clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
    this->totaltime = (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
@@ -518,6 +537,17 @@ bool or_multiset::MultiSetPRM::UseSubsetManager(std::ostream & sout, std::istrea
    
    this->subset_manager = matches[0];
    this->private_subset_manager.reset();
+   return true;
+}
+
+// e.g. SetRoadmap class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2
+bool or_multiset::MultiSetPRM::SetRoadmap(std::ostream & sout, std::istream & sin)
+{
+   std::istreambuf_iterator<char> eos;
+   this->roadmap_string =  std::string(std::istreambuf_iterator<char>(sin), eos);
+   
+   // clear planner??
+   
    return true;
 }
 
@@ -612,15 +642,37 @@ void or_multiset::MultiSetPRM::setup(OpenRAVE::RobotBasePtr robot)
    double resolution = HUGE_VAL;
    for (unsigned int i=0; i<dof_resolutions.size(); i++)
       resolution = dof_resolutions[i] < resolution ? dof_resolutions[i] : resolution;
-   RAVELOG_INFO("WOULD set resolution to %f rad!\n", resolution);
-   resolution = 0.05;
-   RAVELOG_WARN("HARDCODING resolution to %f rad!\n", resolution);
+   RAVELOG_INFO("using space resolution of %f\n", resolution);
    this->ompl_space->setLongestValidSegmentFraction(
       resolution / this->ompl_space->getMaximumExtent());
 
+   // create the roadmap object
+   ompl_multiset::RoadmapPtr roadmap;
+   // class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2
+   {
+      // parse roadmap args
+      std::stringstream ss(this->roadmap_string);
+      std::vector<std::string> args = args_from_sin(ss);
+      if (args.size() < 1)
+         throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not at least one arg!");
+      if (args[0] == "class=RoadmapSampledConst")
+      {
+         if (args.size() != 4)
+            throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not exactly four args!");
+         if (args[1].substr(0,5) != "seed="
+            || args[2].substr(0,8) != "batch_n="
+            || args[3].substr(0,7) != "radius=")
+            throw OpenRAVE::openrave_exception("SetRoadmap args not correct!");
+         unsigned int seed = atoi(args[1].c_str()+5);
+         unsigned int batch_n = atoi(args[2].c_str()+8);
+         double radius = atof(args[3].c_str()+7);
+         roadmap.reset(new ompl_multiset::RoadmapSampledConst(this->ompl_space, seed, batch_n, radius));
+      }
+      else
+         throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not a known class");
+   }
+   
    // create planner itself
-   ompl_multiset::RoadmapPtr roadmap(
-      new ompl_multiset::RoadmapSampledConst(this->ompl_space, 419884521, 1000, 2.0));
    this->ompl_planner.reset(ompl_multiset::MultiSetPRM::create(
       this->ompl_space, roadmap));
    this->subsets.clear();
@@ -656,7 +708,6 @@ bool or_multiset::MultiSetPRM::ompl_isvalid(
    boost::function<bool (std::vector<OpenRAVE::dReal> &)> indicator,
    const ompl::base::State * state)
 {
-   //printf("checking ...\n");
    if (!indicator)
    {
       RAVELOG_ERROR("No indicator function provided!\n");

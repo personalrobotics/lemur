@@ -118,6 +118,8 @@ public:
    };
    std::map<SpaceKey, Space> spaces;
    
+   double cost_per_ilc;
+   
    // methods
 
    ModuleSubsetManager(OpenRAVE::EnvironmentBasePtr penv);
@@ -128,6 +130,7 @@ public:
    virtual void Destroy();
    
    bool GetName(std::ostream & sout, std::istream & sin);
+   bool SetCostPerIlc(std::ostream & sout, std::istream & sin);
    // usage:
    // "TagCurrentSubset robotname tagname true|false"
    bool TagCurrentSubset(std::ostream & sout, std::istream & sin);

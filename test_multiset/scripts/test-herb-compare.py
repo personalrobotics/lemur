@@ -83,40 +83,30 @@ for name,kb in kbs.items():
    e.Add(kb)
 kbs['table'].SetTransform(T_table)
 kbs['bin'].SetTransform(T_bin)
-
-# get iks for mug on table
 kbs['mug'].SetTransform(T_mugT)
-H = numpy.dot(
-   numpy.dot(kbs['mug'].GetTransform(), T_mug_grasp1),
-   numpy.linalg.inv(T_ee_palm)
-   )
-mugiksT = r.GetActiveManipulator().FindIKSolutions(H, openravepy.IkFilterOptions.CheckEnvCollisions)
 
-# get iks for mug at drop location
-kbs['mug'].SetTransform(T_mug_drop)
-H = numpy.dot(
-   numpy.dot(kbs['mug'].GetTransform(), T_mug_grasp1),
-   numpy.linalg.inv(T_ee_palm)
-   )
-mugiksdrop = r.GetActiveManipulator().FindIKSolutions(H, openravepy.IkFilterOptions.CheckEnvCollisions)
+# returns a list of goals
+# guaranteed to be called in sequence
 
-
-# create the three problem definitions (encoded as planner parameters xmls)
-
-def s1():
-   r.Release(kbs['mug'])
-   kbs['mug'].SetTransform(T_mugT)
+def step1():
    #r.SetDOFValues([0.,0.,0.,0.],[7,8,9,10]) # open
-pp1 = openravepy.Planner.PlannerParameters()
-pp1.SetExtraParameters(''
-   + '<startstate>5.759 -1.972 -0.22 1.9 0. 0. 0.</startstate>\n'
-   + '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in mugiksT])
-   + '<lambda>{}</lambda>'.format(lambda_)
-   + '<interroot_radius>2.0</interroot_radius>'
-)
+   # get iks for mug on table (mugiksT)
+   H = reduce(numpy.dot,
+      [kbs['mug'].GetTransform(),
+      T_mug_grasp1,
+      numpy.linalg.inv(T_ee_palm)])
+   return r.GetActiveManipulator().FindIKSolutions(H, openravepy.IkFilterOptions.CheckEnvCollisions)
 
-def s2():
-   r.Release(kbs['mug'])
+def step2():
+   # get iks for mug at drop location (mugiksdrop)
+   with kbs['mug']:
+      kbs['mug'].SetTransform(T_mug_drop)
+      H = reduce(numpy.dot,
+         [kbs['mug'].GetTransform(),
+         T_mug_grasp1,
+         numpy.linalg.inv(T_ee_palm)])
+      goals = r.GetActiveManipulator().FindIKSolutions(H, openravepy.IkFilterOptions.CheckEnvCollisions)
+   # grab the mug
    kbs['mug'].SetTransform(reduce(numpy.dot,(
       r.GetActiveManipulator().GetEndEffectorTransform(),
       T_ee_palm,
@@ -124,72 +114,30 @@ def s2():
       )))
    #r.SetDOFValues([1.5,1.5,1.5,0.],[7,8,9,10]) # closed
    r.Grab(kbs['mug'])
-pp2 = openravepy.Planner.PlannerParameters()
-pp2.SetExtraParameters(''
-   + '\n'.join(['<startstate>{}</startstate>'.format(' '.join(str(v) for v in q)) for q in mugiksT])
-   + '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in mugiksdrop])
-   + '<lambda>{}</lambda>'.format(lambda_)
-   + '<interroot_radius>2.0</interroot_radius>'
-)
+   return goals
 
-def s3():
+def step3():
    r.Release(kbs['mug'])
    kbs['mug'].SetTransform(T_mugD)
    #r.SetDOFValues([0.,0.,0.,0.],[7,8,9,10]) # open
-pp3 = openravepy.Planner.PlannerParameters()
-pp3.SetExtraParameters(''
-   + '\n'.join(['<startstate>{}</startstate>'.format(' '.join(str(v) for v in q)) for q in mugiksdrop])
-   + '<goalstate>5.759 -1.972 -0.22 1.9 0. 0. 0.</goalstate>\n'
-   + '<lambda>{}</lambda>'.format(lambda_)
-   + '<interroot_radius>2.0</interroot_radius>'
-)
+   return [[5.759, -1.972, -0.22, 1.9, 0., 0., 0.]]
 
-plans = [[s1,pp1],[s2,pp2],[s3,pp3]]
-
-
-
+steps = [step1, step2, step3]
 times = []
 trajs = []
 
-if w_inter_step:
-
-   m = openravepy.RaveCreateModule(e, 'SubsetManager')
-   e.Add(m, False, 'ssm')
-   p = openravepy.RaveCreatePlanner(e, 'MultiSetPRM')
-   p.SendCommand('UseSubsetManager ssm')
-   p.SendCommand('SetRoadmap class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2')
-
-   if w_selfcc:
-      for name,kb in kbs.items():
-         kb.Enable(False)
-      m.SendCommand('TagCurrentSubset {} selfcc true'.format(r.GetName()))
-      for name,kb in kbs.items():
-         kb.Enable(True)
+for i,step in enumerate(steps):
    
-   for i,(s,pp) in enumerate(plans):
-      
-      s()
-      m.SendCommand('TagCurrentSubset {} setup{} true'.format(r.GetName(),i+1))
-      
-      p.InitPlan(r,pp)
-      
-      t = openravepy.RaveCreateTrajectory(e, '')
-      tic = time.time()
-      p.PlanPath(t)
-      toc = time.time()
-      times.append(toc - tic)
-      trajs.append(t)
+   if i==0 or not w_inter_step:
 
-
-else: # without inter-step
-   
-   for i,(s,pp) in enumerate(plans):
+      for m in e.GetModules():
+         if m.GetXMLId() == 'SubsetManager':
+            e.Remove(m)
       
       m = openravepy.RaveCreateModule(e, 'SubsetManager')
       e.Add(m, False, 'ssm')
       p = openravepy.RaveCreatePlanner(e, 'MultiSetPRM')
       p.SendCommand('UseSubsetManager ssm')
-      p.SendCommand('SetRoadmap class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2')
       
       if w_selfcc:
          for name,kb in kbs.items():
@@ -197,25 +145,35 @@ else: # without inter-step
          m.SendCommand('TagCurrentSubset {} selfcc true'.format(r.GetName()))
          for name,kb in kbs.items():
             kb.Enable(True)
-      
-      s()
-      m.SendCommand('TagCurrentSubset {} setup{} true'.format(r.GetName(),i+1))
-      
-      p.InitPlan(r,pp)
-      
-      if w_selfcc:
-         p.SendCommand('CacheSetLocation mycache')
-         p.SendCommand('CacheLoad 1')
-      
-      t = openravepy.RaveCreateTrajectory(e, '')
-      tic = time.time()
-      p.PlanPath(t)
-      toc = time.time()
-      times.append(toc - tic)
-      trajs.append(t)
-      
-      e.Remove(m)
-      
+   
+   goals = step()
+   m.SendCommand('TagCurrentSubset {} setup{} true'.format(r.GetName(),i+1))
+   
+   start = r.GetActiveDOFValues()
+   params = ''
+   params += '<startstate>{}</startstate>\n'.format(' '.join(str(v) for v in start))
+   params += '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in goals])
+   params += '<lambda>{}</lambda>'.format(lambda_)
+   params += '<interroot_radius>2.0</interroot_radius>'
+   pp = openravepy.Planner.PlannerParameters()
+   pp.SetExtraParameters(params)
+   
+   p.InitPlan(r,pp)
+   
+   if w_selfcc:
+      p.SendCommand('CacheSetLocation mycache')
+      p.SendCommand('CacheLoad 1')
+   
+   t = openravepy.RaveCreateTrajectory(e, '')
+   tic = time.time()
+   p.PlanPath(t)
+   toc = time.time()
+   times.append(toc - tic)
+   trajs.append(t)
+   
+   q_last = t.GetWaypoint(t.GetNumWaypoints()-1)
+   r.SetActiveDOFValues(q_last)
+
 # compute lengths
 traj_lens = []
 for traj in trajs:

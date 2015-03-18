@@ -76,10 +76,10 @@ unsigned long long g_checktime;
 #define RELS_OG_SELFCC 4
 
 #define BLACK_BOX_BROAD_PHASE 0
-//#define LAMBDA (0.0001)
+#define LAMBDA (0.0001)
 //#define LAMBDA (0.5)
-#define LAMBDA (0.9999)
-#define RELS 3
+//#define LAMBDA (0.9999)
+#define RELS 1
 
 #define PLANNER_MULTISET 1
 #define PLANNER_RRT 2
@@ -87,6 +87,9 @@ unsigned long long g_checktime;
 #define PLANNER_EST 4
 
 #define PLANNER PLANNER_MULTISET
+
+//#define CLOCK CLOCK
+#define CLOCK CLOCK_REALTIME
 
 // this is regardless of the mug location and grabbed state
 bool isvalid_now_PS(void)
@@ -251,13 +254,13 @@ bool isvalid_RS(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    // regardless of mug location
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_RS();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -267,13 +270,13 @@ bool isvalid_RE(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    // regardless of mug location
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_RE();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -284,13 +287,13 @@ bool isvalid_R(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    // regardless of mug location
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_R();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -300,13 +303,13 @@ bool isvalid_P(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    // regardless of mug location
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot_padded->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_P();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -317,13 +320,13 @@ bool isvalid_T(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    kb_mug->SetTransform(ortx_from_pose(pose_mugB));
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_TD();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -334,7 +337,7 @@ bool isvalid_H(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
@@ -343,7 +346,7 @@ bool isvalid_H(const ompl::base::State * s)
       * ortx_from_pose(pose_ee_palm)
       * ortx_from_pose(pose_mug_grasp1).inverse());
    isvalid = isvalid_now_H();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -353,13 +356,13 @@ bool isvalid_D(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    kb_mug->SetTransform(ortx_from_pose(pose_mugD));
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_TD();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -369,13 +372,13 @@ bool isvalid_RnT(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    kb_mug->SetTransform(ortx_from_pose(pose_mugB));
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_R() && isvalid_now_TD();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -386,7 +389,7 @@ bool isvalid_RnH(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
@@ -395,7 +398,7 @@ bool isvalid_RnH(const ompl::base::State * s)
       * ortx_from_pose(pose_ee_palm)
       * ortx_from_pose(pose_mug_grasp1).inverse());
    isvalid = isvalid_now_R() && isvalid_now_H();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -405,13 +408,13 @@ bool isvalid_RnD(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    kb_mug->SetTransform(ortx_from_pose(pose_mugD));
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_R() && isvalid_now_TD();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -421,13 +424,13 @@ bool isvalid_PnT(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    kb_mug->SetTransform(ortx_from_pose(pose_mugB));
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot_padded->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_P() && isvalid_now_TD_padded();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -438,7 +441,7 @@ bool isvalid_PnH(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot_padded->SetActiveDOFValues(adofvals);
@@ -447,7 +450,7 @@ bool isvalid_PnH(const ompl::base::State * s)
       * ortx_from_pose(pose_ee_palm)
       * ortx_from_pose(pose_mug_grasp1).inverse());
    isvalid = isvalid_now_P() && isvalid_now_H_padded();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -457,13 +460,13 @@ bool isvalid_PnD(const ompl::base::State * s)
    struct timespec tic;
    struct timespec toc;
    bool isvalid;
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+   clock_gettime(CLOCK, &tic);
    kb_mug->SetTransform(ortx_from_pose(pose_mugD));
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    std::vector<double> adofvals(q,q+7);
    probot_padded->SetActiveDOFValues(adofvals);
    isvalid = isvalid_now_P() && isvalid_now_TD_padded();
-   clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+   clock_gettime(CLOCK, &toc);
    g_checktime += (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
    return isvalid;
 }
@@ -684,9 +687,9 @@ int main(int argc, char * argv[])
       for (int j=0; j<7; j++)
          s->values[j] = rng.uniformReal(lowers[j], uppers[j]);
       
-      clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+      clock_gettime(CLOCK, &tic);
       valid = isvalid_RE(s.get());
-      clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+      clock_gettime(CLOCK, &toc);
       times[i] = (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
       
       //{
@@ -1035,9 +1038,9 @@ int main(int argc, char * argv[])
       
       p->setProblemDefinition(pdefs[pi]);
       
-      clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &tic);
+      clock_gettime(CLOCK, &tic);
       ompl::base::PlannerStatus status = p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
-      clock_gettime(CLOCK_PROCESS_CPUTIME_ID, &toc);
+      clock_gettime(CLOCK, &toc);
       unsigned long long plantime = (toc.tv_nsec - tic.tv_nsec) + 1000000000*(toc.tv_sec - tic.tv_sec);
       
       printf("planner returned: %s\n", status.asString().c_str());
@@ -1053,7 +1056,7 @@ int main(int argc, char * argv[])
       
       printf("g_checktime: %llu\n", g_checktime);
       printf("   plantime: %llu\n", plantime);
-      checktimes.push_back(g_checktime);
+      checktimes.push_back(plantime);
    }
    
    if (cache)

@@ -17,6 +17,7 @@ public:
       int eval_subgraphs;
       double lambda;
       double interroot_radius;
+      double timelimit;
 
       PlannerParameters();
       
@@ -28,12 +29,14 @@ public:
       void serialize_eval_subgraphs(std::ostream & sout) const;
       void serialize_lambda(std::ostream & sout) const;
       void serialize_interroot_radius(std::ostream & sout) const;
+      void serialize_timelimit(std::ostream & sout) const;
       
       void deserialize_startstate(std::istream & sin);
       void deserialize_goalstate(std::istream & sin);
       void deserialize_eval_subgraphs(std::istream & sin);
       void deserialize_lambda(std::istream & sin);
       void deserialize_interroot_radius(std::istream & sin);
+      void deserialize_timelimit(std::istream & sin);
 
       bool serialize(std::ostream& sout, int options) const;
       OpenRAVE::BaseXMLReader::ProcessElement startElement(
@@ -67,6 +70,7 @@ public:
    std::map<std::string, ompl::base::SpaceInformationPtr> subsets;
    std::set< std::pair<std::string, std::vector<std::string> > > intersections;
    
+   std::string roadmap_string;
    ompl_multiset::CachePtr cache;
    
    // cumulative time in the isvalid function
@@ -97,6 +101,11 @@ public:
    // SendCommand stuff
    // UseSubsetManager name
    bool UseSubsetManager(std::ostream & sout, std::istream & sin);
+   
+   // e.g. SetRoadmap class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2
+   // this only stores the arg,
+   // may fail on first call to initplan!
+   bool SetRoadmap(std::ostream & sout, std::istream & sin);
    
    bool CacheSetLocation(std::ostream & sout, std::istream & sin);
    bool CacheLoad(std::ostream & sout, std::istream & sin);

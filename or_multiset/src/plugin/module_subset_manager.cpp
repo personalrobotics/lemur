@@ -4,6 +4,7 @@
 #include "module_subset_manager.h"
 
 namespace {
+
 std::string sf(const char * fmt, ...)
 {
   va_list ap;
@@ -18,15 +19,33 @@ std::string sf(const char * fmt, ...)
   delete[] buf;
   return ret;
 }
+
+std::vector<std::string> args_from_sin(std::istream & sin)
+{
+   std::vector<std::string> args;
+   for (;;)
+   {
+      std::string arg;
+      sin >> arg;
+      if (sin.fail())
+         break;
+      args.push_back(arg);
+   }
+   return args;
+}
+
 } // anonymous namespace
 
 or_multiset::ModuleSubsetManager::ModuleSubsetManager(OpenRAVE::EnvironmentBasePtr penv):
-   OpenRAVE::ModuleBase(penv), penv(penv)
+   OpenRAVE::ModuleBase(penv), penv(penv), cost_per_ilc(60.0e-6)
 {
    __description = "ModuleSubsetManager description";
    this->RegisterCommand("GetName",
       boost::bind(&or_multiset::ModuleSubsetManager::GetName,this,_1,_2),
       "GetName");
+   this->RegisterCommand("SetCostPerIlc",
+      boost::bind(&or_multiset::ModuleSubsetManager::SetCostPerIlc,this,_1,_2),
+      "SetCostPerIlc");
    this->RegisterCommand("TagCurrentSubset",
       boost::bind(&or_multiset::ModuleSubsetManager::TagCurrentSubset,this,_1,_2),
       "TagCurrentSubset");
@@ -83,6 +102,15 @@ bool or_multiset::ModuleSubsetManager::GetName(std::ostream & sout, std::istream
    return true;
 }
 
+bool or_multiset::ModuleSubsetManager::SetCostPerIlc(std::ostream & sout, std::istream & sin)
+{
+   std::vector<std::string> args = args_from_sin(sin);
+   if (args.size() != 1)
+      throw OpenRAVE::openrave_exception("SetCostPerIlc args not correct!");
+   this->cost_per_ilc = atof(args[0].c_str());
+   return true;
+}
+
 bool or_multiset::ModuleSubsetManager::TagCurrentSubset(
    std::ostream & sout, std::istream & sin)
 {
@@ -92,15 +120,7 @@ bool or_multiset::ModuleSubsetManager::TagCurrentSubset(
    
    // parse args
    {
-      std::vector<std::string> args;
-      for (;;)
-      {
-         std::string arg;
-         sin >> arg;
-         if (sin.fail())
-            break;
-         args.push_back(arg);
-      }
+      std::vector<std::string> args = args_from_sin(sin);
       if (args.size() != 3)
          throw OpenRAVE::openrave_exception("TagCurrentSubset args not correct!");
          
@@ -426,7 +446,7 @@ void or_multiset::ModuleSubsetManager::get_current_report(
       report_subset.name = (*sspp)->tag;
       
       // cost
-      report_subset.cost = 60.0e-6 * ((*sspp)->ilcs.size()+1);
+      report_subset.cost = this->cost_per_ilc * ((*sspp)->ilcs.size()+1);
       
       // we need to validate that this check CAN be performed
       // in the current environment!
