@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
+
 project(test_multiset)
+
 find_package(catkin REQUIRED COMPONENTS ompl_multiset)
 find_package(OMPL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS thread)
@@ -7,7 +9,8 @@ find_package(OpenRAVE REQUIRED)
 
 catkin_package()
 
-set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE Release)
+
 include_directories(
    ${catkin_INCLUDE_DIRS}
    ${OMPL_INCLUDE_DIRS}
@@ -21,7 +24,6 @@ link_libraries(
    ${OpenRAVE_CORE_LIBRARIES}
    rt) # for clock_gettime
 
-# testers
 add_executable(test2d src/test2d.cpp)
 
 add_executable(test2dimg src/test2dimg.cpp)

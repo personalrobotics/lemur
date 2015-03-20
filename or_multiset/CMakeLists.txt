@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(or_multiset)
+
 find_package(catkin REQUIRED COMPONENTS ompl_multiset)
 find_package(OMPL REQUIRED)
 find_package(OpenRAVE REQUIRED)
@@ -13,7 +14,8 @@ catkin_add_env_hooks("20.${PROJECT_NAME}"
    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/catkin-env-hooks"
 )
 
-set(CMAKE_BUILD_TYPE Release)
+#set(CMAKE_BUILD_TYPE Release)
+
 include_directories(
    include
    ${catkin_INCLUDE_DIRS}
@@ -42,8 +44,7 @@ set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES
    OUTPUT_NAME "${PROJECT_NAME}"
    PREFIX ""
    LIBRARY_OUTPUT_DIRECTORY
-   "${CATKIN_DEVEL_PREFIX}/lib/openrave-${OpenRAVE_LIBRARY_SUFFIX}"
-)
+   "${CATKIN_DEVEL_PREFIX}/lib/openrave-${OpenRAVE_LIBRARY_SUFFIX}")
 
 install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION "lib/openrave-${OpenRAVE_LIBRARY_SUFFIX}"

@@ -15,6 +15,7 @@ public:
    static MultiSetPRM * create(
       const ompl::base::StateSpacePtr space,
       const ompl_multiset::RoadmapPtr roadmap);
+   
    virtual ~MultiSetPRM(void) {};
 
    // ompl planner interface

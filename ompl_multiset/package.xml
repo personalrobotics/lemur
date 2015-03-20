@@ -1,12 +1,20 @@
 <package>
+   
    <name>ompl_multiset</name>
-   <version>0.0.0</version>
+   <version>0.0.1</version>
+   
    <description>
-      Multi-Set PRM planner for OMPL
+      Multi-Set PRM planner for OMPL.
+      The Multi-Set PRM is a roadmap planner which reasons about
+      a family of subsets over configuration space.
    </description>
+   
    <maintainer email="cdellin@gmail.com">Chris Dellin</maintainer>
+   
    <license>None</license>
+   
    <buildtool_depend>catkin</buildtool_depend>
    <build_depend>ompl</build_depend>
    <run_depend>ompl</run_depend>
+   
 </package>
