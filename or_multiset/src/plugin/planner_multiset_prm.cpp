@@ -387,6 +387,8 @@ std::string or_multiset::MultiSetPRM::update_planner_current_subsets(
 
 OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryBasePtr ptraj)
 {
+   //OpenRAVE::EnvironmentMutex::scoped_lock lock(penv->GetMutex());
+   
    ompl::base::PlannerStatus status;
    
    // get robot and ensure setup validity

@@ -49,6 +49,9 @@ or_multiset::ModuleSubsetManager::ModuleSubsetManager(OpenRAVE::EnvironmentBaseP
    this->RegisterCommand("TagCurrentSubset",
       boost::bind(&or_multiset::ModuleSubsetManager::TagCurrentSubset,this,_1,_2),
       "TagCurrentSubset");
+   this->RegisterCommand("GetCurrentReport",
+      boost::bind(&or_multiset::ModuleSubsetManager::GetCurrentReport,this,_1,_2),
+      "GetCurrentReport");
    this->RegisterCommand("DumpSubsets",
       boost::bind(&or_multiset::ModuleSubsetManager::DumpSubsets,this,_1,_2),
       "DumpSubsets");
@@ -397,6 +400,21 @@ void or_multiset::ModuleSubsetManager::tag_current_subset(
    }
 }
 
+bool or_multiset::ModuleSubsetManager::GetCurrentReport(
+   std::ostream & sout, std::istream & sin)
+{
+   std::vector<std::string> args = args_from_sin(sin);
+   if (args.size() != 1)
+      throw OpenRAVE::openrave_exception("GetCurrentReport args not correct!");
+   std::string robotname = args[0];
+   OpenRAVE::RobotBasePtr robot = this->penv->GetRobot(robotname);
+   if (!robot)
+      throw OpenRAVE::openrave_exception("GetCurrentReport robot not found!");
+   or_multiset::SubsetReport report;
+   this->get_current_report(robot, report);
+   return true;
+}
+
 // given current active dofs
 // this will auto-tag if necessary
 // this will add persistency to this set!
@@ -408,6 +426,7 @@ void or_multiset::ModuleSubsetManager::get_current_report(
 {
    std::set< boost::shared_ptr<Subset> >::iterator sspp;
    std::set< boost::shared_ptr<Subset> >::iterator sspp2;
+   std::set< boost::shared_ptr<InterLinkCheck> >::iterator iilc;
    
    // get current space we're talking about
    Space & space = this->get_current_space(robot);
@@ -418,9 +437,84 @@ void or_multiset::ModuleSubsetManager::get_current_report(
    or_multiset::compute_checks(robot, current_ilcs_vec);
    boost::shared_ptr<Subset> subset = this->retrieve_subset(space, current_ilcs_vec, true); // persistent=true
    
-   // compose report
+   // get existing subsets
    std::set< boost::shared_ptr<Subset> > existing_subsets = this->get_existing_subsets(space);
    
+   // update live checks
+   std::vector<struct LiveCheck> live_checks;
+   or_multiset::compute_live_checks(robot, live_checks);
+   for (sspp=existing_subsets.begin(); sspp!=existing_subsets.end(); sspp++)
+   {
+      (*sspp)->live_checks.clear();
+      
+      // our our ilcs INCLUDED in the current subset's ilcs?
+      // if not, abort!
+      if (!std::includes(subset->ilcs.begin(),subset->ilcs.end(),
+            (*sspp)->ilcs.begin(), (*sspp)->ilcs.end()))
+         continue;
+      
+      // ok, then all of this subset's links are in the right positions;
+      // what checks should we perform to cover them?
+      
+      std::set<
+         std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr>
+         >::iterator cit;
+      
+      // all checks in this subset
+      std::set<
+         std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr>
+         > subset_checks;
+      for (iilc=(*sspp)->ilcs.begin(); iilc!=(*sspp)->ilcs.end(); iilc++)
+         subset_checks.insert(std::make_pair((*iilc)->link1, (*iilc)->link2));
+      
+      std::set<
+         std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr>
+         > checks_unclaimed = subset_checks;
+      
+      // what about this live check?
+      for (std::vector<struct LiveCheck>::iterator
+         lc=live_checks.begin(); lc!=live_checks.end(); lc++)
+      {
+         std::set<
+            std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr>
+            > checks_claimed;
+         
+         // are its links checked all a part of this subset?
+         for (cit=lc->links_checked.begin(); cit!=lc->links_checked.end(); cit++)
+         {
+            if (subset_checks.find(*cit) == subset_checks.end())
+               break; // no!
+            if (checks_unclaimed.find(*cit) != checks_unclaimed.end())
+               checks_claimed.insert(*cit);
+         }
+         if (cit!=lc->links_checked.end()) // we broke, this live check does too much!
+            continue;
+         
+         // ok, this live check would work!
+         // does it claim at least one unclaimed 
+         if (checks_claimed.size() <= 1)
+            continue;
+         
+         // ok, add this lc!
+         (*sspp)->live_checks.push_back(*lc);
+         
+         // remove from unclaimed
+         for (cit=checks_claimed.begin(); cit!=checks_claimed.end(); cit++)
+            checks_unclaimed.erase(*cit);
+      }
+      
+      // deal with unclaimed
+      for (cit=checks_unclaimed.begin(); cit!=checks_unclaimed.end(); cit++)
+      {
+         or_multiset::LiveCheck lc;
+         lc.type = or_multiset::LiveCheck::TYPE_LINK_LINK;
+         lc.link = cit->first;
+         lc.link_other = cit->second;
+         (*sspp)->live_checks.push_back(lc);
+      }
+   }
+   
+   // compose report
    // subsets (this will also assign names if necessary)
    for (sspp=existing_subsets.begin(); sspp!=existing_subsets.end(); sspp++)
    {
@@ -471,6 +565,9 @@ void or_multiset::ModuleSubsetManager::get_current_report(
    }
    
    report.current_subset = subset->tag;
+   
+   // get ready for checks
+   this->checker = penv->GetCollisionChecker();
 }
 
 void or_multiset::ModuleSubsetManager::dump_subsets(const OpenRAVE::RobotBasePtr robot, std::string dotfile)
@@ -529,6 +626,37 @@ void or_multiset::ModuleSubsetManager::dump_subsets(const OpenRAVE::RobotBasePtr
                   (*ilcpp)->link1->GetName().c_str(),
                   (*ilcpp)->link2->GetParent()->GetName().c_str(),
                   (*ilcpp)->link2->GetName().c_str());
+
+            printf("  live checks:\n");
+            for (unsigned int ui=0; ui<(*sspp)->live_checks.size(); ui++)
+            {
+               switch ((*sspp)->live_checks[ui].type)
+               {
+               case or_multiset::LiveCheck::TYPE_KINBODY:
+                  printf("  CheckCollision(%s)\n",
+                     (*sspp)->live_checks[ui].kinbody->GetName().c_str());
+                  break;
+               case or_multiset::LiveCheck::TYPE_LINK:
+                  printf("  CheckCollision(%s:%s)\n",
+                     (*sspp)->live_checks[ui].link->GetParent()->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link->GetName().c_str());
+                  break;
+               case or_multiset::LiveCheck::TYPE_LINK_LINK:
+                  printf("  CheckCollision(%s:%s, %s:%s)\n",
+                     (*sspp)->live_checks[ui].link->GetParent()->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link_other->GetParent()->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link_other->GetName().c_str());
+                  break;
+               case or_multiset::LiveCheck::TYPE_SELFSA_KINBODY:
+                  printf("  CheckStandaloneSelfCollision(%s)\n",
+                     (*sspp)->live_checks[ui].kinbody->GetName().c_str());
+                  break;
+               default:
+                  printf("  UNKNOWN LIVE-CHECK!\n");
+               }
+            }
+            std::vector<struct LiveCheck> live_checks;
          }
       }
    }
@@ -568,18 +696,27 @@ bool or_multiset::ModuleSubsetManager::indicator(
    OpenRAVE::RobotBasePtr robot,
    std::vector<OpenRAVE::dReal> & adofvals)
 {
-   bool isvalid;
-   std::set< boost::shared_ptr<InterLinkCheck> >::iterator iilc;
-   
    robot->SetActiveDOFValues(adofvals, OpenRAVE::KinBody::CLA_Nothing);
    
-   isvalid = true;
-   for (iilc=subset->ilcs.begin(); iilc!=subset->ilcs.end(); iilc++)
+   if (!subset->live_checks.size())
+      throw OpenRAVE::openrave_exception("cant check subset, no live checks!");
+   
+   for (std::vector<struct or_multiset::LiveCheck>::iterator
+      it=subset->live_checks.begin(); it!=subset->live_checks.end(); it++)
+   switch (it->type)
    {
-      isvalid = !(this->penv->CheckCollision((*iilc)->link1, (*iilc)->link2));
-      if (!isvalid)
-         break;
+   case or_multiset::LiveCheck::TYPE_KINBODY:
+      if (this->checker->CheckCollision(it->kinbody)) return false; break;
+   case or_multiset::LiveCheck::TYPE_LINK:
+      if (this->checker->CheckCollision(it->link)) return false; break;
+   case or_multiset::LiveCheck::TYPE_LINK_LINK:
+      if (this->checker->CheckCollision(it->link, it->link_other)) return false; break;
+   case or_multiset::LiveCheck::TYPE_SELFSA_KINBODY:
+      if (this->checker->CheckStandaloneSelfCollision(it->kinbody)) return false; break;
+   default:
+      throw OpenRAVE::openrave_exception("unknown livecheck type!");
    }
    
-   return isvalid;
+   return true;
+
 }

@@ -57,7 +57,7 @@ void or_multiset::compute_checks(
    }
    
    // get a list of all enabled links in the environment
-   std::vector<OpenRAVE::KinBody::LinkPtr> links;
+   std::vector<OpenRAVE::KinBody::LinkConstPtr> links;
    {
       std::vector<OpenRAVE::KinBodyPtr> ks;
       robot->GetEnv()->GetBodies(ks);
@@ -71,20 +71,20 @@ void or_multiset::compute_checks(
    }
    
    // for each link, get its path to the environment root
-   std::map<OpenRAVE::KinBody::LinkPtr, std::vector<TxAjoint> > link_paths;
+   std::map<OpenRAVE::KinBody::LinkConstPtr, std::vector<TxAjoint> > link_paths;
    {
-      for (std::vector<OpenRAVE::KinBody::LinkPtr>::iterator link_orig=links.begin(); link_orig!=links.end(); link_orig++)
+      for (std::vector<OpenRAVE::KinBody::LinkConstPtr>::iterator link_orig=links.begin(); link_orig!=links.end(); link_orig++)
       {
          std::vector<TxAjoint> link_path; // we'll fill this
          
          // start pointing to the original target link, with no sucessor joint
          // these will eventually be prepended to link_path
-         OpenRAVE::KinBody::LinkPtr link_target = *link_orig;
+         OpenRAVE::KinBody::LinkConstPtr link_target = *link_orig;
          OpenRAVE::KinBody::JointPtr joint_target; // null
          
          // iteravely go backwards up the link chain to the environment root
          // on the way, we'll look for active joints
-         for (OpenRAVE::KinBody::LinkPtr link = link_target; link; )
+         for (OpenRAVE::KinBody::LinkConstPtr link = link_target; link; )
          {
 #if 0
             printf("considering link %s:%s ...\n",
@@ -93,7 +93,7 @@ void or_multiset::compute_checks(
 #endif
             
             // find parent link
-            OpenRAVE::KinBody::LinkPtr link_parent;
+            OpenRAVE::KinBody::LinkConstPtr link_parent;
             
             // do we have a parent in our kinbody?
             std::vector<OpenRAVE::KinBody::JointPtr> parent_joints;
@@ -131,10 +131,10 @@ void or_multiset::compute_checks(
             else // we're the root link!
             {
                // are we grabbed by a robot link?
-               std::vector<OpenRAVE::KinBody::LinkPtr> links_grabbing;
+               std::vector<OpenRAVE::KinBody::LinkConstPtr> links_grabbing;
                for (std::vector<OpenRAVE::RobotBasePtr>::iterator robot=robots.begin(); robot!=robots.end(); robot++)
                {
-                  OpenRAVE::KinBody::LinkPtr link_grabbing = (*robot)->IsGrabbing(link->GetParent());
+                  OpenRAVE::KinBody::LinkConstPtr link_grabbing = (*robot)->IsGrabbing(link->GetParent());
                   if (!link_grabbing)
                      continue;
                   links_grabbing.push_back(link_grabbing);
@@ -184,11 +184,11 @@ void or_multiset::compute_checks(
    }
    
    // next, for each PAIR of links, create the InterLinkCheck structure for this space
-   for (std::vector<OpenRAVE::KinBody::LinkPtr>::iterator link1=links.begin(); link1!=links.end(); link1++)
-   for (std::vector<OpenRAVE::KinBody::LinkPtr>::iterator link2=links.begin(); link2!=links.end(); link2++)
+   for (std::vector<OpenRAVE::KinBody::LinkConstPtr>::iterator link1=links.begin(); link1!=links.end(); link1++)
+   for (std::vector<OpenRAVE::KinBody::LinkConstPtr>::iterator link2=links.begin(); link2!=links.end(); link2++)
    {
       // ensure link1 < link2
-      if (!((*link1) < (*link2)))
+      if (!((*link1).get() < (*link2).get()))
          continue;
       
       // if they're both robot links, ensure they're nonadjacent!
@@ -266,5 +266,176 @@ void or_multiset::compute_checks(
       
       // insert!
       ilcs.push_back(ilc);
+   }
+}
+
+
+/*
+struct LiveCheck
+{
+   enum
+   {
+      TYPE_KINBODY,
+      TYPE_KINBODY_KINBODY,
+      TYPE_LINK,
+      TYPE_LINK_KINBODY,
+      TYPE_SELF_KINBODY,
+      TYPE_SELF_LINK
+   } type;
+   OpenRAVE::KinBody kinbody;
+   OpenRAVE::KinBody kinbody_other;
+   OpenRAVE::KinBody::LinkPtr link;
+};
+*/
+void or_multiset::compute_live_checks(
+   const OpenRAVE::RobotBasePtr robot,
+   std::vector<LiveCheck> & live_checks)
+{
+   live_checks.clear();
+   
+   int collision_options = robot->GetEnv()->GetCollisionChecker()->GetCollisionOptions();
+
+   std::vector<bool> robot_active_links;
+   if ((collision_options&OpenRAVE::CO_ActiveDOFs) && !robot->GetAffineDOF())
+   {
+      // get active joint indices
+      std::set<int> active_joints;
+      const std::vector<int> & adofs = robot->GetActiveDOFIndices();
+      for (unsigned int di=0; di<adofs.size(); di++)
+         active_joints.insert(robot->GetJointFromDOFIndex(adofs[di])->GetJointIndex());
+      // set active links
+      robot_active_links.resize(robot->GetLinks().size(), false);
+      for (unsigned int li=0; li<robot_active_links.size(); li++)
+         for (std::set<int>::iterator ji=active_joints.begin(); ji!=active_joints.end(); ji++)
+            if (robot->DoesAffect(*ji, li))
+               robot_active_links[li] = true;
+   }
+   else
+      robot_active_links.resize(robot->GetLinks().size(), true);
+   
+   // CheckCollision(kb)
+   // checks between all pairwise links between
+   // all my attached bodies with all non-attached bodies
+   // for now, just with kb=robot
+   // and respect CO_ActiveDOFs if its set
+   {
+      or_multiset::LiveCheck lc;
+      lc.type = or_multiset::LiveCheck::TYPE_KINBODY;
+      lc.kinbody = robot;
+      std::vector<OpenRAVE::KinBodyPtr> kinbodies;
+      robot->GetEnv()->GetBodies(kinbodies);
+      std::set<OpenRAVE::KinBody::LinkConstPtr> links_me;
+      std::set<OpenRAVE::KinBody::LinkConstPtr> links_other;
+      for (std::vector<OpenRAVE::KinBodyPtr>::iterator
+         kb=kinbodies.begin(); kb!=kinbodies.end(); kb++)
+      {
+         bool kb_is_attached = robot->IsAttached(*kb);
+         const std::vector<OpenRAVE::KinBody::LinkPtr> & kb_links = (*kb)->GetLinks();
+         for (std::vector<OpenRAVE::KinBody::LinkPtr>::const_iterator
+            link=kb_links.begin(); link!=kb_links.end(); link++)
+         {
+            if (kb_is_attached)
+            {
+               // skip if active
+               if ((*kb) == robot)
+               {
+                  if (!robot_active_links[(*link)->GetIndex()])
+                     continue;
+               }
+               else
+               {
+                  OpenRAVE::KinBody::LinkPtr robot_link = robot->IsGrabbing(*kb);
+                  if (robot_link && !robot_active_links[robot_link->GetIndex()])
+                     continue;
+               }
+               links_me.insert(*link);
+            }
+            else
+               links_other.insert(*link);
+         }
+      }
+      for (std::set<OpenRAVE::KinBody::LinkConstPtr>::iterator
+         link1=links_me.begin(); link1!=links_me.end(); link1++)
+      for (std::set<OpenRAVE::KinBody::LinkConstPtr>::iterator
+         link2=links_other.begin(); link2!=links_other.end(); link2++)
+      {
+         if ((*link1).get() < (*link2).get())
+            lc.links_checked.insert(std::make_pair(*link1, *link2));
+         else
+            lc.links_checked.insert(std::make_pair(*link2, *link1));
+      }
+      live_checks.push_back(lc);
+   }
+   
+   // CheckCollision(link)
+   // each robot link
+   // checks against the rest of the environment,
+   // but not grabbed bodies?
+   {
+      or_multiset::LiveCheck lc;
+      lc.type = or_multiset::LiveCheck::TYPE_LINK;
+      
+      // get all enabled links not attached to the robot
+      std::set<OpenRAVE::KinBody::LinkConstPtr> links_other;
+      std::vector<OpenRAVE::KinBodyPtr> kinbodies;
+      robot->GetEnv()->GetBodies(kinbodies);
+      for (std::vector<OpenRAVE::KinBodyPtr>::iterator
+         kb=kinbodies.begin(); kb!=kinbodies.end(); kb++)
+      {
+         if (robot->IsAttached(*kb))
+            continue;
+         const std::vector<OpenRAVE::KinBody::LinkPtr> & kb_links = (*kb)->GetLinks();
+         for (std::vector<OpenRAVE::KinBody::LinkPtr>::const_iterator
+            link=kb_links.begin(); link!=kb_links.end(); link++)
+         {
+            if ((*link)->IsEnabled())
+               links_other.insert(*link);
+         }
+      }
+      // get all robot links, but only ENABLED links that are ACTIVE
+      const std::vector<OpenRAVE::KinBody::LinkPtr> & my_links = robot->GetLinks();
+      for (unsigned int li=0; li<my_links.size(); li++)
+      {
+         if (!robot_active_links[li])
+            continue;
+         if (!my_links[li]->IsEnabled())
+            continue;
+         lc.link = my_links[li];
+         lc.links_checked.clear();
+         for (std::set<OpenRAVE::KinBody::LinkConstPtr>::iterator
+            link_other=links_other.begin(); link_other!=links_other.end(); link_other++)
+         {
+            if ((my_links[li]).get() < (*link_other).get())
+               lc.links_checked.insert(std::make_pair(my_links[li], *link_other));
+            else
+               lc.links_checked.insert(std::make_pair(*link_other, my_links[li]));
+         }
+         live_checks.push_back(lc);
+      }
+   }
+   
+   // CheckStandaloneSelfCollision(robot)
+   {
+      or_multiset::LiveCheck lc;
+      lc.type = or_multiset::LiveCheck::TYPE_SELFSA_KINBODY;
+      lc.kinbody = robot;
+      int adjacentoptions = OpenRAVE::KinBody::AO_Enabled;
+      if (collision_options & OpenRAVE::CO_ActiveDOFs)
+         adjacentoptions |= OpenRAVE::KinBody::AO_ActiveDOFs;
+      const std::set<int>& nonadjacent = robot->GetNonAdjacentLinks(adjacentoptions);
+      for (std::set<int>::iterator it=nonadjacent.begin(); it!=nonadjacent.end(); it++)
+      {
+         OpenRAVE::KinBody::LinkConstPtr link1(robot->GetLinks().at(*it&0xffff));
+         OpenRAVE::KinBody::LinkConstPtr link2(robot->GetLinks().at(*it>>16));
+         if (!link1->IsEnabled())
+            continue;
+         if (!link2->IsEnabled())
+            continue;
+         // ensure link1 < link2
+         if (!((link1.get()) < (link2.get())))
+            link1.swap(link2);
+         lc.links_checked.insert(std::make_pair(link1, link2));
+      }
+      live_checks.push_back(lc);
    }
 }

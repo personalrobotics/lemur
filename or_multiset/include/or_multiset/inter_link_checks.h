@@ -21,8 +21,8 @@ struct TxAjoint
 struct InterLinkCheck
 {
    // two links, with link1 < link2
-   OpenRAVE::KinBody::LinkPtr link1;
-   OpenRAVE::KinBody::LinkPtr link2;
+   OpenRAVE::KinBody::LinkConstPtr link1;
+   OpenRAVE::KinBody::LinkConstPtr link2;
    
    // common prefixes removed, first link1 tx is guaranteed identity
    std::vector<TxAjoint> link1_path;
@@ -39,8 +39,50 @@ struct InterLinkCheck
 };
 
 // for this robot's current active dofs
+// this clears ilcs
+// for now, this DOES NOT return single link-link checks!
 void compute_checks(
    const OpenRAVE::RobotBasePtr robot,
    std::vector<InterLinkCheck> & ilcs);
+
+
+
+
+struct LiveCheck
+{
+   // all these checks are on the collision checker itself
+   enum
+   {
+      TYPE_KINBODY,
+      TYPE_KINBODY_KINBODY,
+      TYPE_LINK,
+      TYPE_LINK_LINK,
+      TYPE_LINK_KINBODY,
+      TYPE_SELFSA_KINBODY,
+      TYPE_SELFSA_LINK
+   } type;
+   OpenRAVE::KinBodyPtr kinbody;
+   OpenRAVE::KinBodyPtr kinbody_other;
+   OpenRAVE::KinBody::LinkConstPtr link;
+   OpenRAVE::KinBody::LinkConstPtr link_other;
+   std::set<
+      std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr>
+      > links_checked;
+   bool is_self;
+};
+
+// this clears live_checks
+// this uses whatever the robot's environment's collision checker's
+// collision options are (e.g. CO_ActiveDOFs)
+// this the robot's live checks are assumed to be
+// CheckCollision(robot)
+// CheckStandaloneSelfCollision(robot)
+void compute_live_checks(
+   const OpenRAVE::RobotBasePtr robot,
+   std::vector<LiveCheck> & live_checks);
+
+
+
+
 
 } // namespace or_multiset

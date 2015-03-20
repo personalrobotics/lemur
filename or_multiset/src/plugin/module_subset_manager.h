@@ -65,6 +65,11 @@ public:
       // the ilcs uniquely identifies the subset
       std::set< boost::shared_ptr<InterLinkCheck> > ilcs;
       
+      // the set of live checks that can be performed to validate the ilcs
+      // WHEN IS THIS UPDATED?
+      // for now, updated by get_current_report()
+      std::vector<struct LiveCheck> live_checks;
+      
       // at some point we should do something to ensure
       // uniqueness of tags,
       // and facilitate lookups by tag
@@ -120,6 +125,8 @@ public:
    
    double cost_per_ilc;
    
+   OpenRAVE::CollisionCheckerBasePtr checker;
+   
    // methods
 
    ModuleSubsetManager(OpenRAVE::EnvironmentBasePtr penv);
@@ -156,6 +163,9 @@ public:
       const OpenRAVE::RobotBasePtr robot,
       std::string new_tag,
       bool persistent);
+   
+   // temp function which simulates what the planner would call
+   bool GetCurrentReport(std::ostream & sout, std::istream & sin);
    
    // given current active dofs
    // this will auto-tag if necessary

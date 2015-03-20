@@ -75,7 +75,7 @@ unsigned long long g_checktime;
 #define RELS_SELFCC_ONLY 3
 #define RELS_OG_SELFCC 4
 
-#define BLACK_BOX_BROAD_PHASE 0
+//#define BLACK_BOX_BROAD_PHASE 1
 #define LAMBDA (0.0001)
 //#define LAMBDA (0.5)
 //#define LAMBDA (0.9999)
@@ -563,7 +563,7 @@ int main(int argc, char * argv[])
    probot->SetActiveManipulator("right_wam");
    probot->SetActiveDOFs(probot->GetActiveManipulator()->GetArmIndices());
    
-#if 1
+#if 0
    /* add padded robot, positioned/configured appropriately */
    probot_padded = penv->ReadRobotXMLFile("robots/herb2_blocky.robot.xml");
    if (!probot_padded)

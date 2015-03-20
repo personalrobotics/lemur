@@ -36,6 +36,9 @@ atexit.register(openravepy.RaveDestroy)
 e = openravepy.Environment()
 atexit.register(e.Destroy)
 
+e.GetCollisionChecker().SetCollisionOptions(
+   openravepy.CollisionOptions.ActiveDOFs)
+
 #e.SetViewer('qtcoin')
 
 # load a robot, ik solver
@@ -148,6 +151,14 @@ for i,step in enumerate(steps):
    
    goals = step()
    m.SendCommand('TagCurrentSubset {} setup{} true'.format(r.GetName(),i+1))
+   
+   print('getting current report ...')
+   m.SendCommand('GetCurrentReport {}'.format(r.GetName()))
+   m.SendCommand('DumpSubsets {} -'.format(r.GetName()))
+   
+   #print('bailing early ...')
+   #exit()
+   
    
    start = r.GetActiveDOFValues()
    params = ''
