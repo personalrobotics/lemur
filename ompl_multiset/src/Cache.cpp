@@ -124,7 +124,7 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
          int n_chars;
          sscanf(line.c_str(), "subgraph %u nv %u ne %u root_radius %lf%n",
             &line_gi, &line_nv, &line_ne, &line_root_radius, &n_chars);
-         if (n_chars != line.size())
+         if ((unsigned int)n_chars != line.size())
             throw std::runtime_error("bad cache file, error parsing subgraph!");
          if (line_gi != ng)
             throw std::runtime_error("bad cache file, subgraphs out of order!");
@@ -170,7 +170,7 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
          int n_chars;
          sscanf(line.c_str(), "edge %u va %u vb %u%n",
             &line_ei, &line_va, &line_vb, &n_chars);
-         if (n_chars != line.size())
+         if ((unsigned int)n_chars != line.size())
             throw std::runtime_error("bad cache file, error parsing edge!");
          if (line_ei != ne)
             throw std::runtime_error("bad cache file, edges out of order!");
@@ -315,7 +315,7 @@ void C::si_load(
          bool validity;
          int n_chars;
          sscanf(line.c_str(), "vertex %u %c%n", &line_vi, &line_validity, &n_chars);
-         if (n_chars != line.size())
+         if ((unsigned int)n_chars != line.size())
             throw std::runtime_error("bad cache file, error parsing vertex!");
          if (line_validity == 'V')
             validity = true;
@@ -332,7 +332,7 @@ void C::si_load(
          bool validity;
          int n_chars;
          sscanf(line.c_str(), "edge %u %c%n", &line_ei, &line_validity, &n_chars);
-         if (n_chars != line.size())
+         if ((unsigned int)n_chars != line.size())
             throw std::runtime_error("bad cache file, error parsing vertex!");
          if (line_validity == 'V')
             validity = true;

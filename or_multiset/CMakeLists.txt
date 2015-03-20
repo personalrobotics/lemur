@@ -28,7 +28,8 @@ link_libraries(
    ${OpenRAVE_CORE_LIBRARIES}
    rt) # for clock_gettime
 
-add_definitions("-fno-strict-aliasing -Wall")
+add_definitions("-Wall -Werror")
+add_definitions("-fno-strict-aliasing")
 
 add_library(${PROJECT_NAME} src/inter_link_checks.cpp)
 

@@ -100,7 +100,7 @@ unsigned long long g_checktime;
 // this is regardless of the mug location and grabbed state
 bool isvalid_now_PS(void)
 {
-   if (penv->CheckSelfCollision(probot_padded)) return false; // ignores grabbed bodies
+   if (penv->CheckStandaloneSelfCollision(probot_padded)) return false; // ignores grabbed bodies
    return true;
 }
 
@@ -129,7 +129,7 @@ bool isvalid_now_RS(void)
       return true;
 #endif
 
-   if (penv->CheckSelfCollision(probot)) return false; // ignores grabbed bodies
+   if (penv->CheckStandaloneSelfCollision(probot)) return false; // ignores grabbed bodies
    return true;
 }
 
@@ -170,7 +170,7 @@ bool isvalid_now_R(void)
 #endif
    
    //if (probot->CheckSelfCollision()) return false;
-   if (penv->CheckSelfCollision(probot)) return false; // ignores grabbed bodies
+   if (penv->CheckStandaloneSelfCollision(probot)) return false; // ignores grabbed bodies
    //if (penv->CheckCollision(probot, kb_kitchen)) return false;
    //if (penv->CheckCollision(probot, kb_table)) return false;
    //if (penv->CheckCollision(probot, kb_bin)) return false;
@@ -188,7 +188,7 @@ bool isvalid_now_R(void)
 bool isvalid_now_P(void)
 {
    //if (probot->CheckSelfCollision()) return false;
-   if (penv->CheckSelfCollision(probot_padded)) return false; // ignores grabbed bodies
+   if (penv->CheckStandaloneSelfCollision(probot_padded)) return false; // ignores grabbed bodies
    //if (penv->CheckCollision(probot, kb_kitchen)) return false;
    //if (penv->CheckCollision(probot, kb_table)) return false;
    //if (penv->CheckCollision(probot, kb_bin)) return false;
@@ -664,7 +664,7 @@ int main(int argc, char * argv[])
       {
          bounds.setLow(i, lowers[i]);
          bounds.setHigh(i, uppers[i]);
-         printf("bounds for dof %d: %.20f,%.20f\n", lowers[i], uppers[i]);
+         printf("bounds for dof %d: %.20f,%.20f\n", i, lowers[i], uppers[i]);
       }
       space->as<ompl::base::RealVectorStateSpace>()->setBounds(bounds);
    }
@@ -874,6 +874,7 @@ int main(int argc, char * argv[])
    const double cost_D =    197120.5;
 #endif
    
+#if 0
    const double cost_RS = 0.028915645; // totally made up, maybe 3:1?
    const double cost_RE = 0.009638549; // totally made up, maybe 3:1?
    const double cost_R =  0.038554193;
@@ -881,6 +882,7 @@ int main(int argc, char * argv[])
    const double cost_T =  0.000198423;
    const double cost_H =  0.001310076;
    const double cost_D =  0.000197120;
+#endif
    
    // the actual things
    //p->add_cfree(si_RnT, "RnT", cost_R+cost_T);
@@ -1101,12 +1103,12 @@ int main(int argc, char * argv[])
          ompl::geometric::PathGeometric * gpath = dynamic_cast<ompl::geometric::PathGeometric*>(path.get());
          OpenRAVE::TrajectoryBasePtr ptraj = OpenRAVE::RaveCreateTrajectory(penv);
          ptraj->Init(probot->GetActiveConfigurationSpecification());
-         for (int i=0; i<gpath->getStateCount(); i++)
+         for (unsigned int ui=0; ui<gpath->getStateCount(); ui++)
          {
             ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s(space);
-            s = gpath->getState(i);
+            s = gpath->getState(ui);
             std::vector<OpenRAVE::dReal> vec(&s[0], &s[0]+probot->GetActiveDOF());
-            ptraj->Insert(i, vec);
+            ptraj->Insert(ui, vec);
          }
          OpenRAVE::planningutils::RetimeActiveDOFTrajectory(ptraj,probot,false,1.0,1.0,"","");
          

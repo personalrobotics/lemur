@@ -24,6 +24,8 @@ link_libraries(
    ${OMPL_LIBRARIES}
    ${OPENSSL_LIBRARIES})
 
+add_definitions("-Wall -Werror")
+
 add_library(${PROJECT_NAME}
    src/Cache.cpp
    src/MultiSetPRM.cpp

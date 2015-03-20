@@ -24,6 +24,8 @@ link_libraries(
    ${OpenRAVE_CORE_LIBRARIES}
    rt) # for clock_gettime
 
+add_definitions("-Wall -Werror")
+
 add_executable(test2d src/test2d.cpp)
 
 add_executable(test2dimg src/test2dimg.cpp)

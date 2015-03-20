@@ -215,8 +215,8 @@ private:
    // compute (or use from cache)
    // the cheapest set of checks which would, if they return as desired,
    // prove valid membership in the target cfree
-   const std::pair<double, std::vector<std::pair<int,bool> > > & get_optimistic_checks(
-      std::vector<enum CheckStatus> & statuses, int ci_target);
+   const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & get_optimistic_checks(
+      std::vector<enum CheckStatus> & statuses, unsigned int ci_target);
    
    // given the current problem,
    // try to get a path!
@@ -312,8 +312,8 @@ private:
    // cache of optimistic checks
    // this is cleared whenever the truthtable is recalculated
    std::map<
-      std::pair< std::vector<enum CheckStatus>, int >,
-      std::pair<double, std::vector<std::pair<int,bool> > >
+      std::pair< std::vector<enum CheckStatus>, unsigned int >,
+      std::pair<double, std::vector<std::pair<unsigned int,bool> > >
       > optimistic_checks;
    
    // cache of edge permutations
@@ -466,7 +466,7 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
       
       printf("   path_vs:");
       for (std::list<Vertex>::iterator it_v=path_vs.begin(); it_v!=path_vs.end(); it_v++)
-         printf(" %u", *it_v);
+         printf(" %lu", *it_v);
       printf("\n");
       
 #ifdef DEBUG_DUMPFILE
@@ -815,7 +815,7 @@ void P::cache_save(const ompl_multiset::CachePtr cache)
 
 void P::recalc_truthtable()
 {
-   int ci;
+   unsigned int ci;
    unsigned int ui;
    unsigned int ui2;
    
@@ -890,18 +890,18 @@ void P::recalc_truthtable()
 }
 
 inline
-const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_checks(
-      std::vector<enum CheckStatus> & statuses, int ci_target)
+const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & P::get_optimistic_checks(
+      std::vector<enum CheckStatus> & statuses, unsigned int ci_target)
 {
-   int ci;
-   int ti;
+   unsigned int ci;
+   unsigned int ti;
    std::map<
-      std::pair< std::vector<enum CheckStatus>, int >,
-      std::pair<double, std::vector<std::pair<int,bool> > >
+      std::pair< std::vector<enum CheckStatus>, unsigned int >,
+      std::pair<double, std::vector<std::pair<unsigned int,bool> > >
       >::iterator it;
    
    // look it up in the cache
-   std::pair< std::vector<enum CheckStatus>, int > key = std::make_pair(statuses,ci_target);
+   std::pair< std::vector<enum CheckStatus>, unsigned int > key = std::make_pair(statuses,ci_target);
    it = this->optimistic_checks.find(key);
    if (it != this->optimistic_checks.end())
       return it->second;
@@ -924,17 +924,17 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
    }
    
    // consider possible tests, each is (ci,desired_result)
-   std::pair<double, std::vector<std::pair<int,bool> > > optimal;
+   std::pair<double, std::vector<std::pair<unsigned int,bool> > > optimal;
    bool optimal_found = false;
    std::priority_queue<
-      std::pair<double, std::vector<std::pair<int,bool> > >,
-      std::vector< std::pair<double, std::vector<std::pair<int,bool> > > >,
-      std::greater< std::pair<double, std::vector<std::pair<int,bool> > > >
+      std::pair<double, std::vector<std::pair<unsigned int,bool> > >,
+      std::vector< std::pair<double, std::vector<std::pair<unsigned int,bool> > > >,
+      std::greater< std::pair<double, std::vector<std::pair<unsigned int,bool> > > >
       > open;
-   open.push(std::make_pair(0.0, std::vector<std::pair<int,bool> >()));
+   open.push(std::make_pair(0.0, std::vector<std::pair<unsigned int,bool> >()));
    while (!open.empty())
    {
-      std::pair<double, std::vector<std::pair<int,bool> > > top = open.top();
+      std::pair<double, std::vector<std::pair<unsigned int,bool> > > top = open.top();
       open.pop();
       // count up the consistent truths; if our ci_target is all T, we're done!
       bool found_true = false;
@@ -969,7 +969,7 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
                break;
          if (ti<top.second.size())
             continue;
-         std::vector<std::pair<int,bool> > tests_new;
+         std::vector<std::pair<unsigned int,bool> > tests_new;
          tests_new = top.second;
          tests_new.push_back(std::make_pair(ci,false));
          open.push(std::make_pair(top.first + this->cfrees[ci].check_cost, tests_new));
@@ -985,7 +985,7 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
    for (ci=0; ci<statuses.size(); ci++)
       printf(" %c", "UVI"[statuses[ci]]);
    printf("\n");
-   printf("  for ci_target: %d\n", ci_target);
+   printf("  for ci_target: %u\n", ci_target);
 
    printf("  possible truths:\n");
    for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end(); it++)
@@ -1000,7 +1000,7 @@ const std::pair<double, std::vector<std::pair<int,bool> > > & P::get_optimistic_
       throw ompl::Exception("no optimal found!");
    
    // we have a winner!
-   printf("  we have a winner! cost:%f, %u tests:\n", optimal.first, optimal.second.size());
+   printf("  we have a winner! cost:%f, %lu tests:\n", optimal.first, optimal.second.size());
    for (ti=0; ti<optimal.second.size(); ti++)
       printf("    test ci=%d desired=%c\n", optimal.second[ti].first, "FT"[optimal.second[ti].second]);
 
@@ -1012,16 +1012,16 @@ inline
 enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
    std::list<Vertex> & path_vs, std::list<Edge> & path_es, double & cost_estimate)
 {
-   int i;
+   unsigned int ui;
    std::priority_queue<DijkType> open_fwd;
    std::priority_queue<DijkType> open_bck;
    std::map<Vertex, DijkType> closed_fwd;
    std::map<Vertex, DijkType> closed_bck;
    double cost_connection = HUGE_VAL;
    Vertex v_connection = GraphTypes::null_vertex();
-   for (i=0; i<pdefdata.v_starts.size(); i++)
+   for (ui=0; ui<pdefdata.v_starts.size(); ui++)
    {
-      Vertex v = pdefdata.v_starts[i];
+      Vertex v = pdefdata.v_starts[ui];
       update_vertex_estimate(g[v], this->pdef_ci);
       if (g[v].statuses[this->pdef_ci] == STATUS_INVALID)
          continue;
@@ -1033,9 +1033,9 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
    }
    if (open_fwd.empty())
       return DIJK_NO_STARTS;
-   for (i=0; i<pdefdata.v_goals.size(); i++)
+   for (ui=0; ui<pdefdata.v_goals.size(); ui++)
    {
-      Vertex v = pdefdata.v_goals[i];
+      Vertex v = pdefdata.v_goals[ui];
       update_vertex_estimate(g[v], this->pdef_ci);
       if (g[v].statuses[this->pdef_ci] == STATUS_INVALID)
          continue;
@@ -1262,8 +1262,8 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
    Edge e;
    bool success;
    double euc_dist;
-   int i;
-   int n;
+   unsigned int ui;
+   unsigned int n;
 #ifdef DEBUG_DUMPFILE
    if (this->dump_fp)
    {
@@ -1285,20 +1285,20 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
    this->g[e].statuses.clear();
    this->g[e].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
    const std::vector<int> & perm = this->get_edgeperm(n);
-   for (i=0; i<n; i++)
+   for (ui=0; ui<n; ui++)
    {
-      this->g[e].edgestates[i].s = this->space->allocState();
-      space->interpolate(g[va].s, g[vb].s, 1.0*(perm[i]+1)/(n+1), this->g[e].edgestates[i].s);
-      this->g[e].edgestates[i].statuses.clear();
-      this->g[e].edgestates[i].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
+      this->g[e].edgestates[ui].s = this->space->allocState();
+      space->interpolate(g[va].s, g[vb].s, 1.0*(perm[ui]+1)/(n+1), this->g[e].edgestates[ui].s);
+      this->g[e].edgestates[ui].statuses.clear();
+      this->g[e].edgestates[ui].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
    }
    // set estimates
    this->g[e].estimates.clear();
    this->g[e].estimates.resize(this->cfrees.size()); // defaults to unknown, dirty
    if (n==0)
    {
-      for (i=0; i<this->g[e].estimates.size(); i++)
-         this->g[e].statuses[i] = STATUS_VALID;
+      for (ui=0; ui<this->g[e].estimates.size(); ui++)
+         this->g[e].statuses[ui] = STATUS_VALID;
    }
    return e;
 }
@@ -1388,7 +1388,7 @@ void P::update_vertex_estimate(struct VertexProperties & vp, unsigned int ci_tar
    if (vp.statuses[ci_target] != STATUS_UNKNOWN) return;
    if (vp.estimates[ci_target].cost_dirty == false) return;
    
-   const std::pair<double, std::vector<std::pair<int,bool> > > & checks
+   const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & checks
       = this->get_optimistic_checks(vp.statuses, ci_target);
    
    vp.estimates[ci_target].cost_remaining = checks.first;
@@ -1401,14 +1401,14 @@ void P::update_edge_estimate(struct EdgeProperties & ep, unsigned int ci_target)
    if (ep.statuses[ci_target] != STATUS_UNKNOWN) return;
    if (ep.estimates[ci_target].cost_dirty == false) return;
    
-   int ei;
-   int ti;
-   int ci;
+   unsigned int ei;
+   unsigned int ti;
+   unsigned int ci;
    
    // assume the edge's meta statuses are up-to-date
    
    // given edge's meta statuses, calculate checks required w.r.t. ci_target
-   const std::pair<double, std::vector<std::pair<int,bool> > > & checks
+   const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & checks
       = this->get_optimistic_checks(ep.statuses, ci_target);
    
    // visit each state on the edge
@@ -1432,12 +1432,12 @@ void P::update_edge_estimate(struct EdgeProperties & ep, unsigned int ci_target)
 inline
 bool P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
 {
-   int ti;
-   int ci;
+   unsigned int ti;
+   unsigned int ci;
    if (vp.statuses[ci_target] == STATUS_UNKNOWN)
    {
       // what checks should we perform?
-      const std::pair<double, std::vector<std::pair<int,bool> > > & checks
+      const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & checks
          = this->get_optimistic_checks(vp.statuses, ci_target);
       
       // perform all requested checks
@@ -1477,15 +1477,15 @@ bool P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
 inline
 bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
 {
-   int ei;
-   int ti;
-   int ci;
+   unsigned int ei;
+   unsigned int ti;
+   unsigned int ci;
    
    if (ep.statuses[ci_target] == STATUS_UNKNOWN)
    {
       // what checks should we perform?
       // this assumes that the meta-statusus are correct
-      const std::pair<double, std::vector<std::pair<int,bool> > > & checks
+      const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & checks
          = this->get_optimistic_checks(ep.statuses, ci_target);
       
       // do sub-checks for each edge point
@@ -1557,7 +1557,7 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
 inline
 void P::implies_statuses(std::vector<enum CheckStatus> & statuses)
 {
-   int ci;
+   unsigned int ci;
    std::list< std::vector<bool> > truths = this->truthtable;
    for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end();)
    {
