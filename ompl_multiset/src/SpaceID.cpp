@@ -1,3 +1,9 @@
+/* File: SpaceID.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: None
+ */
+
 #include <cstdarg>
 #include <stdexcept>
 #include <string>

@@ -1,3 +1,9 @@
+/* File: util.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2014, 2015 Carnegie Mellon University
+ * License: None
+ */
+
 #include <cmath>
 #include <cstdarg>
 #include <cstdlib>

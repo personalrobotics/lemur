@@ -1,3 +1,9 @@
+/* File: test2d.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2014, 2015 Carnegie Mellon University
+ * License: None
+ */
+
 #include <cstdio>
 #include <string>
 #include <vector>

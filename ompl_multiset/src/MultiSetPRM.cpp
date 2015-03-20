@@ -1,3 +1,9 @@
+/* File: MultiSetPRM.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2014, 2015 Carnegie Mellon University
+ * License: None
+ */
+
 #include <cstdio>
 #include <functional>
 #include <list>

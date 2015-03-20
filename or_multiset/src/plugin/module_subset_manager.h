@@ -1,3 +1,8 @@
+/* File: module_subset_manager.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2014, 2015 Carnegie Mellon University
+ * License: None
+ */
 
 namespace or_multiset
 {

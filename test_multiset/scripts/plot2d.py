@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+
+# File: plot2d.py
+# Author: Chris Dellin <cdellin@gmail.com>
+# Copyright: 2014, 2015 Carnegie Mellon University
+# License: None
+
 import math
 import sys
 import cairo

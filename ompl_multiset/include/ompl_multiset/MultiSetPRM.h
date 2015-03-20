@@ -1,3 +1,9 @@
+/* File: MultiSetPRM.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2014, 2015 Carnegie Mellon University
+ * License: None
+ */
+
 /* requires:
 #include <string>
 #include <vector>

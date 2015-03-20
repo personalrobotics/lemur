@@ -1,3 +1,9 @@
+/* File: SamplerGenMonkeyPatch.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: None
+ */
+
 #include <sstream>
 #include <ompl/base/StateSampler.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>

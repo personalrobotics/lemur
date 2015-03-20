@@ -1,3 +1,9 @@
+/* File: planner_multiset_prm.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2014, 2015 Carnegie Mellon University
+ * License: None
+ */
+
 #include <openrave/openrave.h>
 #include <ompl/base/State.h>
 #include <ompl/base/StateSpace.h>

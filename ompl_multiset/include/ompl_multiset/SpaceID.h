@@ -1,3 +1,8 @@
+/* File: SpaceID.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: None
+ */
 
 namespace ompl_multiset
 {
