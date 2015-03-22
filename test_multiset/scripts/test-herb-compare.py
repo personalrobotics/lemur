@@ -7,17 +7,42 @@
 
 from __future__ import print_function, unicode_literals, absolute_import, division
 
+import argparse
 import atexit
 import sys
 import time
 import numpy
 import openravepy
 
-lambda_ = 0.0001
-#lambda_ = 0.5
-#lambda_ = 0.9999
-w_inter_step = False
-w_selfcc = False
+
+parser = argparse.ArgumentParser(description='HERB problem experiment script.')
+parser.add_argument('--planner',required=True)
+parser.add_argument('--timelimit',type=float,default=600.0)
+parser.add_argument('--outfile')
+parser.add_argument('--outfile-lineprefix')
+parser.add_argument('--stop-after', type=int) # do only these steps
+parser.add_argument('--seed', type=int, default=1)
+
+# for planner=MultiSetPRM
+parser.add_argument('--lambda', dest='lambda_', type=float)
+parser.add_argument('--w-interstep', default=False, action='store_true')
+parser.add_argument('--w-selfcc', default=False, action='store_true')
+
+# for planner=OMPL_RRTConnect
+parser.add_argument('--range', type=float)
+
+args = parser.parse_args()
+
+planners = ['MultiSetPRM', 'OMPL_RRTConnect']
+if args.planner not in planners:
+   raise RuntimeError('planner must be in:', planners)
+if args.planner == 'MultiSetPRM':
+   if args.lambda_ is None:
+      raise RuntimeError('MultiSetPRM lamba parameter must be passed!')
+if args.planner == 'OMPL_RRTConnect':
+   if args.range is None:
+      raise RuntimeError('OMPL_RRTConnect range parameter must be passed!')
+
 
 # hardcoded poses (openrave order, qw qx qy qz x y z)
 R12 = numpy.sqrt(0.5)
@@ -27,7 +52,7 @@ T_table      = T([ R12, 0.,  0., -R12, -0.3975, 1.61, 0.     ])
 T_bin        = T([ R12, 0.,  0., -R12, -1.1,    2.3,  0.     ])
 T_ee_palm    = T([ 1.,  0.,  0.,  0.,   0.,     0.,   0.1365 ])
 T_mug_grasp1 = T([ 0.5,-0.5,-0.5, 0.5,  0.15,   0.,   0.09   ])
-T_mugT       = T([ 0.,  0.,  0.,  1.,  -0.3975, 1.61, 0.735  ]) # table
+T_mugT       = T([ 0.,  0.,  0.,  1.,  -0.3975, 1.61, 0.736  ]) # table
 T_mugD       = T([-R12, 0.,  0.,  R12, -1.1,    2.3,  0.0    ]) # bin
 T_mug_drop   = T([-R12, 0.,  0.,  R12, -1.1,    2.3,  0.735  ]) # drop location
 # robot dof values
@@ -94,6 +119,11 @@ kbs['table'].SetTransform(T_table)
 kbs['bin'].SetTransform(T_bin)
 kbs['mug'].SetTransform(T_mugT)
 
+#r.SetActiveDOFValues([ 4.46478,  -0.594221, -0.3,       1.5091,   -2.46285,  -0.849687, -0.678063])
+#r.Grab(kbs['mug'])
+#raw_input('press enter to quit!')
+#exit()
+
 # returns a list of goals
 # guaranteed to be called in sequence
 
@@ -132,52 +162,68 @@ def step3():
    return [[5.759, -1.972, -0.22, 1.9, 0., 0., 0.]]
 
 steps = [step1, step2, step3]
+if args.stop_after is not None:
+   steps = steps[0:args.stop_after]
 times = []
 trajs = []
 
+p = openravepy.RaveCreatePlanner(e, args.planner)
+
 for i,step in enumerate(steps):
    
-   if i==0 or not w_inter_step:
-
-      for m in e.GetModules():
-         if m.GetXMLId() == 'SubsetManager':
-            e.Remove(m)
-      
-      m = openravepy.RaveCreateModule(e, 'SubsetManager')
-      e.Add(m, False, 'ssm')
-      p = openravepy.RaveCreatePlanner(e, 'MultiSetPRM')
-      p.SendCommand('UseSubsetManager ssm')
-      
-      if w_selfcc:
-         for name,kb in kbs.items():
-            kb.Enable(False)
-         m.SendCommand('TagCurrentSubset {} selfcc true'.format(r.GetName()))
-         for name,kb in kbs.items():
-            kb.Enable(True)
-   
    goals = step()
-   m.SendCommand('TagCurrentSubset {} setup{} true'.format(r.GetName(),i+1))
-   
-   print('getting current report ...')
-   m.SendCommand('GetCurrentReport {}'.format(r.GetName()))
-   m.SendCommand('DumpSubsets {} -'.format(r.GetName()))
-   
-   #print('bailing early ...')
-   #exit()
-   
-   
    start = r.GetActiveDOFValues()
-   params = ''
-   params += '<startstate>{}</startstate>\n'.format(' '.join(str(v) for v in start))
-   params += '\n'.join(['<goalstate>{}</goalstate>'.format(' '.join(str(v) for v in q)) for q in goals])
-   params += '<lambda>{}</lambda>'.format(lambda_)
-   params += '<interroot_radius>2.0</interroot_radius>'
+   
+   if args.planner == 'MultiSetPRM':
+
+      # set up the ssm
+      if i==0 or not args.w_interstep:
+
+         for m in e.GetModules():
+            if m.GetXMLId() == 'SubsetManager':
+               e.Remove(m)
+         
+         m = openravepy.RaveCreateModule(e, 'SubsetManager')
+         e.Add(m, False, 'ssm')
+         p = openravepy.RaveCreatePlanner(e, args.planner) # reset planner
+         #p.SendCommand('SetRoadmap class=RoadmapSampledDensified seed=1 batch_n=1000 gamma_rel=1.1')
+         p.SendCommand('SetRoadmap class=RoadmapSampledConst seed={} batch_n=1000 radius=2'.format(args.seed))
+         p.SendCommand('UseSubsetManager ssm')
+         
+         if args.w_selfcc:
+            for name,kb in kbs.items():
+               kb.Enable(False)
+            m.SendCommand('TagCurrentSubset {} selfcc true'.format(r.GetName()))
+            for name,kb in kbs.items():
+               kb.Enable(True)
+
+      m.SendCommand('TagCurrentSubset {} step{} true'.format(r.GetName(),i+1))
+   
    pp = openravepy.Planner.PlannerParameters()
-   pp.SetExtraParameters(params)
+   pp.SetRobotActiveJoints(r)
+   vgoalconfig = []
+   for goal in goals:
+      vgoalconfig.extend(goal)
+   pp.SetGoalConfig(vgoalconfig)
+   if args.planner == 'MultiSetPRM':
+      params = ''
+      params += '<timelimit>{}</timelimit>'.format(args.timelimit)
+      params += '<lambda>{}</lambda>'.format(args.lambda_)
+      params += '<interroot_radius>2.0</interroot_radius>'
+      pp.SetExtraParameters(params)
+   elif args.planner == 'OMPL_RRTConnect':
+      params = ''
+      params += '<time_limit>{}</time_limit>'.format(args.timelimit)
+      params += '<range>{}</range>'.format(args.range)
+      if i==0:
+         params += '<seed>{}</seed>'.format(args.seed)
+      pp.SetExtraParameters(params)
+   else:
+      raise RuntimeError('unknown planner!')
    
    p.InitPlan(r,pp)
    
-   if w_selfcc:
+   if args.planner == 'MultiSetPRM' and args.w_selfcc:
       p.SendCommand('CacheSetLocation mycache')
       p.SendCommand('CacheLoad 1')
    
@@ -189,6 +235,7 @@ for i,step in enumerate(steps):
    trajs.append(t)
    
    q_last = t.GetWaypoint(t.GetNumWaypoints()-1)
+   print('setting config to:', map(float,q_last))
    r.SetActiveDOFValues(q_last)
 
 # compute lengths
@@ -203,3 +250,14 @@ for traj in trajs:
 
 print('times:', times)
 print('traj lens:', traj_lens)
+if args.outfile is not None:
+   fp = open(args.outfile, 'a')
+   lines = []
+   lines.append('times {}'.format(' '.join(map(str,times))))
+   lines.append('lens {}'.format(' '.join(map(str,traj_lens))))
+   for line in lines:
+      if args.outfile_lineprefix is not None:
+         fp.write(args.outfile_lineprefix)
+      fp.write(line)
+      fp.write('\n')
+   fp.close()

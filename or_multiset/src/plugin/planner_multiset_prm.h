@@ -18,8 +18,6 @@ public:
    {
    public:
       // extra parameters
-      std::vector< std::vector<OpenRAVE::dReal> > startstates;
-      std::vector< std::vector<OpenRAVE::dReal> > goalstates;
       int eval_subgraphs;
       double lambda;
       double interroot_radius;
@@ -30,15 +28,11 @@ public:
    private:
       std::string el_deserializing; // the element we're currently processing
       
-      void serialize_startstates(std::ostream & sout) const;
-      void serialize_goalstates(std::ostream & sout) const;
       void serialize_eval_subgraphs(std::ostream & sout) const;
       void serialize_lambda(std::ostream & sout) const;
       void serialize_interroot_radius(std::ostream & sout) const;
       void serialize_timelimit(std::ostream & sout) const;
       
-      void deserialize_startstate(std::istream & sin);
-      void deserialize_goalstate(std::istream & sin);
       void deserialize_eval_subgraphs(std::istream & sin);
       void deserialize_lambda(std::istream & sin);
       void deserialize_interroot_radius(std::istream & sin);

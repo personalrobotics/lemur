@@ -19,6 +19,7 @@
 
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapSampledConst.h>
+#include <ompl_multiset/RoadmapSampledDensified.h>
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
@@ -65,40 +66,10 @@ or_multiset::MultiSetPRM::PlannerParameters::PlannerParameters():
    eval_subgraphs(0), lambda(1.0), interroot_radius(1.0),
    timelimit(600.0)
 {
-   _vXMLParameters.push_back("startstate");
-   _vXMLParameters.push_back("goalstate");
    _vXMLParameters.push_back("eval_subgraphs");
    _vXMLParameters.push_back("lambda");
    _vXMLParameters.push_back("interroot_radius");
    _vXMLParameters.push_back("timelimit");
-}
-
-void or_multiset::MultiSetPRM::PlannerParameters::serialize_startstates(std::ostream& sout) const
-{
-   for (unsigned int si=0; si<startstates.size(); si++)
-   {
-      sout << "<startstate>";
-      for (unsigned int j=0; j<this->startstates[si].size(); j++)
-      {
-         if (j) sout << " ";
-         sout << this->startstates[si][j];
-      }
-      sout << "</startstate>" << std::endl;
-   }
-}
-
-void or_multiset::MultiSetPRM::PlannerParameters::serialize_goalstates(std::ostream& sout) const
-{
-   for (unsigned int si=0; si<goalstates.size(); si++)
-   {
-      sout << "<goalstate>";
-      for (unsigned int j=0; j<this->goalstates[si].size(); j++)
-      {
-         if (j) sout << " ";
-         sout << this->goalstates[si][j];
-      }
-      sout << "</goalstate>" << std::endl;
-   }
 }
 
 void or_multiset::MultiSetPRM::PlannerParameters::serialize_eval_subgraphs(std::ostream & sout) const
@@ -129,30 +100,6 @@ void or_multiset::MultiSetPRM::PlannerParameters::serialize_timelimit(std::ostre
    sout << "</timelimit>";
 }
 
-void or_multiset::MultiSetPRM::PlannerParameters::deserialize_startstate(std::istream & sin)
-{
-   std::vector<OpenRAVE::dReal> state;
-   while (sin.good())
-   {
-      OpenRAVE::dReal val;
-      sin >> val;
-      state.push_back(val);
-   }
-   this->startstates.push_back(state);
-}
-
-void or_multiset::MultiSetPRM::PlannerParameters::deserialize_goalstate(std::istream & sin)
-{
-   std::vector<OpenRAVE::dReal> state;
-   while (sin.good())
-   {
-      OpenRAVE::dReal val;
-      sin >> val;
-      state.push_back(val);
-   }
-   this->goalstates.push_back(state);
-}
-
 void or_multiset::MultiSetPRM::PlannerParameters::deserialize_eval_subgraphs(std::istream & sin)
 {
    sin >> this->eval_subgraphs;
@@ -177,8 +124,6 @@ bool or_multiset::MultiSetPRM::PlannerParameters::serialize(std::ostream& sout, 
 {
    if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
       return false;
-   this->serialize_startstates(sout);
-   this->serialize_goalstates(sout);
    this->serialize_eval_subgraphs(sout);
    this->serialize_lambda(sout);
    this->serialize_interroot_radius(sout);
@@ -196,9 +141,7 @@ OpenRAVE::BaseXMLReader::ProcessElement or_multiset::MultiSetPRM::PlannerParamet
    base = OpenRAVE::PlannerBase::PlannerParameters::startElement(name,atts);
    if (base != PE_Pass) return base;
    // can we handle it?
-   if (name == "startstate"
-      || name == "goalstate"
-      || name == "eval_subgraphs"
+   if (name == "eval_subgraphs"
       || name == "lambda"
       || name == "interroot_radius"
       || name == "timelimit")
@@ -215,10 +158,6 @@ bool or_multiset::MultiSetPRM::PlannerParameters::endElement(const std::string &
       return OpenRAVE::PlannerBase::PlannerParameters::endElement(name);
    if (name == el_deserializing)
    {
-      if (el_deserializing == "startstate")
-         this->deserialize_startstate(_ss);
-      if (el_deserializing == "goalstate")
-         this->deserialize_goalstate(_ss);
       if (el_deserializing == "eval_subgraphs")
          this->deserialize_eval_subgraphs(_ss);
       if (el_deserializing == "lambda")
@@ -386,7 +325,8 @@ std::string or_multiset::MultiSetPRM::update_planner_current_subsets(
       }
    }
    
-   RAVELOG_WARN("we're not yet telling planner about inclusions ...\n");
+   if (report.inclusions.size())
+      RAVELOG_WARN("we're not yet telling planner about inclusions ...\n");
    
    return report.current_subset;
 }
@@ -427,41 +367,34 @@ OpenRAVE::PlannerStatus or_multiset::MultiSetPRM::PlanPath(OpenRAVE::TrajectoryB
    ompl::base::ProblemDefinitionPtr pdef(
       new ompl::base::ProblemDefinition(subset_it->second));
    
+   unsigned int num_dof = this->ompl_space->getDimension();
+   
    // add start states
    pdef->clearStartStates();
-   for (unsigned int si=0; si<this->params->startstates.size(); si++)
+   if (this->params->vinitialconfig.size() % num_dof != 0)
+      throw OpenRAVE::openrave_exception("vector of initial states is not the right size!");
+   unsigned int num_starts = this->params->vinitialconfig.size() / num_dof;
+   for (unsigned int istart=0; istart<num_starts; istart++)
    {
-      if (params->startstates[si].size() != this->ompl_space->getDimension())
-         throw OpenRAVE::openrave_exception("start state not the right dimension!");
-      printf("found a start state:");
       ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s_start(this->ompl_space);
-      for (unsigned int j=0; j<this->params->startstates[si].size(); j++)
-      {
-         printf(" %f", this->params->startstates[si][j]);
-         s_start->values[j] = this->params->startstates[si][j];
-      }
-      printf("\n");
+      for (unsigned int j=0; j<num_dof; j++)
+         s_start->values[j] = this->params->vinitialconfig[istart*num_dof + j];
       pdef->addStartState(s_start);
    }
    
    // add goal states
    ompl::base::GoalStates * gs = new ompl::base::GoalStates(pdef->getSpaceInformation());
    gs->clear();
-   for (unsigned int si=0; si<this->params->goalstates.size(); si++)
+   if (this->params->vgoalconfig.size() % num_dof != 0)
+      throw OpenRAVE::openrave_exception("vector of goal states is not the right size!");
+   unsigned int num_goals = this->params->vgoalconfig.size() / num_dof;
+   for (unsigned int igoal=0; igoal<num_goals; igoal++)
    {
-      if (params->goalstates[si].size() != this->ompl_space->getDimension())
-         throw OpenRAVE::openrave_exception("goal state not the right dimension!");
-      printf("found a goal state:");
       ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s_goal(this->ompl_space);
-      for (unsigned int j=0; j<this->params->goalstates[si].size(); j++)
-      {
-         printf(" %f", this->params->goalstates[si][j]);
-         s_goal->values[j] = this->params->goalstates[si][j];
-      }
-      printf("\n");
+      for (unsigned int j=0; j<num_dof; j++)
+         s_goal->values[j] = this->params->vgoalconfig[igoal*num_dof + j];
       gs->addState(s_goal);
    }
-   pdef->clearGoal();
    pdef->setGoal(ompl::base::GoalPtr(gs));
    
    // tell the planner about our problem definition
@@ -675,6 +608,19 @@ void or_multiset::MultiSetPRM::setup(OpenRAVE::RobotBasePtr robot)
          unsigned int batch_n = atoi(args[2].c_str()+8);
          double radius = atof(args[3].c_str()+7);
          roadmap.reset(new ompl_multiset::RoadmapSampledConst(this->ompl_space, seed, batch_n, radius));
+      }
+      else if (args[0] == "class=RoadmapSampledDensified")
+      {
+         if (args.size() != 4)
+            throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not exactly four args!");
+         if (args[1].substr(0,5) != "seed="
+            || args[2].substr(0,8) != "batch_n="
+            || args[3].substr(0,10) != "gamma_rel=")
+            throw OpenRAVE::openrave_exception("SetRoadmap args not correct!");
+         unsigned int seed = atoi(args[1].c_str()+5);
+         unsigned int batch_n = atoi(args[2].c_str()+8);
+         double gamma_rel = atof(args[3].c_str()+10);
+         roadmap.reset(new ompl_multiset::RoadmapSampledDensified(this->ompl_space, seed, batch_n, gamma_rel));
       }
       else
          throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not a known class");
