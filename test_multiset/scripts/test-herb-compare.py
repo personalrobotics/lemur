@@ -33,7 +33,7 @@ parser.add_argument('--range', type=float)
 
 args = parser.parse_args()
 
-planners = ['MultiSetPRM', 'OMPL_RRTConnect']
+planners = ['MultiSetPRM', 'OMPL_RRTConnect', 'OMPL_LazyPRM', 'OMPL_LBKPIECE1']
 if args.planner not in planners:
    raise RuntimeError('planner must be in:', planners)
 if args.planner == 'MultiSetPRM':
@@ -42,6 +42,12 @@ if args.planner == 'MultiSetPRM':
 if args.planner == 'OMPL_RRTConnect':
    if args.range is None:
       raise RuntimeError('OMPL_RRTConnect range parameter must be passed!')
+if args.planner == 'OMPL_LazyPRM':
+   if args.range is None:
+      raise RuntimeError('OMPL_LazyPRM range parameter must be passed!')
+if args.planner == 'OMPL_LBKPIECE1':
+   if args.range is None:
+      raise RuntimeError('OMPL_LBKPIECE1 range parameter must be passed!')
 
 
 # hardcoded poses (openrave order, qw qx qy qz x y z)
@@ -211,7 +217,7 @@ for i,step in enumerate(steps):
       params += '<lambda>{}</lambda>'.format(args.lambda_)
       params += '<interroot_radius>2.0</interroot_radius>'
       pp.SetExtraParameters(params)
-   elif args.planner == 'OMPL_RRTConnect':
+   elif args.planner in ['OMPL_RRTConnect','OMPL_LazyPRM','OMPL_LBKPIECE1']:
       params = ''
       params += '<time_limit>{}</time_limit>'.format(args.timelimit)
       params += '<range>{}</range>'.format(args.range)
