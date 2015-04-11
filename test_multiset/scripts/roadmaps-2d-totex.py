@@ -1,4 +1,10 @@
 #!/usr/bin/env python2
+
+# File: roadmaps-2d-totex.py
+# Author: Chris Dellin <cdellin@gmail.com>
+# Copyright: 2015 Carnegie Mellon University
+# License: BSD
+
 from __future__ import print_function, unicode_literals, absolute_import, division
 import argparse
 import binascii

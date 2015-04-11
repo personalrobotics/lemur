@@ -2,8 +2,8 @@
 
 # File: plot2dimg-allpaths.py
 # Author: Chris Dellin <cdellin@gmail.com>
-# Copyright: 2014, 2015 Carnegie Mellon University
-# License: None
+# Copyright: 2015 Carnegie Mellon University
+# License: BSD
 
 import argparse
 import glob

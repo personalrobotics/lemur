@@ -1,3 +1,9 @@
+/* File: roadmaps-2d.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: BSD
+ */
+
 #include <cstdio>
 
 #include <ompl/base/spaces/RealVectorStateSpace.h>

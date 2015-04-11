@@ -1,4 +1,10 @@
 #!/usr/bin/env python2
+
+# File: fig-data-1-mkgraph.py
+# Author: Chris Dellin <cdellin@gmail.com>
+# Copyright: 2015 Carnegie Mellon University
+# License: BSD
+
 from __future__ import print_function, unicode_literals, absolute_import, division
 import subprocess
 

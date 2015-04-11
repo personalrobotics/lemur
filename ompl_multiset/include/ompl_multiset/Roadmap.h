@@ -1,7 +1,7 @@
 /* File: Roadmap.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
- * License: None
+ * License: BSD
  */
 
 namespace ompl_multiset
