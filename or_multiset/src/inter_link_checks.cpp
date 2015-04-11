@@ -32,7 +32,7 @@ void or_multiset::compute_checks(
 {
    ilcs.clear();
    
-   bool success;
+   //bool success;
    
    // get the list of all robots in the environment
    // (is this necessary??)
@@ -103,12 +103,14 @@ void or_multiset::compute_checks(
             
             // do we have a parent in our kinbody?
             std::vector<OpenRAVE::KinBody::JointPtr> parent_joints;
-            success = link->GetParent()->GetChain(0, link->GetIndex(), parent_joints);
-            if (!success)
-               throw OPENRAVE_EXCEPTION_FORMAT("oops, GetChain failed to root link for link %s:%s!",
-                  link->GetParent()->GetName().c_str() %
-                  link->GetName().c_str(),
-                  OpenRAVE::ORE_Failed);
+            //success =
+            link->GetParent()->GetChain(0, link->GetIndex(), parent_joints);
+            // what's the deal here? this fails for the wicker tray, which has two static root links or something?
+            //if (!success)
+            //   throw OPENRAVE_EXCEPTION_FORMAT("oops, GetChain failed to root link for link %s:%s!",
+            //      link->GetParent()->GetName().c_str() %
+            //      link->GetName().c_str(),
+            //      OpenRAVE::ORE_Failed);
             if (parent_joints.size())
             {
                OpenRAVE::KinBody::JointPtr parent_joint = *parent_joints.rbegin();
@@ -134,7 +136,7 @@ void or_multiset::compute_checks(
                // go to previous link
                link = parent_joint->GetFirstAttached();
             }
-            else // we're the root link!
+            else // we're the (a?) root link!
             {
                // are we grabbed by a robot link?
                std::vector<OpenRAVE::KinBody::LinkConstPtr> links_grabbing;

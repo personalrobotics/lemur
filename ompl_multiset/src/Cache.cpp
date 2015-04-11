@@ -84,7 +84,7 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
    std::ifstream sin(newpath.string().c_str());
    if (!sin.good())
    {
-      printf("loading roadmap from cache failed, file not found?\n");
+      printf("loading roadmap from cache failed, file \"%s\" not found.\n",newpath.string().c_str());
       return;
    }
    

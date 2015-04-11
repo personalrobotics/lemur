@@ -188,6 +188,9 @@ or_multiset::MultiSetPRM::MultiSetPRM(OpenRAVE::EnvironmentBasePtr penv):
    this->RegisterCommand("GetTimes",
       boost::bind(&or_multiset::MultiSetPRM::GetTimes,this,_1,_2),
       "GetTimes");
+   this->RegisterCommand("GetNumSubgraphsUsed",
+      boost::bind(&or_multiset::MultiSetPRM::GetNumSubgraphsUsed,this,_1,_2),
+      "GetNumSubgraphsUsed");
    this->RegisterCommand("CacheSetLocation",
       boost::bind(&or_multiset::MultiSetPRM::CacheSetLocation,this,_1,_2),
       "CacheSetLocation");
@@ -327,6 +330,8 @@ std::string or_multiset::MultiSetPRM::update_planner_current_subsets(
    
    if (report.inclusions.size())
       RAVELOG_WARN("we're not yet telling planner about inclusions ...\n");
+   
+   this->ompl_planner->update_subsets();
    
    return report.current_subset;
 }
@@ -536,6 +541,14 @@ bool or_multiset::MultiSetPRM::GetTimes(std::ostream & sout, std::istream & sin)
    sout << "checktime " << (1.0e-9 * this->checktime);
    sout << " totaltime " << (1.0e-9 * this->totaltime);
    sout << " n_checks " << this->n_checks;
+   return true;
+}
+
+bool or_multiset::MultiSetPRM::GetNumSubgraphsUsed(std::ostream & sout, std::istream & sin)
+{
+   if (!this->ompl_planner)
+      throw OpenRAVE::openrave_exception("GetNumSubgraphsUsed called with no planner!");
+   sout << "num_subgraphs_used " << this->ompl_planner->get_num_subgraphs_used();
    return true;
 }
 

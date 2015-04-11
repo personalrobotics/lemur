@@ -22,11 +22,15 @@ parser.add_argument('--outfile')
 parser.add_argument('--outfile-lineprefix')
 parser.add_argument('--stop-after', type=int) # do only these steps
 parser.add_argument('--seed', type=int, default=1)
+parser.add_argument('--w-viewer', default=False, action='store_true')
 
 # for planner=MultiSetPRM
 parser.add_argument('--lambda', dest='lambda_', type=float)
+parser.add_argument('--radius', type=float)
+parser.add_argument('--gamma-rel', type=float)
 parser.add_argument('--w-interstep', default=False, action='store_true')
 parser.add_argument('--w-selfcc', default=False, action='store_true')
+parser.add_argument('--cache-up-to', type=int)
 
 # for planner=OMPL_RRTConnect
 parser.add_argument('--range', type=float)
@@ -76,7 +80,8 @@ atexit.register(e.Destroy)
 e.GetCollisionChecker().SetCollisionOptions(
    openravepy.CollisionOptions.ActiveDOFs)
 
-#e.SetViewer('qtcoin')
+if args.w_viewer:
+   e.SetViewer('qtcoin')
 
 # load a robot, ik solver
 r = e.ReadRobotXMLFile('robots/herb2_padded_nosensors.robot.xml')
@@ -95,14 +100,15 @@ for joint in r.GetJoints():
    joint.SetResolution(0.05)
 
 # do some sweet stuff
-if False:
+if args.planner == 'MultiSetPRM' and args.cache_up_to is not None:
    m = openravepy.RaveCreateModule(e, 'SubsetManager')
    e.Add(m, False, 'ssm')
    m.SendCommand('TagCurrentSubset {} selfcc true'.format(r.GetName()))
    p = openravepy.RaveCreatePlanner(e, 'MultiSetPRM')
+   p.SendCommand('SetRoadmap class=RoadmapSampledConst seed={} batch_n=1000 radius={}'.format(args.seed, args.radius))
    p.SendCommand('UseSubsetManager ssm')
    pp_self = openravepy.Planner.PlannerParameters()
-   pp_self.SetExtraParameters('<eval_subgraphs>1</eval_subgraphs>')
+   pp_self.SetExtraParameters('<eval_subgraphs>{}</eval_subgraphs>'.format(args.cache_up_to))
    p.InitPlan(r, pp_self)
    t = openravepy.RaveCreateTrajectory(e, '')
    p.PlanPath(t)
@@ -193,7 +199,9 @@ for i,step in enumerate(steps):
          e.Add(m, False, 'ssm')
          p = openravepy.RaveCreatePlanner(e, args.planner) # reset planner
          #p.SendCommand('SetRoadmap class=RoadmapSampledDensified seed=1 batch_n=1000 gamma_rel=1.1')
-         p.SendCommand('SetRoadmap class=RoadmapSampledConst seed={} batch_n=1000 radius=2'.format(args.seed))
+         #p.SendCommand('SetRoadmap class=RoadmapSampledConst seed={} batch_n=1000 radius=2'.format(args.seed))
+         p.SendCommand('SetRoadmap class=RoadmapSampledConst seed={} batch_n=1000 radius={}'.format(args.seed, args.radius))
+         #p.SendCommand('SetRoadmap class=RoadmapSampledDensified seed={} batch_n=500 gamma_rel={}'.format(args.seed,args.gamma_rel))
          p.SendCommand('UseSubsetManager ssm')
          
          if args.w_selfcc:
@@ -267,3 +275,13 @@ if args.outfile is not None:
       fp.write(line)
       fp.write('\n')
    fp.close()
+   
+if e.GetViewer():
+   for traj in trajs:
+      openravepy.planningutils.RetimeActiveDOFTrajectory(traj, r)
+
+   while True:
+   
+      for i,traj in enumerate(trajs):
+         raw_input('press enter to view trajectory {} ...'.format(i+1))
+         r.GetController().SetPath(traj)

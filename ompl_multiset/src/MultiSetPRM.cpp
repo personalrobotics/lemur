@@ -28,44 +28,6 @@
 namespace
 {
 
-// from calc_order_endgood
-std::vector<int> perm_edgestates(int n)
-{
-   int i;
-   int last_true;
-   int max_i;
-   int max_val;
-   std::vector<int> perm;
-   std::vector<bool> done(n, false);
-   std::vector<int> dist(n);
-   for (;;)
-   {
-      last_true = -1;
-      for (i=0; i<n; i++)
-      {
-         if (done[i]) last_true = i;
-         dist[i] = (i-last_true);
-      }
-      last_true = n;
-      for (i=n-1; i>=0; i--)
-      {
-         if (done[i]) last_true = i;
-         dist[i] = (last_true-i) < dist[i] ? (last_true-i) : dist[i];
-      }
-      max_val = 0;
-      for (i=0; i<n; i++) if (max_val < dist[i])
-      {
-         max_val = dist[i];
-         max_i = i;
-      }
-      if (!max_val)
-         break;
-      perm.push_back(max_i);
-      done[max_i] = true;
-   }
-   return perm;
-}
-
 class P : public ompl_multiset::MultiSetPRM
 {
 private:
@@ -79,6 +41,7 @@ private:
    // a checkable state (1 per vertex, >=0 per edge)
    struct EdgeState
    {
+      int perm_dist;
       ompl::base::State * s;
       std::vector<enum CheckStatus> statuses; // one per si
    };
@@ -97,6 +60,7 @@ private:
    struct EdgeProperties
    {
       double euc_dist;
+      int max_perm_dist;
       std::vector<EdgeState> edgestates;
       std::vector<CheckEstimate> estimates;
       std::vector<enum CheckStatus> statuses;
@@ -195,8 +159,13 @@ public:
       const ompl::base::SpaceInformationPtr si_intersection,
       const std::vector<ompl::base::SpaceInformationPtr> si_supersets);
    
+   // update subset info if it's dirty
+   // (eg if new subsets or relations have been added)
+   void update_subsets();
+   
    // extras
    void use_num_subgraphs(unsigned int num);
+   unsigned int get_num_subgraphs_used();
    void eval_everything(const ompl::base::SpaceInformationPtr si);
    
    void cache_load(const ompl_multiset::CachePtr cache);
@@ -252,16 +221,21 @@ private:
    // given the current validity mask across all si's
    void update_vertex_estimate(struct VertexProperties & vp, unsigned int ci);
    void update_edge_estimate(struct EdgeProperties & ep, unsigned int ci);
+
    
    // these two correctly set dirty bits
-   bool isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target);
-   bool isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e);
+   // these do the check that the optimistic thing is hoping for (and no more!)
+   // in order to evaluate ci_target;
+   // they will return the state of ci_target after the check
+   // (may be unknown if e.g. a padded check failed)
+   enum CheckStatus isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target);
+   // set stop_after_maxdist=0 for a full check!
+   enum CheckStatus isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e, int min_perm_dist);
    
    // this doesnt set estimate dirty bits or anything
    void implies_statuses(std::vector<enum CheckStatus> & statuses);
    
-   const std::vector<int> & get_edgeperm(int n);
-
+   const std::vector< std::pair<int,int> > & get_edgeperm(int n);
    
    // private members
    const ompl_multiset::RoadmapPtr roadmap;
@@ -317,7 +291,15 @@ private:
       > optimistic_checks;
    
    // cache of edge permutations
-   std::map<int, const std::vector<int> > edgeperms;
+   std::map<int, const std::vector< std::pair<int,int> > > edgeperms;
+
+   // cache of status implications
+   std::map<
+      std::vector<enum CheckStatus>,
+      std::vector<enum CheckStatus>
+      > status_implications;
+   
+   bool subsets_dirty;
    
 #ifdef DEBUG_DUMPFILE
    FILE * dump_fp;
@@ -347,7 +329,7 @@ P::P(const ompl::base::StateSpacePtr space,
    ompl_multiset::MultiSetPRM(si_bogus, "MultiSetPRM"),
    roadmap(roadmap), roadmap_subgraphs_used(0),
    interroot_radius(1.0), lambda(1.0),
-   space(space)
+   space(space), subsets_dirty(false)
 {
    if (this->roadmap->space != space)
       throw ompl::Exception("roadmap's space doesnt match planner's space!");
@@ -361,11 +343,12 @@ P::P(const ompl::base::StateSpacePtr space,
 
 P::~P()
 {
-   printf("destructor called!\n");
+   printf("MultiSetPRM destructor called!\n");
    // eventually we need to actually free all the ompl states in our graph
 #ifdef DEBUG_DUMPFILE
    if (this->dump_fp) fclose(this->dump_fp);
 #endif
+   printf("MultiSetPRM destructor finished!\n");
 }
 
 void P::setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef)
@@ -392,6 +375,8 @@ ompl::base::PlannerStatus P::solve(const ompl::base::PlannerTerminationCondition
    bool success;
    
    printf("planning ...\n");
+   
+   update_subsets();
    
    // get pdef stuff
    if (!this->pdef)
@@ -566,9 +551,19 @@ void P::add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, do
    // add it!
    this->si_to_ci[si.get()] = this->cfrees.size();
    this->cfrees.push_back(Cfree(si, name, check_cost));
+   
+   this->subsets_dirty = true;
+}
+
+void P::update_subsets()
+{
+   if (!this->subsets_dirty)
+      return;
+   
    this->recalc_truthtable();
    
-   // extend all statuses with unknowns, and invalidate all estimates
+   // extend all statuses with unknowns (for any new cfrees),
+   // and update implications and invalidate all estimates
    if (boost::num_vertices(this->g))
    {
       OMPL_WARN("attempting experimental space addition with existing graph!");
@@ -577,6 +572,7 @@ void P::add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, do
       {
          Vertex v = *vp.first;
          this->g[v].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
+         this->implies_statuses(this->g[v].statuses);
          this->g[v].estimates.clear();
          this->g[v].estimates.resize(this->cfrees.size()); // defaults to dirty
       }
@@ -585,14 +581,22 @@ void P::add_cfree(const ompl::base::SpaceInformationPtr si, std::string name, do
       {
          Edge e = *ep.first;
          for (unsigned int ei=0; ei<this->g[e].edgestates.size(); ei++)
+         {
             this->g[e].edgestates[ei].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
+            this->implies_statuses(this->g[e].edgestates[ei].statuses);
+         }
          this->g[e].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
+         this->implies_statuses(this->g[e].statuses);
          this->g[e].estimates.clear();
          this->g[e].estimates.resize(this->cfrees.size()); // defaults to dirty
       }
-      // clear optimistic checks cache
-      this->optimistic_checks.clear();
    }
+   
+   // clear optimistic checks cache
+   this->optimistic_checks.clear();
+   this->status_implications.clear();
+   
+   this->subsets_dirty = false;
 }
 
 void P::add_inclusion(
@@ -601,7 +605,8 @@ void P::add_inclusion(
 {
    this->inclusions.push_back(Inclusion(si_superset, si_subset));
    // we should check that the si's are known!
-   this->recalc_truthtable();
+   
+   this->subsets_dirty = true;
 }
 
 void P::add_intersection(
@@ -614,7 +619,8 @@ void P::add_intersection(
    si_supersets.push_back(si_b);
    this->intersections.push_back(Intersection(si_intersection, si_supersets));
    // we should check that the si's are known!
-   this->recalc_truthtable();
+   
+   this->subsets_dirty = true;
 }
 
 void P::add_intersection(
@@ -623,7 +629,8 @@ void P::add_intersection(
 {
    this->intersections.push_back(Intersection(si_intersection, si_supersets));
    // we should check that the si's are known!
-   this->recalc_truthtable();
+   
+   this->subsets_dirty = true;
 }
 
 void P::use_num_subgraphs(unsigned int num)
@@ -633,6 +640,11 @@ void P::use_num_subgraphs(unsigned int num)
       printf("force considering next subgraph [%u] ...\n", this->roadmap_subgraphs_used);
       this->add_subgraph();
    }
+}
+
+unsigned int P::get_num_subgraphs_used()
+{
+   return this->roadmap_subgraphs_used;
 }
 
 void P::add_subgraph()
@@ -677,6 +689,10 @@ void P::add_subgraph()
 
 void P::eval_everything(const ompl::base::SpaceInformationPtr si)
 {
+   enum CheckStatus status;
+   
+   update_subsets();
+   
    // do we need to add this si with a default cost?
    // also get check index for this subset
    if (this->si_to_ci.find(si.get()) == this->si_to_ci.end())
@@ -687,24 +703,34 @@ void P::eval_everything(const ompl::base::SpaceInformationPtr si)
    int ci = this->si_to_ci[si.get()];
    
    // check validity of ALL edges
+   unsigned int ei=0;
+   unsigned int num_edges = boost::num_edges(this->g);
    for (std::pair<EdgeIter,EdgeIter> ep = boost::edges(this->g);
       ep.first!=ep.second; ep.first++)
    {
+      printf("evaluating edge [%u] of %u!\n", ei++, num_edges);
       Edge e = *ep.first;
-      isvalid_edge(g[e], ci, e);
+      do status = isvalid_edge(g[e], ci, e, 0); // min_perm_dist
+      while (status == STATUS_UNKNOWN);
    }
    
    // check validity of ALL vertices
+   unsigned int vi=0;
+   unsigned int num_vertices = boost::num_vertices(this->g);
    for (std::pair<VertexIter,VertexIter> vp = boost::vertices(this->g);
       vp.first!=vp.second; vp.first++)
    {
+      printf("evaluating vertex [%u] of %u!\n", vi++, num_vertices);
       Vertex v = *vp.first;
-      isvalid_vertex(g[v], ci);
+      do status = isvalid_vertex(g[v], ci);
+      while (status == STATUS_UNKNOWN);
    }
 }
 
 void P::cache_load(const ompl_multiset::CachePtr cache)
 {
+   update_subsets();
+   
    // load into roadmap
    cache->roadmap_load(this->roadmap.get());
    // for each si
@@ -767,6 +793,8 @@ void P::cache_load(const ompl_multiset::CachePtr cache)
 
 void P::cache_save(const ompl_multiset::CachePtr cache)
 {
+   update_subsets();
+   
    // save from roadmap
    cache->roadmap_save(this->roadmap.get());
    // for each si
@@ -997,7 +1025,18 @@ const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & P::get_op
    }
    
    if (!optimal_found)
+   {
+      printf("oops!\n");
+      
+      std::vector<enum CheckStatus> statuses_test = statuses;
+      this->implies_statuses(statuses_test);
+      printf("if implies_statuses had been called on self:");
+      for (ci=0; ci<statuses_test.size(); ci++)
+         printf(" %c", "UVI"[statuses_test[ci]]);
+      printf("\n");
+      
       throw ompl::Exception("no optimal found!");
+   }
    
    // we have a winner!
    printf("  we have a winner! cost:%f, %lu tests:\n", optimal.first, optimal.second.size());
@@ -1027,7 +1066,7 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
          continue;
       double cost = 0.0;
       if (g[v].statuses[this->pdef_ci] == STATUS_UNKNOWN)
-         cost += 0.5*g[v].estimates[this->pdef_ci].cost_remaining;
+         cost += this->lambda * 0.5 * g[v].estimates[this->pdef_ci].cost_remaining;
       open_fwd.push(DijkType(cost,
          v, GraphTypes::null_vertex(), Edge()));
    }
@@ -1041,7 +1080,7 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
          continue;
       double cost = 0.0;
       if (g[v].statuses[this->pdef_ci] == STATUS_UNKNOWN)
-         cost += 0.5*g[v].estimates[this->pdef_ci].cost_remaining;
+         cost += this->lambda * 0.5 * g[v].estimates[this->pdef_ci].cost_remaining;
       open_bck.push(DijkType(cost,
          v, GraphTypes::null_vertex(), Edge()));
    }
@@ -1145,6 +1184,7 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
 
 bool P::isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es)
 {
+#if 1
    bool isvalid = true;
    
    // walk path forward, checking as we go
@@ -1155,7 +1195,7 @@ bool P::isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es)
       
       // check first vertex
       it_v = path_vs.begin();
-      if (!isvalid_vertex(g[*it_v], this->pdef_ci))
+      if (STATUS_VALID != isvalid_vertex(g[*it_v], this->pdef_ci))
       {
          isvalid = false;
          break;
@@ -1166,13 +1206,13 @@ bool P::isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es)
       it_e=path_es.begin();
       for (; it_v!=path_vs.end(); it_v++,it_e++)
       {
-         if (!isvalid_vertex(g[*it_v], this->pdef_ci))
+         if (STATUS_VALID != isvalid_vertex(g[*it_v], this->pdef_ci))
          {
             isvalid = false;
             break;
          }
          
-         if (!isvalid_edge(g[*it_e], this->pdef_ci, *it_e))
+         if (STATUS_VALID != isvalid_edge(g[*it_e], this->pdef_ci, *it_e, 0)) // min_perm_dist
          {
             isvalid = false;
             break;
@@ -1192,7 +1232,7 @@ bool P::isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es)
       
       // check first vertex
       it_v = path_vs.rbegin();
-      if (!isvalid_vertex(g[*it_v], this->pdef_ci))
+      if (STATUS_VALID != isvalid_vertex(g[*it_v], this->pdef_ci))
       {
          isvalid = false;
          break;
@@ -1203,13 +1243,13 @@ bool P::isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es)
       it_e=path_es.rbegin();
       for (; it_v!=path_vs.rend(); it_v++,it_e++)
       {
-         if (!isvalid_vertex(g[*it_v], this->pdef_ci))
+         if (STATUS_VALID != isvalid_vertex(g[*it_v], this->pdef_ci))
          {
             isvalid = false;
             break;
          }
          
-         if (!isvalid_edge(g[*it_e], this->pdef_ci, *it_e))
+         if (STATUS_VALID != isvalid_edge(g[*it_e], this->pdef_ci, *it_e, 0)) // min_perm_dist
          {
             isvalid = false;
             break;
@@ -1219,6 +1259,36 @@ bool P::isvalid_path(std::list<Vertex> & path_vs, std::list<Edge> & path_es)
    while (0);
    
    return isvalid;
+   
+#else
+
+   std::list<Vertex>::iterator it_v;
+   std::list<Edge>::iterator it_e;
+
+   // check all vertices, forward to backward
+   for (it_v=path_vs.begin(); it_v!=path_vs.end(); it_v++)
+      if (STATUS_VALID != isvalid_vertex(g[*it_v], this->pdef_ci))
+         return false;
+   
+   // get max perm dist
+   int max_perm_dist = 0;
+   for (it_e=path_es.begin(); it_e!=path_es.end(); it_e++)
+   {
+      if (max_perm_dist < g[*it_e].max_perm_dist)
+         max_perm_dist = g[*it_e].max_perm_dist;
+   }
+   for (; 0<=max_perm_dist; max_perm_dist--)
+   {
+      printf("    trying perm_dist: %d ...\n", max_perm_dist);
+      for (it_e=path_es.begin(); it_e!=path_es.end(); it_e++)
+      {
+         if (STATUS_VALID != isvalid_edge(g[*it_e], this->pdef_ci, *it_e, max_perm_dist)) // min_perm_dist
+            return false;
+      }
+   }
+   
+   return true;
+#endif
 }
 
 P::Vertex P::add_vertex(ompl::base::State * s)
@@ -1236,7 +1306,7 @@ P::Vertex P::add_vertex(ompl::base::State * s)
    {
       double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
       fprintf(this->dump_fp, "add_vertex %f,%f", q[0], q[1]);
-      for (int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
+      for (unsigned int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
    }
 #endif
 #if 0
@@ -1270,7 +1340,7 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
       double * qa = this->g[va].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
       double * qb = this->g[vb].s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
       fprintf(this->dump_fp, "add_edge %f,%f %f,%f", qa[0], qa[1], qb[0], qb[1]);
-      for (int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
+      for (unsigned int i=0; i<this->cfrees.size(); i++) fprintf(this->dump_fp," U"); fprintf(this->dump_fp,"\n");
    }
 #endif
    boost::tie(e,success) = boost::add_edge(va, vb, this->g);
@@ -1284,11 +1354,13 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
    this->g[e].edgestates.resize(n);
    this->g[e].statuses.clear();
    this->g[e].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
-   const std::vector<int> & perm = this->get_edgeperm(n);
+   const std::vector< std::pair<int,int> > & perm = this->get_edgeperm(n);
+   this->g[e].max_perm_dist = (n==0) ? 0 : perm[0].second;
    for (ui=0; ui<n; ui++)
    {
+      this->g[e].edgestates[ui].perm_dist = perm[ui].second;
       this->g[e].edgestates[ui].s = this->space->allocState();
-      space->interpolate(g[va].s, g[vb].s, 1.0*(perm[ui]+1)/(n+1), this->g[e].edgestates[ui].s);
+      space->interpolate(g[va].s, g[vb].s, 1.0*(perm[ui].first+1)/(n+1), this->g[e].edgestates[ui].s);
       this->g[e].edgestates[ui].statuses.clear();
       this->g[e].edgestates[ui].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
    }
@@ -1333,10 +1405,15 @@ void P::add_initial_root_edges(Vertex vroot)
 }
 
 // from calc_order_endgood
-const std::vector<int> & P::get_edgeperm(int n)
+// from calc_order_endgood
+// output is a vector
+// first element is from 0 to n-1 (which one to check)
+// second element is distance to nearest already-evaluated thing
+// (assuming the ends are already evaluated)
+const std::vector< std::pair<int,int> > & P::get_edgeperm(int n)
 {
    // look it up in the cache
-   std::map<int, const std::vector<int> >::iterator it;
+   std::map<int, const std::vector< std::pair<int,int> > >::iterator it;
    it = this->edgeperms.find(n);
    if (it != this->edgeperms.end())
       return it->second;
@@ -1346,7 +1423,7 @@ const std::vector<int> & P::get_edgeperm(int n)
    int last_true;
    int max_i;
    int max_val;
-   std::vector<int> perm;
+   std::vector< std::pair<int,int> > perm;
    std::vector<bool> done(n, false);
    std::vector<int> dist(n);
    for (;;)
@@ -1371,12 +1448,12 @@ const std::vector<int> & P::get_edgeperm(int n)
       }
       if (!max_val)
          break;
-      perm.push_back(max_i);
+      perm.push_back(std::make_pair(max_i,max_val));
       done[max_i] = true;
    }
    printf("  result: [");
    for (i=0; i<n; i++)
-      printf(" %d", perm[i]);
+      printf(" %d-%d", perm[i].first, perm[i].second);
    printf(" ]\n");
    this->edgeperms.insert(std::make_pair(n,perm));
    return this->edgeperms[n];
@@ -1430,7 +1507,7 @@ void P::update_edge_estimate(struct EdgeProperties & ep, unsigned int ci_target)
 }
 
 inline
-bool P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
+enum P::CheckStatus P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
 {
    unsigned int ti;
    unsigned int ci;
@@ -1468,14 +1545,11 @@ bool P::isvalid_vertex(struct VertexProperties & vp, unsigned int ci_target)
       for (ci=0; ci<vp.estimates.size(); ci++)
          vp.estimates[ci].cost_dirty = true;
    }
-   if (vp.statuses[ci_target] == STATUS_VALID)
-      return true;
-   else
-      return false;
+   return vp.statuses[ci_target];
 }
 
 inline
-bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
+enum P::CheckStatus P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e, int min_perm_dist)
 {
    unsigned int ei;
    unsigned int ti;
@@ -1484,6 +1558,7 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
    if (ep.statuses[ci_target] == STATUS_UNKNOWN)
    {
       // what checks should we perform?
+      // (assumed for now to perform across all edge states)
       // this assumes that the meta-statusus are correct
       const std::pair<double, std::vector<std::pair<unsigned int,bool> > > & checks
          = this->get_optimistic_checks(ep.statuses, ci_target);
@@ -1493,30 +1568,40 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
       // are correctly also unknown or valid
       for (ei=0; ei<ep.edgestates.size(); ei++)
       {
+         if (ep.edgestates[ei].perm_dist < min_perm_dist)
+            break;
+         
          if (ep.edgestates[ei].statuses[ci_target] == STATUS_VALID)
             continue;
          
          // else unknown
          
-         // perform all requested checks
+         // perform all requested checks (in any order)
+         // keep track if things matched, so we can bail early
+         //printf("performing requested checks at edge point ...\n");
+         bool results_matched = true;
          for (ti=0; ti<checks.second.size(); ti++)
          {
             ci = checks.second[ti].first;
-            if (this->cfrees[ci].si->isValid(ep.edgestates[ei].s))
+            bool result_actual = this->cfrees[ci].si->isValid(ep.edgestates[ei].s);
+            if (result_actual)
                ep.edgestates[ei].statuses[ci] = STATUS_VALID;
             else
                ep.edgestates[ei].statuses[ci] = STATUS_INVALID;
+            if (result_actual != checks.second[ti].second)
+               results_matched = false;
          }
          
-         // what does this imply for all our other statuses (at the edge point only)?
+         // what does this imply for all our other statuses (at this edge point only)?
          this->implies_statuses(ep.edgestates[ei].statuses);
          
          /* fail early if we know we're invalid w.r.t. ci_target */
-         if (ep.edgestates[ei].statuses[ci_target] == STATUS_INVALID)
+         //if (ep.edgestates[ei].statuses[ci_target] == STATUS_INVALID)
+         if (!results_matched)
             break;
       }
       
-      // update meta-statuses
+      // update ALL meta-statuses
       for (ci=0; ci<ep.statuses.size(); ci++)
       {
          ep.statuses[ci] = STATUS_VALID;
@@ -1531,6 +1616,8 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
                ep.statuses[ci] = STATUS_UNKNOWN;
          }
       }
+      
+      //this->implies_statuses(ep.statuses);
 
 #ifdef DEBUG_DUMPFILE
       if (this->dump_fp)
@@ -1544,19 +1631,27 @@ bool P::isvalid_edge(struct EdgeProperties & ep, unsigned int ci_target, Edge e)
       }
 #endif
       
-      // invalidate estimates
+      // invalidate ALL estimates
       for (ci=0; ci<ep.estimates.size(); ci++)
          ep.estimates[ci].cost_dirty = true;
    }
-   if (ep.statuses[ci_target] == STATUS_VALID)
-      return true;
-   else
-      return false;
+   return ep.statuses[ci_target];
 }
 
 inline
 void P::implies_statuses(std::vector<enum CheckStatus> & statuses)
 {
+   std::map<
+      std::vector<enum CheckStatus>,
+      std::vector<enum CheckStatus>
+      >::iterator status_implications_it
+      = this->status_implications.find(statuses);
+   if (status_implications_it != this->status_implications.end())
+   {
+      statuses = status_implications_it->second;
+      return;
+   }
+   std::vector<enum CheckStatus> statuses_orig = statuses;
    unsigned int ci;
    std::list< std::vector<bool> > truths = this->truthtable;
    for (std::list< std::vector<bool> >::iterator it=truths.begin(); it!=truths.end();)
@@ -1593,4 +1688,5 @@ void P::implies_statuses(std::vector<enum CheckStatus> & statuses)
       if (!found_true && found_false)
          statuses[ci] = STATUS_INVALID;
    }
+   this->status_implications.insert(std::make_pair(statuses_orig, statuses));
 }

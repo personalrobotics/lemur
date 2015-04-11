@@ -133,6 +133,7 @@ bool isvalid(unsigned char * data, int width, int height, double * costp, const 
    int i;
    int j;
    unsigned char * px;
+   bool isvalid;
    double * q = s->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    i = floor(q[0]);
    j = floor(q[1]);
@@ -141,36 +142,36 @@ bool isvalid(unsigned char * data, int width, int height, double * costp, const 
    {
       *costp += 10.0;
       if (px[0]==0 && px[1]==0 && px[2]==0)
-         return false;
+         isvalid = false;
       else
-         return true;
+         isvalid = true;
    }
    else if (strcmp(type,"p")==0)
    {
       *costp += 1.0;
       if (px[0]==0 && px[1]==0 && px[2]==0)
-         return false;
+         isvalid = false;
       else if (px[0]==128 && px[1]==128 && px[2]==128)
-         return false;
+         isvalid = false;
       else
-         return true;
+         isvalid = true;
    }
    else if (strcmp(type,"rbn")==0)
    {
       if (px[0]==0 && px[1]==0 && px[2]==0) /* black */
       {
          *costp += 11.0;
-         return false;
+         isvalid = false;
       }
-      if (px[0]==128 && px[1]==128 && px[2]==128) /* grey */
+      else if (px[0]==128 && px[1]==128 && px[2]==128) /* grey */
       {
          *costp += 11.0;
-         return true;
+         isvalid = true;
       }
       else /* assumed white */
       {
          *costp += 1.0;
-         return true;
+         isvalid = true;
       }
    }
    else
@@ -178,6 +179,8 @@ bool isvalid(unsigned char * data, int width, int height, double * costp, const 
       fprintf(stderr, "type %s not known!\n", type);
       exit(-1);
    }
+   //printf("    checking %d,%d in %s ... %s!\n", i, j, type, isvalid ? "yes" : "no");
+   return isvalid;
 }
 
 int main(int argc, char * argv[])
@@ -191,14 +194,14 @@ int main(int argc, char * argv[])
    
    printf("starting test2dimg ...\n");
    
-   if (argc != 5)
+   if (argc != 6)
    {
-      fprintf(stderr,"Usage: %s <image> <type> <seed> <dumpfile>!\n", argv[0]);
+      fprintf(stderr,"Usage: %s <image> <type> <seed> <dumpfile> <lambda>!\n", argv[0]);
       fprintf(stderr,"type is [r|rp-naive|rp-checkmask]\n");
       exit(1);
    }
    
-   ompl::RNG::setSeed(atoi(argv[3]));
+   //ompl::RNG::setSeed(atoi(argv[3]));
    
    read_png(argv[1], &width, &height, &data);
    printf("dims: %dx%d\n", width, height);
@@ -217,16 +220,17 @@ int main(int argc, char * argv[])
    
    /* create planner */
    ompl_multiset::RoadmapPtr roadmap(
-      new ompl_multiset::RoadmapSampledConst(space, 419884521, 100, 100.0));
+      new ompl_multiset::RoadmapSampledConst(space, atoi(argv[3]), 100, 100.0));
    ompl_multiset::MultiSetPRM * p
       = ompl_multiset::MultiSetPRM::create(space, roadmap);
    p->set_interroot_radius(100.0);
+   p->set_lambda(atof(argv[5]));
    p->set_dumpfile(argv[4]);
    
    /* create spaceinfos */
    ompl::base::SpaceInformationPtr si_r(new ompl::base::SpaceInformation(space));
    si_r->setStateValidityChecker(boost::bind(isvalid, data, width, height, &cost, "r", _1));
-   p->add_cfree(si_r, "r", 100.0);
+   p->add_cfree(si_r, "r", 10.0);
    ompl::base::SpaceInformationPtr si_p(new ompl::base::SpaceInformation(space));
    si_p->setStateValidityChecker(boost::bind(isvalid, data, width, height, &cost, "p", _1));
    p->add_cfree(si_p, "p", 1.0);
@@ -281,6 +285,8 @@ int main(int argc, char * argv[])
    if (strcmp(argv[2],"rp-checkmask")==0)
       p->add_inclusion(si_r, si_p);
    
+   p->update_subsets();
+   
    cost = 0.0;
    p->setProblemDefinition(pdef);
    ompl::base::PlannerStatus status = p->solve(ompl::base::timedPlannerTerminationCondition(600.0));
@@ -288,6 +294,15 @@ int main(int argc, char * argv[])
    {
       fprintf(stderr, "no solution found after 600 seconds!\n");
       exit(1);
+   }
+   
+   delete p;
+   
+   {
+      FILE * fp;
+      fp = fopen(argv[4], "a");
+      fprintf(fp, "final_check_cost %f\n", cost);
+      fclose(fp);
    }
    
    printf("solved! total cost: %f\n", cost);

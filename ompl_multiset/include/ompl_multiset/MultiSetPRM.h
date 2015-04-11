@@ -54,8 +54,11 @@ public:
       const ompl::base::SpaceInformationPtr si_intersection,
       const std::vector<ompl::base::SpaceInformationPtr> si_supersets) = 0;
    
+   virtual void update_subsets() = 0;
+   
    // extras
    virtual void use_num_subgraphs(unsigned int num) = 0;
+   virtual unsigned int get_num_subgraphs_used() = 0;
    virtual void eval_everything(const ompl::base::SpaceInformationPtr si) = 0;
    
    // load the roadmap and any si's from the cache

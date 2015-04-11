@@ -113,6 +113,8 @@ public:
    
    bool GetTimes(std::ostream & sout, std::istream & sin);
    
+   bool GetNumSubgraphsUsed(std::ostream & sout, std::istream & sin);
+   
    // get currently configured subseg manager
    // (and construct private if missing)
    // may return null pointer if construction failed for some reason

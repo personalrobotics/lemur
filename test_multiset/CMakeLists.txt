@@ -36,6 +36,8 @@ target_link_libraries(testherb)
 
 add_executable(dijk src/dijk.cpp)
 
+add_executable(roadmaps-2d src/roadmaps-2d.cpp)
+
 install(TARGETS test2d test2dimg testherb dijk
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
