@@ -11,10 +11,17 @@ import argparse
 import atexit
 import sys
 import time
+import xml.etree.ElementTree
 import numpy
 import openravepy
 
-
+def set_camera(orviewer, orcamparams):
+   root = xml.etree.ElementTree.fromstring('<root>{}</root>'.format(orcamparams))
+   ra = map(float,root.find('camrotationaxis').text.split())
+   axisangle = numpy.array(ra[0:3]) * ra[3] * numpy.pi / 180.0
+   H = openravepy.matrixFromAxisAngle(axisangle)
+   H[0:3,3] = map(float,root.find('camtrans').text.split())
+   e.GetViewer().SetCamera(H, float(root.find('camfocal').text))
 
 class FridgeProblem:
    def __init__(self, env):
@@ -49,7 +56,7 @@ class FridgeProblem:
       #self.T_pitcher_t     = T( 0.97131, 0.,  0.,  0.23780, 1.561, 1.330, 0.935    )
       self.T_pitcher_t     = T( 0.88072, 0.,  0., -0.47364, 1.49,  0.989, 0.94    )
       self.T_pitcher_grasp = T( 0.5,     0.5, 0.5, 0.5,    -0.18,  0.,    0.15     )
-      self.T_bottle_f      = T( 1.,      0.,  0.,  0.,      1.36,  0.42,  0.31     )
+      self.T_bottle_f      = T( numpy.cos(-0.00),      0.,  0.,  numpy.sin(-0.00),      1.36,  0.42,  0.31     )
       self.T_bottle_t      = T( 1.,      0.,  0.,  0.,      1.52,  1.28,  0.94    )
       self.T_bottle_grasp  = T( 0.5,     0.5, 0.5, 0.5,    -0.13,  0.,    0.15     )
       self.T_beer          = T( S12,     S12, 0.,  0.,      1.45,  0.49,  0.75     )
@@ -255,6 +262,12 @@ e.GetCollisionChecker().SetCollisionOptions(
 
 if args.w_viewer:
    e.SetViewer('qtcoin')
+   set_camera(e.GetViewer, '''
+      <camtrans>-0.639213 -0.635469 2.295384</camtrans>
+      <camrotationaxis>-0.880159 0.435158 -0.189624 132.419475</camrotationaxis>
+      <camfocal>2.286811</camfocal>''')
+   e.GetViewer().SetSize(1500,560)
+   # gimp cropping: 1440 485 -30 -23
 
 # create the problem (with the robot)
 prob = FridgeProblem(e)
@@ -269,15 +282,16 @@ if args.view_problem:
    T_pitcher_fridge = prob.kbs['pitcher'].GetTransform()
       
    # for introduction (example problem)
-   while False:
+   while True:
       print('viewing problem ...')
       prob.setup1()
       prob.robot.SetActiveDOFValues(prob.roots[0][0])
-      
       raw_input('initial config ...')
+      
       # show a bottle grasp
-      prob.robot.SetActiveDOFValues(prob.roots[3][0])
-      raw_input('bottle fridge grasp ...')
+      for i in range(len(prob.roots[3])):
+         prob.robot.SetActiveDOFValues(prob.roots[3][i])
+         raw_input('bottle grasp ...')
       
       prob.setup5()
       prob.kbs['pitcher'].SetTransform(T_pitcher_fridge)

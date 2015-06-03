@@ -16,3 +16,4 @@ include_directories(
 
 add_executable(test_heap src/test_heap.cpp)
 add_executable(test_incbi src/test_incbi.cpp)
+add_executable(test_sebc src/test_sebc.cpp)
