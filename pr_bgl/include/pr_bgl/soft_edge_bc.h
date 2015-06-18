@@ -10,8 +10,9 @@ struct soft_edge_bc_el
    Vertex v;
    double len;
    std::pair<EdgeOutIter,EdgeOutIter> es;
+   //int es_num;
    soft_edge_bc_el(Vertex v, double len, std::pair<EdgeOutIter,EdgeOutIter> es):
-      v(v), len(len), es(es) {}
+      v(v), len(len), es(es)/*, es_num(0)*/ {}
 };
 
 template <class Graph, class WeightMap, class DistanceMap, class ScoreMap>
@@ -54,6 +55,14 @@ void soft_edge_bc(
          v_used[stack.back().v] = false;
          stack.pop_back();
          stack.back().es.first++;
+         //stack.back().es_num++;
+         //if (stack.size() <= 3)
+         //{
+         //   printf("stack iters:");
+         //   for (unsigned int ui=0; ui<stack.size(); ui++)
+         //      printf(" %i", stack[ui].es_num);
+         //   printf("\n");
+         //}
          continue;
       }
       
@@ -65,6 +74,7 @@ void soft_edge_bc(
       if (v_used[v_next])
       {
          stack.back().es.first++;
+         //stack.back().es_num++;
          continue;
       }
       
@@ -74,12 +84,15 @@ void soft_edge_bc(
       if (len_max < len + boost::get(goal_distance_map, v_next) )
       {
          stack.back().es.first++;
+         //stack.back().es_num++;
          continue;
       }
       
       // is this the goal vertex?
       if (v_next == v_goal)
       {
+         //printf("found a path with len %f!\n", len);
+         
          // compute score for this path
          double score = f_importance(len);
          
@@ -90,6 +103,7 @@ void soft_edge_bc(
          score_total += score;
          
          stack.back().es.first++;
+         //stack.back().es_num++;
          continue;
       }
       

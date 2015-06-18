@@ -13,7 +13,7 @@
 typedef boost::adjacency_list<
    boost::vecS, // Edgelist ds, for per-vertex out-edges
    boost::vecS, // VertexList ds, for vertex set
-   boost::bidirectionalS // type of graph
+   boost::undirectedS // type of graph
    > Graph;
 typedef boost::graph_traits<Graph> GraphTypes;
 typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;

@@ -14,6 +14,6 @@ include_directories(
 
 #set(CMAKE_BUILD_TYPE Release)
 
-add_executable(test_heap src/test_heap.cpp)
-add_executable(test_incbi src/test_incbi.cpp)
-add_executable(test_sebc src/test_sebc.cpp)
+foreach(testname heap incbi sebc sebc_dump)
+   add_executable(test_${testname} src/test_${testname}.cpp)
+endforeach()

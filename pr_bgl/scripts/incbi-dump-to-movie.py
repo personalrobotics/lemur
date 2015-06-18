@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3 -E
 import argparse
 import math
 import glob
@@ -16,12 +16,10 @@ parser.add_argument('--dump-glob', required=True)
 parser.add_argument('--out-mp4', required=True)
 args = parser.parse_args()
 
+# get basic graph structure / mapping to physical locations
 vertices = {} #idx -> (i,j)
 edges = {} # idx -> (v1,v2)
 edge_xs = {}
-edges_evaled = set()
-
-# get basic graph structure / mapping to physical locaitons
 fp = open(args.graph_txt,'r')
 for line in fp:
    m = re.match('vertex ([0-9]*) at ([0-9]*),([0-9]*)',line)
@@ -40,6 +38,8 @@ for line in fp:
       edges[eidx] = (v1,v2)
       edge_xs[eidx] = w_x
 fp.close()
+
+edges_evaled = set()
 
 with tempfile.TemporaryDirectory() as dirname:
 

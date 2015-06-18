@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3 -E
 import argparse
 import math
 import subprocess
@@ -13,35 +13,39 @@ def get_rgbdata(filename):
       raise RuntimeError('image size mismatch!')
    return (w,h),rbgdata
 
-def line_has_dark_blue(w,rbgdata,i1,j1,i2,j2):
+# we're good if any channel is light
+# (and bad if all colors are dark somewhere)
+# now line_has_color_everywhere
+def line_has_color_everywhere(w,rbgdata,i1,j1,i2,j2):
    dd = max(abs(i2-i1),abs(j2-j1))
    for d in range(dd+1):
       i = i1 + round((i2-i1)*(d/dd))
       j = j1 + round((j2-j1)*(d/dd))
       px = tuple(rbgdata[3*(i*w+j):3*(i*w+j+1)])
-      # we're good if any channel is colored
-      # (and bad if everything's black)
+      has_color = False
       for pxval in px:
          if 128 < pxval:
-            break
-      else:
-         return True
-   return False
+            has_color = True
+      if not has_color:
+         return False
+   return True
 
+# output as an undircted graph by default
 parser = argparse.ArgumentParser(description='Make a lattice graph over an image.')
 parser.add_argument('--img', required=True)
 parser.add_argument('--graph-txt', required=True)
+parser.add_argument('--resolution', default=40, type=int,
+   help='resolution, in pixels')
 args = parser.parse_args()
 
 (w,h),rbgdata = get_rgbdata(args.img)
 
-RES = 40
-
 # create a sparse square grid graph every 20 pixels, offset by 10 pixels
-nh = (h-RES//2) // RES + 1;
-nw = (w-RES//2) // RES + 1;
-oh = (h - (nh-1)*RES)//2;
-ow = (w - (nw-1)*RES)//2;
+# this is the NUMBER nh,nw and the OFFSET oh,ow
+nh = (h-args.resolution//2) // args.resolution + 1;
+nw = (w-args.resolution//2) // args.resolution + 1;
+oh = (h - (nh-1)*args.resolution)//2;
+ow = (w - (nw-1)*args.resolution)//2;
 
 # all vertices (indexed by idx)
 vertices = []
@@ -66,8 +70,8 @@ class Edge:
 gridij_to_v = {}
 for gridi in range(nh):
    for gridj in range(nw):
-      i = oh+gridi*RES
-      j = ow+gridj*RES
+      i = oh+gridi*args.resolution
+      j = ow+gridj*args.resolution
       v = Vertex(len(vertices),i,j)
       vertices.append(v)
       gridij_to_v[(gridi,gridj)] = v
@@ -82,15 +86,15 @@ for gridi in range(nh):
       j1 = vertices[v1.idx].j
       i2 = vertices[v2.idx].i
       j2 = vertices[v2.idx].j
-      w_phat = RES
-      w_xhat = RES
-      collides = line_has_dark_blue(w,rbgdata,i1,j1,i2,j2)
+      w_phat = args.resolution
+      w_xhat = args.resolution
+      collides = not line_has_color_everywhere(w,rbgdata,i1,j1,i2,j2)
       if collides:
          w_x = float('inf')
       else:
-         w_x = RES
+         w_x = args.resolution
       edges.append(Edge(len(edges),v1,v2,w_x,w_xhat,w_phat))
-      edges.append(Edge(len(edges),v2,v1,w_x,w_xhat,w_phat))
+      #edges.append(Edge(len(edges),v2,v1,w_x,w_xhat,w_phat))
 # vertical
 for gridj in range(nw):
    for gridi in range(nh-1):
@@ -100,15 +104,15 @@ for gridj in range(nw):
       j1 = vertices[v1.idx].j
       i2 = vertices[v2.idx].i
       j2 = vertices[v2.idx].j
-      w_phat = RES
-      w_xhat = RES
-      collides = line_has_dark_blue(w,rbgdata,i1,j1,i2,j2)
+      w_phat = args.resolution
+      w_xhat = args.resolution
+      collides = not line_has_color_everywhere(w,rbgdata,i1,j1,i2,j2)
       if collides:
          w_x = float('inf')
       else:
-         w_x = RES
+         w_x = args.resolution
       edges.append(Edge(len(edges),v1,v2,w_x,w_xhat,w_phat))
-      edges.append(Edge(len(edges),v2,v1,w_x,w_xhat,w_phat))
+      #edges.append(Edge(len(edges),v2,v1,w_x,w_xhat,w_phat))
 
 # find start/goal vertices
 v_start = None
@@ -138,13 +142,13 @@ for i in range(h):
             j2 = vertices[v_closest.idx].j
             w_phat = dist_closest
             w_xhat = dist_closest
-            collides = line_has_dark_blue(w,rbgdata,i1,j1,i2,j2)
+            collides = not line_has_color_everywhere(w,rbgdata,i1,j1,i2,j2)
             if collides:
                w_x = float('inf')
             else:
                w_x = dist_closest
             edges.append(Edge(len(edges),v_start,v_closest, w_x,w_xhat,w_phat))
-            edges.append(Edge(len(edges),v_closest,v_start, w_x,w_xhat,w_phat))
+            #edges.append(Edge(len(edges),v_closest,v_start, w_x,w_xhat,w_phat))
       if px == (255,0,0):
          if v_goal is not None:
             raise RuntimeError('found multiple goals!')
@@ -167,13 +171,13 @@ for i in range(h):
             j2 = vertices[v_closest.idx].j
             w_phat = dist_closest
             w_xhat = dist_closest
-            collides = line_has_dark_blue(w,rbgdata,i1,j1,i2,j2)
+            collides = not line_has_color_everywhere(w,rbgdata,i1,j1,i2,j2)
             if collides:
                w_x = float('inf')
             else:
                w_x = dist_closest
             edges.append(Edge(len(edges),v_goal,v_closest, w_x,w_xhat,w_phat))
-            edges.append(Edge(len(edges),v_closest,v_goal, w_x,w_xhat,w_phat))
+            #edges.append(Edge(len(edges),v_closest,v_goal, w_x,w_xhat,w_phat))
 
 if v_start is None or v_goal is None:
    raise RuntimeError('couldnt find a start or goal state!')
