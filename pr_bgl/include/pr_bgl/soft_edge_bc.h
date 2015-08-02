@@ -15,6 +15,9 @@ struct soft_edge_bc_el
       v(v), len(len), es(es)/*, es_num(0)*/ {}
 };
 
+// WeightMap: edges to weights (double?)
+// DistanceMap: vertices to distances
+// ScoreMap: edges to scores
 template <class Graph, class WeightMap, class DistanceMap, class ScoreMap>
 void soft_edge_bc(
    const Graph & g,

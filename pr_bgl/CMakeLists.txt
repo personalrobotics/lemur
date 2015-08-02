@@ -14,6 +14,6 @@ include_directories(
 
 #set(CMAKE_BUILD_TYPE Release)
 
-foreach(testname heap incbi sebc sebc_dump)
+foreach(testname coupling heap incbi sebc)
    add_executable(test_${testname} src/test_${testname}.cpp)
 endforeach()
