@@ -89,9 +89,6 @@ class Logged(prpy.planning.base.MetaPlanner):
                     del serkb['manipulators']
                 del serkb['kinbody_state']['link_transforms']
             yamldict['bodies'][name] = serkb
-            
-                
-                
         
         fp = open(fn,'w')
         yaml.safe_dump(yamldict, fp)
