@@ -1451,10 +1451,12 @@ const std::vector< std::pair<int,int> > & P::get_edgeperm(int n)
       perm.push_back(std::make_pair(max_i,max_val));
       done[max_i] = true;
    }
+#if 0
    printf("  result: [");
    for (i=0; i<n; i++)
       printf(" %d-%d", perm[i].first, perm[i].second);
    printf(" ]\n");
+#endif
    this->edgeperms.insert(std::make_pair(n,perm));
    return this->edgeperms[n];
 }
