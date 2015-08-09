@@ -18,15 +18,20 @@ void coupling_update_directed_edge(
    const Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_a,
    typename boost::graph_traits<Graph>::vertex_descriptor v_b,
-   double lambda_weight,
+   double weight_frac,
    bool is_add,
    CouplingMap coupling_map,
    TempMap cs_xa, TempMap cs_by)
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::vertex_iterator VertexIter;
+   if (!is_add)
+   {
+      printf("ERROR, INCREMENTAL REMOVE NOT YET IMPLEMENTED!\n");
+      abort();
+   }
    // update denominator
-   double denom = exp(lambda_weight)
+   double denom = exp(weight_frac)
       - boost::get(coupling_map, std::make_pair(v_b,v_a));
    if (denom <= 0.0)
    {
@@ -64,7 +69,7 @@ template <class Graph, class CouplingMap, class TempMap>
 void coupling_update_edge(
    const Graph & g,
    typename boost::graph_traits<Graph>::edge_descriptor edge,
-   double lambda_weight,
+   double weight_frac,
    bool is_add,
    CouplingMap coupling_map,
    TempMap cs_xa, TempMap cs_by)
@@ -84,7 +89,7 @@ void coupling_update_edge(
    coupling_update_directed_edge(g,
       v_s,
       v_t,
-      lambda_weight,
+      weight_frac,
       is_add,
       coupling_map, cs_xa, cs_by);
    
@@ -94,7 +99,7 @@ void coupling_update_edge(
       coupling_update_directed_edge(g,
          v_t,
          v_s,
-         lambda_weight,
+         weight_frac,
          is_add,
          coupling_map, cs_xa, cs_by);
    }
@@ -126,7 +131,7 @@ void coupling_init(
 template <class Graph, class WeightMap, class CouplingMap, class TempMap>
 void coupling(
    const Graph & g,
-   double lambda,
+   double len_ref,
    WeightMap weight_map,
    CouplingMap coupling_map,
    TempMap cs_xa, TempMap cs_by)
@@ -141,7 +146,7 @@ void coupling(
       coupling_update_edge(
          g,
          *ei,
-         lambda * boost::get(weight_map,*ei),
+         boost::get(weight_map,*ei) / len_ref,
          true, // is_add
          coupling_map, cs_xa, cs_by);
    }
@@ -153,7 +158,7 @@ double coupling_without_edge(
    typename boost::graph_traits<Graph>::vertex_descriptor v_x,
    typename boost::graph_traits<Graph>::vertex_descriptor v_y,
    typename boost::graph_traits<Graph>::edge_descriptor edge,
-   double lambda_weight,
+   double weight_frac,
    CouplingMap coupling_map)
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -184,13 +189,13 @@ double coupling_without_edge(
       
       // first, remove the edge from s(a) --> t(b)
       // calculate some intermediate results we'll need later
-      double cp_xy = cpp_xy - (cpp_xs * cpp_ty)/(exp(lambda_weight) + cpp_ts);
-      double cp_xt = cpp_xt - (cpp_xs * cpp_tt)/(exp(lambda_weight) + cpp_ts);
-      double cp_sy = cpp_sy - (cpp_ss * cpp_ty)/(exp(lambda_weight) + cpp_ts);
-      double cp_st = cpp_st - (cpp_ss * cpp_tt)/(exp(lambda_weight) + cpp_ts);
+      double cp_xy = cpp_xy - (cpp_xs * cpp_ty)/(exp(weight_frac) + cpp_ts);
+      double cp_xt = cpp_xt - (cpp_xs * cpp_tt)/(exp(weight_frac) + cpp_ts);
+      double cp_sy = cpp_sy - (cpp_ss * cpp_ty)/(exp(weight_frac) + cpp_ts);
+      double cp_st = cpp_st - (cpp_ss * cpp_tt)/(exp(weight_frac) + cpp_ts);
       
       // next, remove the edge from b(s) --> a(t)
-      double c_xy = cp_xy - (cp_xt * cp_sy)/(exp(lambda_weight) + cp_st);
+      double c_xy = cp_xy - (cp_xt * cp_sy)/(exp(weight_frac) + cp_st);
       return c_xy;
    }
    else
@@ -201,7 +206,7 @@ double coupling_without_edge(
       double cp_ts = boost::get(coupling_map, std::make_pair(v_t,v_s));
       
       // remove the edge from s(a) --> t(b)
-      double c_xy = cp_xy - (cp_xs * cp_ty)/(exp(lambda_weight) + cp_ts);
+      double c_xy = cp_xy - (cp_xs * cp_ty)/(exp(weight_frac) + cp_ts);
       return c_xy;
    }
 }
