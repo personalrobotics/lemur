@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<package>
+   
+   <name>prpy_multiset</name>
+   <version>0.0.0</version>
+   <description>prpy bindings for multiset planning</description>
+   <license>BSD</license>
+   
+   <url type="website">http://github.com/personalrobotics/multiset-planning</url>
+   <maintainer email="cdellin@gmail.com">Chris Dellin</maintainer>
+   
+   <buildtool_depend>catkin</buildtool_depend>
+   <run_depend>prpy</run_depend>
+   <run_depend>or_multiset</run_depend>
+   
+</package>
