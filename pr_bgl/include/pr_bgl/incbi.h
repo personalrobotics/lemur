@@ -36,9 +36,9 @@ public:
    VecDoublePropertyMap m_rg;
    IndexMap m_vimap;
    
-   HeapIndexed m_queue_start;
-   HeapIndexed m_queue_goal;
-   HeapIndexed m_queue_conn; // contains all CONSISTENT non-inf nodes sorted by sum ds+dg
+   HeapIndexed<double> m_queue_start;
+   HeapIndexed<double> m_queue_goal;
+   HeapIndexed<double> m_queue_conn; // contains all CONSISTENT non-inf nodes sorted by sum ds+dg
    
    WeightMap m_w;
 
