@@ -9,22 +9,25 @@ namespace pr_bgl
 // elements are identified with an index value (e.g. [0,num_vertices))
 // the heap also maintains a vector backing, wich each element at a location
 //
+// KeyType, e.g. double
+//
 // for example:
 // backing: [ (??,?), (0.3,3), (0.5,7), (0.7,2), (0.6,1) ]
 // locs: [0, 4, 3, 1, 0, 0, 0, 2]
+template <class KeyType>
 class HeapIndexed
 {
    struct element
    {
-      double key;
+      KeyType key;
       size_t idx;
-      element(double key, size_t idx): key(key), idx(idx) {}
+      element(KeyType key, size_t idx): key(key), idx(idx) {}
    };
    std::vector<element> backing;
    std::vector<size_t> locs; // indexed by idx, 0=not in heap
    
 public:
-   HeapIndexed(): backing(1,element(0.0,0)), locs(0) {}
+   HeapIndexed(): backing(1,element(KeyType(),0)), locs(0) {}
    
    // simple queries
    size_t size()
@@ -42,7 +45,7 @@ public:
    // make an inconsistent heap consistent
    // by up-heaping the element idx with key key
    // which is CURRENTLY at loc loc
-   inline void up_heap(size_t idx, double key, size_t loc)
+   inline void up_heap(size_t idx, KeyType key, size_t loc)
    {
       for (;;)
       {
@@ -62,7 +65,7 @@ public:
    // make an inconsistent heap consistent
    // by down-heaping the element idx with key key
    // which is CURRENTLY at loc loc
-   inline void down_heap(size_t idx, double key, size_t loc)
+   inline void down_heap(size_t idx, KeyType key, size_t loc)
    {
       for (;;)
       {
@@ -71,7 +74,7 @@ public:
          size_t loc_right = 2*loc+1;
          // find largest among family
          size_t loc_min = loc;
-         double key_min = key;
+         KeyType key_min = key;
          if (loc_left < backing.size() && backing[loc_left].key < key_min)
          {
             loc_min = loc_left;
@@ -94,7 +97,7 @@ public:
    }
    
    // only valid if contains(idx) is false
-   void insert(size_t idx, double key)
+   void insert(size_t idx, KeyType key)
    {
       // resize loc if necessary
       if (locs.size() < idx+1)
@@ -108,7 +111,7 @@ public:
    }
    
    // only valid if contains(idx) is true
-   void update(size_t idx, double key)
+   void update(size_t idx, KeyType key)
    {
       size_t loc = locs[idx];
       if (key < backing[loc].key)
@@ -129,7 +132,7 @@ public:
    void remove(size_t idx)
    {
       size_t loc = locs[idx];
-      double key = backing[loc].key;
+      KeyType key = backing[loc].key;
       size_t loc_last = backing.size()-1;
       // if already last, then we're basically done
       if (loc == loc_last)
@@ -152,7 +155,7 @@ public:
    }
    
    // assumes non-empty
-   double top_key()
+   KeyType top_key()
    {
       return backing[1].key;
    }

@@ -5,7 +5,7 @@
 
 int main()
 {
-   pr_bgl::HeapIndexed h;
+   pr_bgl::HeapIndexed<double> h;
    h.insert(0, 5.0);
    h.insert(1, 6.0);
    h.insert(2, 7.0);
