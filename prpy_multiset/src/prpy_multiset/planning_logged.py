@@ -8,7 +8,7 @@ import numpy
 import yaml
 
 import prpy.planning.base
-from prpy.serialization import serialize_kinbody
+import prpy.serialization
 
 
 def serialize_value(val):
@@ -54,7 +54,7 @@ class Logged(prpy.planning.base.MetaPlanner):
         return self.planner.get_planning_method_names()
     
     def get_planners(self, method_name):
-        return self.planner.get_planners(method_name)
+        return [self.planner]
     
     def plan(self, method, args, kw_args):
         
@@ -65,30 +65,34 @@ class Logged(prpy.planning.base.MetaPlanner):
             time.strftime('%Y%m%d-%H%M%S', struct),
             int(1.0e6*(stamp-math.floor(stamp))))
         
-        # get robot (assumed to be first member of args)
-        robot = args[0]
-        
-        yamldict = {}
-        
-        yamldict['method'] = method
-        yamldict['args'] = []
+        # serialize planning request
+        reqdict = {}
+        reqdict['method'] = method # string
+        reqdict['args'] = []
         for arg in args:
-            yamldict['args'].append(serialize_value(arg))
-        yamldict['kw_args'] = {str(k):serialize_value(v) for k,v in kw_args.items()}
+            reqdict['args'].append(serialize_value(arg))
+        reqdict['kw_args'] = {str(k):serialize_value(v) for k,v in kw_args.items()}
         
-        yamldict['bodies'] = {}
-        
-        for kb in robot.GetEnv().GetBodies():
+        # serialize environment
+        # note, first args element assumed to be a robot
+        envdict = {}
+        envdict['kinbodies'] = {}
+        for kb in args[0].GetEnv().GetBodies():
             name = kb.GetName()
             uri = kb.GetURI()
-            serkb = serialize_kinbody(kb)
+            serkb = prpy.serialization.serialize_kinbody(kb)
             if uri:
                 del serkb['links']
                 del serkb['joints']
                 if kb.IsRobot():
                     del serkb['manipulators']
                 del serkb['kinbody_state']['link_transforms']
-            yamldict['bodies'][name] = serkb
+            envdict['kinbodies'][name] = serkb
+        
+        # create yaml dictionary to be serialized
+        yamldict = {}
+        yamldict['request'] = reqdict
+        yamldict['environment'] = envdict
         
         fp = open(fn,'w')
         yaml.safe_dump(yamldict, fp)
@@ -96,5 +100,7 @@ class Logged(prpy.planning.base.MetaPlanner):
         
         plan_fn = getattr(self.planner, method)
         result = plan_fn(*args, **kw_args)
+        
+        # serialize result?
         
         return result
