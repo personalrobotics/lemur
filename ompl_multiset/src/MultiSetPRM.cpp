@@ -19,6 +19,7 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
 
+#include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
@@ -235,7 +236,7 @@ private:
    // this doesnt set estimate dirty bits or anything
    void implies_statuses(std::vector<enum CheckStatus> & statuses);
    
-   const std::vector< std::pair<int,int> > & get_edgeperm(int n);
+   ompl_multiset::BisectPerm bisect_perm;
    
    // private members
    const ompl_multiset::RoadmapPtr roadmap;
@@ -289,9 +290,6 @@ private:
       std::pair< std::vector<enum CheckStatus>, unsigned int >,
       std::pair<double, std::vector<std::pair<unsigned int,bool> > >
       > optimistic_checks;
-   
-   // cache of edge permutations
-   std::map<int, const std::vector< std::pair<int,int> > > edgeperms;
 
    // cache of status implications
    std::map<
@@ -1354,7 +1352,7 @@ P::Edge P::add_edge(P::Vertex va, P::Vertex vb)
    this->g[e].edgestates.resize(n);
    this->g[e].statuses.clear();
    this->g[e].statuses.resize(this->cfrees.size(), STATUS_UNKNOWN);
-   const std::vector< std::pair<int,int> > & perm = this->get_edgeperm(n);
+   const std::vector< std::pair<int,int> > & perm = this->bisect_perm.get(n);
    this->g[e].max_perm_dist = (n==0) ? 0 : perm[0].second;
    for (ui=0; ui<n; ui++)
    {
@@ -1402,63 +1400,6 @@ void P::add_initial_root_edges(Vertex vroot)
          continue;
       this->add_edge(vroot, v);
    }
-}
-
-// from calc_order_endgood
-// from calc_order_endgood
-// output is a vector
-// first element is from 0 to n-1 (which one to check)
-// second element is distance to nearest already-evaluated thing
-// (assuming the ends are already evaluated)
-const std::vector< std::pair<int,int> > & P::get_edgeperm(int n)
-{
-   // look it up in the cache
-   std::map<int, const std::vector< std::pair<int,int> > >::iterator it;
-   it = this->edgeperms.find(n);
-   if (it != this->edgeperms.end())
-      return it->second;
-   // else calculate it
-   printf("calculating perm for n=%d ...\n", n);
-   int i;
-   int last_true;
-   int max_i;
-   int max_val;
-   std::vector< std::pair<int,int> > perm;
-   std::vector<bool> done(n, false);
-   std::vector<int> dist(n);
-   for (;;)
-   {
-      last_true = -1;
-      for (i=0; i<n; i++)
-      {
-         if (done[i]) last_true = i;
-         dist[i] = (i-last_true);
-      }
-      last_true = n;
-      for (i=n-1; i>=0; i--)
-      {
-         if (done[i]) last_true = i;
-         dist[i] = (last_true-i) < dist[i] ? (last_true-i) : dist[i];
-      }
-      max_val = 0;
-      for (i=0; i<n; i++) if (max_val < dist[i])
-      {
-         max_val = dist[i];
-         max_i = i;
-      }
-      if (!max_val)
-         break;
-      perm.push_back(std::make_pair(max_i,max_val));
-      done[max_i] = true;
-   }
-#if 0
-   printf("  result: [");
-   for (i=0; i<n; i++)
-      printf(" %d-%d", perm[i].first, perm[i].second);
-   printf(" ]\n");
-#endif
-   this->edgeperms.insert(std::make_pair(n,perm));
-   return this->edgeperms[n];
 }
 
 inline
