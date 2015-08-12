@@ -13,7 +13,7 @@ import openravepy
 import yaml
 
 import prpy.planning
-#import prpy_multiset.planning_multiset
+import prpy_multiset.planning_multiset
 
 parser = argparse.ArgumentParser(description='replay planning request log file')
 parser.add_argument('--logfile',required=True)
@@ -30,7 +30,8 @@ e.SetViewer('qtcoin')
 m_urdf = openravepy.RaveCreateModule(e, 'urdf')
 
 #planner = prpy.planning.ompl.OMPLPlanner('RRTConnect')
-planner = prpy.planning.CBiRRTPlanner()
+#planner = prpy.planning.CBiRRTPlanner()
+planner = prpy_multiset.planning_multiset.MultisetPlanner()
 
 # read log file
 yamldict = yaml.safe_load(open(args.logfile))
@@ -59,7 +60,10 @@ for kbdict in yamldict['environment']['kinbodies'].values():
    kb.SetDOFValues(kbdict['kinbody_state']['dof_values'])
 
 # load request
-method = getattr(planner, yamldict['request']['method'])
+try:
+   method = getattr(planner, yamldict['request']['method'])
+except AttributeError:
+   method = None
 # args
 args = []
 robot = e.GetRobot(yamldict['request']['args'][0])
@@ -76,6 +80,12 @@ ikmodel = openravepy.databases.inversekinematics.InverseKinematicsModel(robot,
    iktype=openravepy.IkParameterizationType.Transform6D)
 if not ikmodel.load():
    ikmodel.autogenerate()
+   
+if True:
+   print('### OVERRIDING REQUEST TO PLANTOCONFIG TO REACHED POINT!')
+   method = planner.PlanToConfiguration
+   args = [yamldict['result']['traj_last']]
+   kwargs = {}
 
 # call planning method itself ...
 t = method(robot, *args, **kwargs)
@@ -88,5 +98,6 @@ try:
       with e:
          robot.GetController().SetPath(t)
 except KeyboardInterrupt:
+   print()
    raw_input('enter to quit!')
-   print
+   print()

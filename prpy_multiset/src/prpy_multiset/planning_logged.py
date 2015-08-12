@@ -89,18 +89,21 @@ class Logged(prpy.planning.base.MetaPlanner):
                 del serkb['kinbody_state']['link_transforms']
             envdict['kinbodies'][name] = serkb
         
+        plan_fn = getattr(self.planner, method)
+        traj = plan_fn(*args, **kw_args)
+        
+        # serialize result
+        resdict = {}
+        resdict['traj_first'] = list(map(float,traj.GetWaypoint(0)))
+        resdict['traj_last'] = list(map(float,traj.GetWaypoint(traj.GetNumWaypoints()-1)))
+        
         # create yaml dictionary to be serialized
         yamldict = {}
-        yamldict['request'] = reqdict
         yamldict['environment'] = envdict
-        
+        yamldict['request'] = reqdict
+        yamldict['result'] = resdict
         fp = open(fn,'w')
         yaml.safe_dump(yamldict, fp)
         fp.close()
-        
-        plan_fn = getattr(self.planner, method)
-        result = plan_fn(*args, **kw_args)
-        
-        # serialize result?
-        
-        return result
+
+        return traj
