@@ -48,6 +48,7 @@ public:
             dist[i] = (last_true-i) < dist[i] ? (last_true-i) : dist[i];
          }
          max_val = 0;
+         max_i = 0;
          for (i=0; i<n; i++) if (max_val < dist[i])
          {
             max_val = dist[i];
