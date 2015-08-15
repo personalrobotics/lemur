@@ -1,3 +1,9 @@
+/* File: coupling.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: BSD
+ */
+
 /* requires:
 #include <boost/type_traits/is_base_and_derived.hpp>
 #include <boost/type_traits/is_same.hpp>

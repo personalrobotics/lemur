@@ -1,3 +1,8 @@
+/* File: incbi.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: BSD
+ */
 
 namespace pr_bgl
 {

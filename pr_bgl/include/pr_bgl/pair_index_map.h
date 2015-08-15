@@ -1,3 +1,9 @@
+/* File: pair_index_map.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: BSD
+ */
+
 /*
  * This class is a readable boost property map
  * which maps from a pair of indexable entities to a master index

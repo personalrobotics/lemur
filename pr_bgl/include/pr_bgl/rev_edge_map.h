@@ -1,3 +1,8 @@
+/* File: rev_edge_map.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: BSD
+ */
 
 /*
  * This class is a readable boost property map

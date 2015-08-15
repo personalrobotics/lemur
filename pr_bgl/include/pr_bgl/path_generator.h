@@ -1,3 +1,9 @@
+/* File: path_generator.h
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: BSD
+ */
+
 /* requires:
 #include <map>
 #include <vector>

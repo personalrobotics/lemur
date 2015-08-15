@@ -1,3 +1,9 @@
+/* File: test_sebc.cpp
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * Copyright: 2015 Carnegie Mellon University
+ * License: BSD
+ */
+
 #include <cstdio>
 #include <list>
 #include <map>
