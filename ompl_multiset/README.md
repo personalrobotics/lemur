@@ -14,6 +14,12 @@ Random geometric graphs.  One level.  Arguments: `n=30 radius=0.3 seed=1`.
 
 ![roadmap-rgg-n30-radius0.3-seed1](img/roadmap-rgg-n30-radius0.3-seed1.png)
 
+### `RoadmapGenHalton`
+
+Halton sequences with fixed connection radii.  One level.  Arguments: `n=30 radius=0.3`.
+
+![roadmap-halton-n30-radius0.3](img/roadmap-halton-n30-radius0.3.png)
 
 [bgl]: http://www.boost.org/doc/libs/release/libs/graph/
 [ompl]: http://ompl.kavrakilab.org/
+

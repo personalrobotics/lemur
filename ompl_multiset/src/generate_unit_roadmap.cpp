@@ -20,6 +20,7 @@
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/RoadmapGen.h>
 #include <ompl_multiset/RoadmapGenRGG.h>
+#include <ompl_multiset/RoadmapGenHalton.h>
 
 #include <gtest/gtest.h>
 
@@ -124,6 +125,8 @@ int main(int argc, char **argv)
    printf("creating roadmap of type %s ...\n", roadmap_type.c_str());
    if (roadmap_type == "rgg")
       p_mygen.reset(new ompl_multiset::RoadmapGenRGG<GraphTypes>(space, std::string(argv[3])));
+   else if (roadmap_type == "halton")
+      p_mygen.reset(new ompl_multiset::RoadmapGenHalton<GraphTypes>(space, std::string(argv[3])));
    else
    {
       printf("unknown roadmap type!\n");
