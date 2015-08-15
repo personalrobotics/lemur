@@ -109,7 +109,7 @@ public:
          {
             typename boost::graph_traits<Graph>::vertex_descriptor v = *vi;
             std::size_t index = get(vertex_index_map, v);
-            os << "vertex " << index
+            os << "vprop " << index
                << " " << vser->first << " ";
             vser->second->serialize(v, os);
             os << "\n";
@@ -123,7 +123,7 @@ public:
          {
             typename boost::graph_traits<Graph>::edge_descriptor e = *ei;
             std::size_t index = get(edge_index_map, e);
-            os << "edge " << index
+            os << "eprop " << index
                << " " << eser->first << " ";
             eser->second->serialize(e, os);
             os << "\n";
@@ -141,7 +141,7 @@ public:
          // get line tag
          std::string tag;
          ss >> tag;
-         if (tag == "edge")
+         if (tag == "eprop")
          {
             // get edge index
             std::size_t index;
