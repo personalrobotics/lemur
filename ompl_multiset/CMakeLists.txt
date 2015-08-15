@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ompl_multiset)
 
-find_package(catkin REQUIRED)
+find_package(catkin REQUIRED COMPONENTS pr_bgl)
 find_package(OMPL REQUIRED)
 find_package(Boost REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -24,7 +24,8 @@ link_libraries(
    ${OMPL_LIBRARIES}
    ${OPENSSL_LIBRARIES})
 
-add_definitions("-Wall -Werror")
+#add_definitions("-Wall -Werror")
+add_definitions("-Wall")
 
 add_library(${PROJECT_NAME}
    src/Cache.cpp
@@ -34,6 +35,12 @@ add_library(${PROJECT_NAME}
    src/SamplerGenMonkeyPatch.cpp
    src/SpaceID.cpp
    src/util.cpp)
+
+add_executable(generate_unit_roadmap src/generate_unit_roadmap.cpp)
+target_link_libraries(generate_unit_roadmap ${PROJECT_NAME})
+
+catkin_add_gtest(roadmapgen test/roadmapgen.cpp)
+target_link_libraries(roadmapgen ${PROJECT_NAME})
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
