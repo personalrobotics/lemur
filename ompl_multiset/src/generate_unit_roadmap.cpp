@@ -22,8 +22,6 @@
 #include <ompl_multiset/RoadmapGenRGG.h>
 #include <ompl_multiset/RoadmapGenHalton.h>
 
-#include <gtest/gtest.h>
-
 
 class GraphTypes
 {
@@ -97,7 +95,6 @@ inline void stringify_from_x(std::string & repr, const boost::shared_ptr<GraphTy
       repr += component_repr;
    }
 }
-
 inline void stringify_to_x(const std::string & in, boost::shared_ptr<GraphTypes::StateContainer> & repr)
 {
    repr.reset();

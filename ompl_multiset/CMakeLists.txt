@@ -36,8 +36,11 @@ add_library(${PROJECT_NAME}
    src/SpaceID.cpp
    src/util.cpp)
 
-add_executable(generate_unit_roadmap src/generate_unit_roadmap.cpp)
-target_link_libraries(generate_unit_roadmap ${PROJECT_NAME})
+add_executable(generate-unit-roadmap src/generate_unit_roadmap.cpp)
+target_link_libraries(generate-unit-roadmap ${PROJECT_NAME})
+
+add_executable(test-graph-overlay src/test_graph_overlay.cpp)
+target_link_libraries(test-graph-overlay ${PROJECT_NAME})
 
 catkin_add_gtest(roadmapgen test/roadmapgen.cpp)
 target_link_libraries(roadmapgen ${PROJECT_NAME})

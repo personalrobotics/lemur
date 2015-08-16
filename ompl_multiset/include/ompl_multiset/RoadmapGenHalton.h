@@ -115,8 +115,9 @@ public:
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         put(state_map, v_new,
-            boost::shared_ptr<typename TypeSet::StateContainer>(new typename TypeSet::StateContainer(this->space))
+         //put(state_map, v_new,
+         get(state_map, v_new).reset(
+            new typename TypeSet::StateContainer(this->space)
          );
          ompl::base::State * v_state = get(state_map, v_new)->state;
          double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
