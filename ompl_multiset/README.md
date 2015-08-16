@@ -6,13 +6,13 @@ Core planner implementation for the [Open Motion Planning Library (OMPL)][ompl].
 Roadmaps
 --------
 
-This package contains classes called "roadmap generators" which generate roadmaps from OMPL state spaces into Boost Graph objects.  Here is a quick tour of roadmap types:
+This package contains classes called "roadmap generators" which generate roadmaps from OMPL state spaces into Boost Graph objects.  Here is a quick tour of roadmap types implemented so far:
 
-### `RoadmapGenRGG`
+### `RoadmapGenAAGrid`
 
-Random geometric graphs.  One level.  Arguments: `n=30 radius=0.3 seed=1`.
+Axis aligned grids.  One level.  Arguments: `res=0.16`.
 
-![roadmap-rgg-n30-radius0.3-seed1](img/roadmap-rgg-n30-radius0.3-seed1.png)
+![roadmap-aagrid-res0.16](img/roadmap-aagrid-res0.16.png)
 
 ### `RoadmapGenHalton`
 
@@ -20,6 +20,11 @@ Halton sequences with fixed connection radii.  One level.  Arguments: `n=30 radi
 
 ![roadmap-halton-n30-radius0.3](img/roadmap-halton-n30-radius0.3.png)
 
+### `RoadmapGenRGG`
+
+Random geometric graphs.  One level.  Arguments: `n=30 radius=0.3 seed=1`.
+
+![roadmap-rgg-n30-radius0.3-seed1](img/roadmap-rgg-n30-radius0.3-seed1.png)
+
 [bgl]: http://www.boost.org/doc/libs/release/libs/graph/
 [ompl]: http://ompl.kavrakilab.org/
-

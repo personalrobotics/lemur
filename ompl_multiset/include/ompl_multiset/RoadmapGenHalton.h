@@ -4,10 +4,6 @@
  * License: BSD
  */
 
-/* requires:
-#include <ompl_multiset/SamplerGenMonkeyPatch.h>
-*/
-
 namespace ompl_multiset
 {
 
@@ -37,7 +33,6 @@ double halton(int prime, int index)
 }
 
 
-
 // for now this is an r-disk prm,
 // uniform milestone sampling with given seed,
 // uses the space's default sampler
@@ -49,11 +44,7 @@ class RoadmapGenHalton : public RoadmapGen<TypeSet>
 {
    typedef boost::graph_traits<typename TypeSet::Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
-   typedef typename GraphTypes::vertex_iterator VertexIter;
    typedef typename GraphTypes::edge_descriptor Edge;
-   typedef typename GraphTypes::edge_iterator EdgeIter;
-   typedef typename GraphTypes::out_edge_iterator EdgeOutIter;
-   typedef typename GraphTypes::in_edge_iterator EdgeInIter;
    
 public:
    RoadmapGenHalton(
@@ -106,16 +97,12 @@ public:
       while (num_vertices(g) < n)
       {
          Vertex v_new = add_vertex(g);
-         // set vertex index? (only for non-adjacecy list)
          
          put(vertex_subgraph_map, v_new, 0);
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         //put(state_map, v_new,
-         get(state_map, v_new).reset(
-            new typename TypeSet::StateContainer(this->space)
-         );
+         get(state_map, v_new).reset(new typename TypeSet::StateContainer(this->space));
          ompl::base::State * v_state = get(state_map, v_new)->state;
          double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
          for (unsigned int ui=0; ui<dim; ui++)
@@ -138,6 +125,7 @@ public:
          
          vertices_generated++;
       }
+      num_subgraphs_generated++;
    }
    
    void serialize()

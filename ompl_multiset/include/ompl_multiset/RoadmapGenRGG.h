@@ -22,11 +22,7 @@ class RoadmapGenRGG : public RoadmapGen<TypeSet>
 {
    typedef boost::graph_traits<typename TypeSet::Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
-   typedef typename GraphTypes::vertex_iterator VertexIter;
    typedef typename GraphTypes::edge_descriptor Edge;
-   typedef typename GraphTypes::edge_iterator EdgeIter;
-   typedef typename GraphTypes::out_edge_iterator EdgeOutIter;
-   typedef typename GraphTypes::in_edge_iterator EdgeInIter;
    
 public:
    RoadmapGenRGG(
@@ -77,9 +73,7 @@ public:
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         get(state_map, v_new).reset(
-            new typename TypeSet::StateContainer(this->space)
-         );
+         get(state_map, v_new).reset(new typename TypeSet::StateContainer(this->space));
          this->sampler->sampleUniform(get(state_map, v_new)->state);
          
          // allocate new undirected edges
@@ -99,6 +93,7 @@ public:
          
          vertices_generated++;
       }
+      num_subgraphs_generated++;
    }
    
    void serialize()

@@ -20,8 +20,9 @@
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/RoadmapGen.h>
-#include <ompl_multiset/RoadmapGenRGG.h>
+#include <ompl_multiset/RoadmapGenAAGrid.h>
 #include <ompl_multiset/RoadmapGenHalton.h>
+#include <ompl_multiset/RoadmapGenRGG.h>
 
 
 class GraphTypes
@@ -126,7 +127,9 @@ int main(int argc, char **argv)
    std::string roadmap_type(argv[2]);
    std::transform(roadmap_type.begin(), roadmap_type.end(), roadmap_type.begin(), ::tolower);
    printf("creating roadmap of type %s ...\n", roadmap_type.c_str());
-   if (roadmap_type == "rgg")
+   if (roadmap_type == "aagrid")
+      p_mygen.reset(new ompl_multiset::RoadmapGenAAGrid<EdgeIndexedGraphTypes>(space, std::string(argv[3])));
+   else if (roadmap_type == "rgg")
       p_mygen.reset(new ompl_multiset::RoadmapGenRGG<EdgeIndexedGraphTypes>(space, std::string(argv[3])));
    else if (roadmap_type == "halton")
       p_mygen.reset(new ompl_multiset::RoadmapGenHalton<EdgeIndexedGraphTypes>(space, std::string(argv[3])));
