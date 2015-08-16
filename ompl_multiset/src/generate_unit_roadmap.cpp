@@ -25,68 +25,55 @@
 #include <ompl_multiset/RoadmapGenRGG.h>
 
 
-class GraphTypes
+struct StateContainer
 {
-public:
+   const ompl::base::StateSpace * space;
+   ompl::base::State * state;
+   StateContainer(ompl::base::StateSpace * space):
+      space(space), state(space->allocState()) {}
+   ~StateContainer() { space->freeState(this->state); }
+};
+typedef boost::shared_ptr<StateContainer> StateContainerPtr;
 
-   struct StateContainer
-   {
-      const ompl::base::StateSpacePtr space;
-      ompl::base::State * state;
-      StateContainer(ompl::base::StateSpacePtr space):
-         space(space), state(space->allocState()) {}
-      ~StateContainer() { space->freeState(this->state); }
-   };
-
-   struct VertexProperties
-   {
-      boost::shared_ptr<StateContainer> state;
-      int subgraph;
-      bool is_shadow;
-   };
-   struct EdgeProperties
-   {
-      std::size_t index;
-      double distance;
-      int subgraph;
-   };
-
-   typedef boost::adjacency_list<
-      boost::vecS, // Edgelist ds, for per-vertex out-edges
-      boost::vecS, // VertexList ds, for vertex set
-      boost::undirectedS, // type of graph
-      VertexProperties, // internal (bundled) vertex properties
-      EdgeProperties // internal (bundled) edge properties
-      > Graph;
-   
-   typedef boost::graph_traits<Graph>::edge_descriptor Edge;
-   
-   typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
-   typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
-   typedef boost::vector_property_map<Edge> EdgeVectorMap;
-   
-   typedef boost::property_map<Graph, boost::shared_ptr<StateContainer> VertexProperties::*>::type StateMap;
-   typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
-   typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
-   typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
-   typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
+struct VertexProperties
+{
+   StateContainerPtr state;
+   int subgraph;
+   bool is_shadow;
+};
+struct EdgeProperties
+{
+   std::size_t index;
+   double distance;
+   int subgraph;
 };
 
-class EdgeIndexedGraphTypes
-{
-public:
-   typedef pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap> Graph;
-   typedef GraphTypes::StateMap StateMap;
-   typedef GraphTypes::DistanceMap DistanceMap;
-   typedef GraphTypes::VertexSubgraphMap VertexSubgraphMap;
-   typedef GraphTypes::EdgeSubgraphMap EdgeSubgraphMap;
-   typedef GraphTypes::IsShadowMap IsShadowMap;
-   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<EdgeIndexedGraphTypes> > RoadmapGenPtr;
-   typedef GraphTypes::StateContainer StateContainer;
-};
+typedef boost::adjacency_list<
+   boost::vecS, // Edgelist ds, for per-vertex out-edges
+   boost::vecS, // VertexList ds, for vertex set
+   boost::undirectedS, // type of graph
+   VertexProperties, // internal (bundled) vertex properties
+   EdgeProperties // internal (bundled) edge properties
+   > Graph;
+
+typedef boost::graph_traits<Graph>::edge_descriptor Edge;
+
+typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
+typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
+typedef boost::vector_property_map<Edge> EdgeVectorMap;
+
+typedef boost::property_map<Graph, StateContainerPtr VertexProperties::*>::type StateMap;
+typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
+typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
+typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
+typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
+
+typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
+typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> RoadmapGen;
+typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
 
 
-inline void stringify_from_x(std::string & repr, const boost::shared_ptr<GraphTypes::StateContainer> & in)
+inline void stringify_from_x(std::string & repr, const StateContainerPtr & in)
 {
    unsigned int dim = in->space->getDimension();
    ompl::base::RealVectorStateSpace::StateType * state
@@ -102,7 +89,7 @@ inline void stringify_from_x(std::string & repr, const boost::shared_ptr<GraphTy
    }
 }
 
-inline void stringify_to_x(const std::string & in, boost::shared_ptr<GraphTypes::StateContainer> & repr)
+inline void stringify_to_x(const std::string & in, StateContainerPtr & repr)
 {
    repr.reset();
    //repr = atof(in.c_str());
@@ -122,52 +109,49 @@ int main(int argc, char **argv)
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(dim));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
-   EdgeIndexedGraphTypes::RoadmapGenPtr p_mygen;
+   RoadmapGenPtr p_mygen;
    
    std::string roadmap_type(argv[2]);
    std::transform(roadmap_type.begin(), roadmap_type.end(), roadmap_type.begin(), ::tolower);
    printf("creating roadmap of type %s ...\n", roadmap_type.c_str());
    if (roadmap_type == "aagrid")
-      p_mygen.reset(new ompl_multiset::RoadmapGenAAGrid<EdgeIndexedGraphTypes>(space, std::string(argv[3])));
+      p_mygen.reset(new ompl_multiset::RoadmapGenAAGrid<RoadmapGen>(space, std::string(argv[3])));
    else if (roadmap_type == "rgg")
-      p_mygen.reset(new ompl_multiset::RoadmapGenRGG<EdgeIndexedGraphTypes>(space, std::string(argv[3])));
+      p_mygen.reset(new ompl_multiset::RoadmapGenRGG<RoadmapGen>(space, std::string(argv[3])));
    else if (roadmap_type == "halton")
-      p_mygen.reset(new ompl_multiset::RoadmapGenHalton<EdgeIndexedGraphTypes>(space, std::string(argv[3])));
+      p_mygen.reset(new ompl_multiset::RoadmapGenHalton<RoadmapGen>(space, std::string(argv[3])));
    else
    {
       printf("unknown roadmap type!\n");
       return 1;
    }
    
-   GraphTypes::Graph g;
+   Graph g;
    
-   pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap>
-      eig(g,
-         get(&GraphTypes::EdgeProperties::index, g)
-         );
+   pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
+      eig(g, get(&EdgeProperties::index, g));
    
    
    // generate a graph
-   p_mygen->generate(eig,
-      1,
-      get(&GraphTypes::VertexProperties::state, g),
-      get(&GraphTypes::EdgeProperties::distance, g),
-      get(&GraphTypes::VertexProperties::subgraph, g),
-      get(&GraphTypes::EdgeProperties::subgraph, g),
-      get(&GraphTypes::VertexProperties::is_shadow, g));
+   p_mygen->generate(eig, 1,
+      get(&VertexProperties::state, g),
+      get(&EdgeProperties::distance, g),
+      get(&VertexProperties::subgraph, g),
+      get(&EdgeProperties::subgraph, g),
+      get(&VertexProperties::is_shadow, g));
    
    // write it out to file
-   pr_bgl::GraphIO<GraphTypes::Graph, GraphTypes::VertexIndexMap, GraphTypes::EdgeIndexMap, GraphTypes::EdgeVectorMap>
+   pr_bgl::GraphIO<Graph, VertexIndexMap, EdgeIndexMap, EdgeVectorMap>
       io(g,
          get(boost::vertex_index, g),
-         get(&GraphTypes::EdgeProperties::index, g),
+         get(&EdgeProperties::index, g),
          eig.edge_vector_map);
 
-   io.add_property_map("state", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::state,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::subgraph,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::EdgeProperties::subgraph,g)));
-   io.add_property_map("is_shadow", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::is_shadow,g)));
-   io.add_property_map("distance", pr_bgl::make_string_map(get(&GraphTypes::EdgeProperties::distance,g)));
+   io.add_property_map("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
+   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&VertexProperties::subgraph,g)));
+   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&EdgeProperties::subgraph,g)));
+   io.add_property_map("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));
+   io.add_property_map("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
    
    io.dump_graph(std::cout);
    io.dump_properties(std::cout);

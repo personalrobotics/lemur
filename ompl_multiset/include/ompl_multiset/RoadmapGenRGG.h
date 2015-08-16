@@ -17,18 +17,26 @@ namespace ompl_multiset
 //template <class Graph, class VertexIndexMap, class EdgeIndexMap//,
    //class StateMap, class SubgraphMap, class IsShadowMap, class DistanceMap
 //   >
-template <class TypeSet>
-class RoadmapGenRGG : public RoadmapGen<TypeSet>
+template <class RoadmapGenSpec>
+class RoadmapGenRGG : public RoadmapGenSpec
 {
-   typedef boost::graph_traits<typename TypeSet::Graph> GraphTypes;
+   typedef typename RoadmapGenSpec::BaseGraph Graph;
+   typedef typename RoadmapGenSpec::BaseVState VState;
+   typedef typename RoadmapGenSpec::BaseEDistance EDistance;
+   typedef typename RoadmapGenSpec::BaseVSubgraph VSubgraph;
+   typedef typename RoadmapGenSpec::BaseESubgraph ESubgraph;
+   typedef typename RoadmapGenSpec::BaseVShadow VShadow;
+   
+   typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
    typedef typename GraphTypes::edge_descriptor Edge;
+   typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
    RoadmapGenRGG(
       const ompl::base::StateSpacePtr space,
       const std::string args):
-      RoadmapGen<TypeSet>(space,"RoadmapGenRGG",args,1),
+      RoadmapGenSpec(space,"RoadmapGenRGG",args,1),
       num_subgraphs_generated(0),
       vertices_generated(0),
       edges_generated(0),
@@ -52,13 +60,13 @@ public:
    }
    
    void generate(
-      typename TypeSet::Graph & g,
+      Graph & g,
       std::size_t num_subgraphs_desired,
-      typename TypeSet::StateMap state_map,
-      typename TypeSet::DistanceMap distance_map,
-      typename TypeSet::VertexSubgraphMap vertex_subgraph_map,
-      typename TypeSet::EdgeSubgraphMap edge_subgraph_map,
-      typename TypeSet::IsShadowMap is_shadow_map)
+      VState state_map,
+      EDistance distance_map,
+      VSubgraph vertex_subgraph_map,
+      ESubgraph edge_subgraph_map,
+      VShadow is_shadow_map)
    {
       if (this->num_subgraphs < num_subgraphs_desired)
          throw std::runtime_error("this roadmap gen doesnt support that many subgraphs !");
@@ -73,7 +81,7 @@ public:
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         get(state_map, v_new).reset(new typename TypeSet::StateContainer(this->space));
+         get(state_map, v_new).reset(new StateCon(this->space.get()));
          this->sampler->sampleUniform(get(state_map, v_new)->state);
          
          // allocate new undirected edges

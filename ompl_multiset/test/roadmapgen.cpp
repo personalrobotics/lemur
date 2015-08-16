@@ -25,69 +25,52 @@
 #include <gtest/gtest.h>
 
 
-class GraphTypes
+struct StateContainer
 {
-public:
+   const ompl::base::StateSpace * space;
+   ompl::base::State * state;
+   StateContainer(ompl::base::StateSpace * space):
+      space(space), state(space->allocState()) {}
+   ~StateContainer() { space->freeState(this->state); }
+};
+typedef boost::shared_ptr<StateContainer> StateContainerPtr;
 
-   class StateContainer
-   {
-   private:
-      const ompl::base::StateSpacePtr space;
-   public:
-      ompl::base::State * state;
-      StateContainer(ompl::base::StateSpacePtr space):
-         space(space), state(space->allocState()) {}
-      ~StateContainer() { space->freeState(this->state); }
-   };
-
-   struct VertexProperties
-   {
-      boost::shared_ptr<StateContainer> state;
-      int subgraph;
-      bool is_shadow;
-   };
-   struct EdgeProperties
-   {
-      std::size_t index;
-      double distance;
-      int subgraph;
-   };
-
-   typedef boost::adjacency_list<
-      boost::vecS, // Edgelist ds, for per-vertex out-edges
-      boost::vecS, // VertexList ds, for vertex set
-      boost::undirectedS, // type of graph
-      VertexProperties, // internal (bundled) vertex properties
-      EdgeProperties // internal (bundled) edge properties
-      > Graph;
-   
-   typedef boost::graph_traits<Graph>::edge_descriptor Edge;
-   
-   typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
-   typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
-   typedef boost::vector_property_map<Edge> EdgeVectorMap;
-   
-   typedef boost::property_map<Graph, boost::shared_ptr<StateContainer> VertexProperties::*>::type StateMap;
-   typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
-   typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
-   typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
-   typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
-   
-   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<GraphTypes> > RoadmapGenPtr;
+struct VertexProperties
+{
+   StateContainerPtr state;
+   int subgraph;
+   bool is_shadow;
+};
+struct EdgeProperties
+{
+   std::size_t index;
+   double distance;
+   int subgraph;
 };
 
-class EdgeIndexedGraphTypes
-{
-public:
-   typedef pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap> Graph;
-   typedef GraphTypes::StateMap StateMap;
-   typedef GraphTypes::DistanceMap DistanceMap;
-   typedef GraphTypes::VertexSubgraphMap VertexSubgraphMap;
-   typedef GraphTypes::EdgeSubgraphMap EdgeSubgraphMap;
-   typedef GraphTypes::IsShadowMap IsShadowMap;
-   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<EdgeIndexedGraphTypes> > RoadmapGenPtr;
-   typedef GraphTypes::StateContainer StateContainer;
-};
+typedef boost::adjacency_list<
+   boost::vecS, // Edgelist ds, for per-vertex out-edges
+   boost::vecS, // VertexList ds, for vertex set
+   boost::undirectedS, // type of graph
+   VertexProperties, // internal (bundled) vertex properties
+   EdgeProperties // internal (bundled) edge properties
+   > Graph;
+
+typedef boost::graph_traits<Graph>::edge_descriptor Edge;
+
+typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
+typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
+typedef boost::vector_property_map<Edge> EdgeVectorMap;
+
+typedef boost::property_map<Graph, StateContainerPtr VertexProperties::*>::type StateMap;
+typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
+typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
+typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
+typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
+
+typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
+typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> RoadmapGen;
+typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
 
 
 // Tests factorial of 0.
@@ -95,32 +78,29 @@ TEST(RoadmapGenRRGTestCase, FixedExampleTest)
 {
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(2));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
-   EdgeIndexedGraphTypes::RoadmapGenPtr p_mygen(new ompl_multiset::RoadmapGenRGG<EdgeIndexedGraphTypes>(space, "n=10 radius=0.3 seed=1"));
+   RoadmapGenPtr p_mygen(new ompl_multiset::RoadmapGenRGG<RoadmapGen>(space, "n=10 radius=0.3 seed=1"));
    
-   GraphTypes::Graph g;
+   Graph g;
    
-   pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap>
-      eig(g,
-         get(&GraphTypes::EdgeProperties::index, g)
-         );
+   pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
+      eig(g, get(&EdgeProperties::index, g));
    
    // generate a graph
-   p_mygen->generate(eig,
-      1,
-      get(&GraphTypes::VertexProperties::state, g),
-      get(&GraphTypes::EdgeProperties::distance, g),
-      get(&GraphTypes::VertexProperties::subgraph, g),
-      get(&GraphTypes::EdgeProperties::subgraph, g),
-      get(&GraphTypes::VertexProperties::is_shadow, g));
+   p_mygen->generate(eig, 1,
+      get(&VertexProperties::state, g),
+      get(&EdgeProperties::distance, g),
+      get(&VertexProperties::subgraph, g),
+      get(&EdgeProperties::subgraph, g),
+      get(&VertexProperties::is_shadow, g));
    
    // write it out to file
-   pr_bgl::GraphIO<GraphTypes::Graph, GraphTypes::VertexIndexMap, GraphTypes::EdgeIndexMap, GraphTypes::EdgeVectorMap>
+   pr_bgl::GraphIO<Graph, VertexIndexMap, EdgeIndexMap, EdgeVectorMap>
       io(g,
          get(boost::vertex_index, g),
-         get(&GraphTypes::EdgeProperties::index, g),
+         get(&EdgeProperties::index, g),
          eig.edge_vector_map);
 
-   io.add_property_map("distance", pr_bgl::make_string_map(get(&GraphTypes::EdgeProperties::distance,g)));
+   io.add_property_map("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
    
    std::stringstream ss;
    

@@ -14,10 +14,17 @@ namespace ompl_multiset
 //template <class Graph, class VertexIndexMap, class EdgeIndexMap
    //,class StateMap, class SubgraphMap, class IsShadowMap, class DistanceMap
 //   >
-template <class TypeSet>
+template <class Graph, class VState, class EDistance, class VSubgraph, class ESubgraph, class VShadow>
 class RoadmapGen
 {
 public:
+   typedef Graph BaseGraph;
+   typedef VState BaseVState;
+   typedef EDistance BaseEDistance;
+   typedef VSubgraph BaseVSubgraph;
+   typedef ESubgraph BaseESubgraph;
+   typedef VShadow BaseVShadow;
+
    const ompl::base::StateSpacePtr space;
    const std::string type;
    const std::string args;
@@ -37,20 +44,16 @@ public:
    
    // sets all of these maps
    virtual void generate(
-      typename TypeSet::Graph & g,
+      Graph & g,
       std::size_t num_subgraphs_desired,
-      typename TypeSet::StateMap state_map,
-      typename TypeSet::DistanceMap distance_map,
-      typename TypeSet::VertexSubgraphMap vertex_subgraph_map,
-      typename TypeSet::EdgeSubgraphMap edge_subgraph_map,
-      typename TypeSet::IsShadowMap is_shadow_map) = 0;
+      VState state_map,
+      EDistance distance_map,
+      VSubgraph vertex_subgraph_map,
+      ESubgraph edge_subgraph_map,
+      VShadow is_shadow_map) = 0;
    
    virtual void serialize() = 0;
    virtual void deserialize() = 0;
 };
-
-
-//template <class Graph, class VertexIndexMap, class EdgeIndexMap>
-//typedef boost::shared_ptr< RoadmapGen<Graph,VertexIndexMap,> > RoadmapGenPtr;
 
 } // namespace ompl_multiset
