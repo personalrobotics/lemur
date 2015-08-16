@@ -15,6 +15,7 @@
 
 #include <pr_bgl/graph_io.h>
 #include <pr_bgl/string_map.h>
+#include <pr_bgl/edge_indexed_graph.h>
 
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
@@ -24,7 +25,7 @@
 #include <gtest/gtest.h>
 
 
-class E8Roadmap
+class GraphTypes
 {
 public:
 
@@ -60,18 +61,11 @@ public:
       EdgeProperties // internal (bundled) edge properties
       > Graph;
    
-   typedef boost::graph_traits<Graph> GraphTypes;
-   typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;
-   typedef boost::graph_traits<Graph>::vertex_iterator VertexIter;
    typedef boost::graph_traits<Graph>::edge_descriptor Edge;
-   typedef boost::graph_traits<Graph>::edge_iterator EdgeIter;
-   typedef boost::graph_traits<Graph>::out_edge_iterator EdgeOutIter;
-   typedef boost::graph_traits<Graph>::in_edge_iterator EdgeInIter;
    
-   typedef boost::property_map< Graph, boost::vertex_index_t>::type VertexIndexMap;
+   typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
    typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
-   
-   typedef boost::vector_property_map<E8Roadmap::Edge> EdgeVectorMap;
+   typedef boost::vector_property_map<Edge> EdgeVectorMap;
    
    typedef boost::property_map<Graph, boost::shared_ptr<StateContainer> VertexProperties::*>::type StateMap;
    typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
@@ -79,7 +73,20 @@ public:
    typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
    typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
    
-   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<E8Roadmap> > RoadmapGenPtr;
+   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<GraphTypes> > RoadmapGenPtr;
+};
+
+class EdgeIndexedGraphTypes
+{
+public:
+   typedef pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap> Graph;
+   typedef GraphTypes::StateMap StateMap;
+   typedef GraphTypes::DistanceMap DistanceMap;
+   typedef GraphTypes::VertexSubgraphMap VertexSubgraphMap;
+   typedef GraphTypes::EdgeSubgraphMap EdgeSubgraphMap;
+   typedef GraphTypes::IsShadowMap IsShadowMap;
+   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<EdgeIndexedGraphTypes> > RoadmapGenPtr;
+   typedef GraphTypes::StateContainer StateContainer;
 };
 
 
@@ -88,31 +95,32 @@ TEST(RoadmapGenRRGTestCase, FixedExampleTest)
 {
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(2));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
-   E8Roadmap::RoadmapGenPtr p_mygen(new ompl_multiset::RoadmapGenRGG<E8Roadmap>(space, "n=10 radius=0.3 seed=1"));
+   EdgeIndexedGraphTypes::RoadmapGenPtr p_mygen(new ompl_multiset::RoadmapGenRGG<EdgeIndexedGraphTypes>(space, "n=10 radius=0.3 seed=1"));
    
-   E8Roadmap::Graph g;
-   E8Roadmap::EdgeVectorMap edge_vector(boost::num_edges(g));
+   GraphTypes::Graph g;
+   
+   pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap>
+      eig(g,
+         get(&GraphTypes::EdgeProperties::index, g)
+         );
    
    // generate a graph
-   p_mygen->generate(g,
-      get(boost::vertex_index, g),
-      get(&E8Roadmap::EdgeProperties::index, g),
-      edge_vector,
+   p_mygen->generate(eig,
       1,
-      get(&E8Roadmap::VertexProperties::state, g),
-      get(&E8Roadmap::EdgeProperties::distance, g),
-      get(&E8Roadmap::VertexProperties::subgraph, g),
-      get(&E8Roadmap::EdgeProperties::subgraph, g),
-      get(&E8Roadmap::VertexProperties::is_shadow, g));
+      get(&GraphTypes::VertexProperties::state, g),
+      get(&GraphTypes::EdgeProperties::distance, g),
+      get(&GraphTypes::VertexProperties::subgraph, g),
+      get(&GraphTypes::EdgeProperties::subgraph, g),
+      get(&GraphTypes::VertexProperties::is_shadow, g));
    
    // write it out to file
-   pr_bgl::GraphIO<E8Roadmap::Graph, E8Roadmap::VertexIndexMap, E8Roadmap::EdgeIndexMap, E8Roadmap::EdgeVectorMap>
+   pr_bgl::GraphIO<GraphTypes::Graph, GraphTypes::VertexIndexMap, GraphTypes::EdgeIndexMap, GraphTypes::EdgeVectorMap>
       io(g,
          get(boost::vertex_index, g),
-         get(&E8Roadmap::EdgeProperties::index, g),
-         edge_vector);
+         get(&GraphTypes::EdgeProperties::index, g),
+         eig.edge_vector_map);
 
-   io.add_property_map("distance", pr_bgl::make_string_map(get(&E8Roadmap::EdgeProperties::distance,g)));
+   io.add_property_map("distance", pr_bgl::make_string_map(get(&GraphTypes::EdgeProperties::distance,g)));
    
    std::stringstream ss;
    

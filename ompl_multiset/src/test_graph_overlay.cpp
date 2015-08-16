@@ -16,27 +16,13 @@
 #include <pr_bgl/graph_io.h>
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/overlay_manager.h>
+#include <pr_bgl/edge_indexed_graph.h>
 
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/RoadmapGen.h>
 #include <ompl_multiset/RoadmapGenRGG.h>
 #include <ompl_multiset/RoadmapGenHalton.h>
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 class GraphTypes
@@ -76,13 +62,9 @@ public:
    typedef boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef boost::graph_traits<Graph>::vertex_iterator VertexIter;
    typedef boost::graph_traits<Graph>::edge_descriptor Edge;
-   typedef boost::graph_traits<Graph>::edge_iterator EdgeIter;
-   typedef boost::graph_traits<Graph>::out_edge_iterator EdgeOutIter;
-   typedef boost::graph_traits<Graph>::in_edge_iterator EdgeInIter;
    
    typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
    typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
-   
    typedef boost::vector_property_map<Edge> EdgeVectorMap;
    
    typedef boost::property_map<Graph, boost::shared_ptr<StateContainer> VertexProperties::*>::type StateMap;
@@ -90,12 +72,6 @@ public:
    typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
    typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
    typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
-   
-   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<GraphTypes> > RoadmapGenPtr;
-   
-   
-   
-   
    
    // create an overlay graph for roots
    struct OverVertexProperties
@@ -121,9 +97,18 @@ public:
    typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
 };
 
-
-
-
+class EdgeIndexedGraphTypes
+{
+public:
+   typedef pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap> Graph;
+   typedef GraphTypes::StateMap StateMap;
+   typedef GraphTypes::DistanceMap DistanceMap;
+   typedef GraphTypes::VertexSubgraphMap VertexSubgraphMap;
+   typedef GraphTypes::EdgeSubgraphMap EdgeSubgraphMap;
+   typedef GraphTypes::IsShadowMap IsShadowMap;
+   typedef boost::shared_ptr< ompl_multiset::RoadmapGen<EdgeIndexedGraphTypes> > RoadmapGenPtr;
+   typedef GraphTypes::StateContainer StateContainer;
+};
 
 
 inline void stringify_from_x(std::string & repr, const boost::shared_ptr<GraphTypes::StateContainer> & in)
@@ -141,13 +126,12 @@ inline void stringify_from_x(std::string & repr, const boost::shared_ptr<GraphTy
       repr += component_repr;
    }
 }
+
 inline void stringify_to_x(const std::string & in, boost::shared_ptr<GraphTypes::StateContainer> & repr)
 {
    repr.reset();
    //repr = atof(in.c_str());
 }
-
-
 
 
 int main(int argc, char **argv)
@@ -158,35 +142,33 @@ int main(int argc, char **argv)
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
    // roadmapgen
-   GraphTypes::RoadmapGenPtr p_mygen;
-   p_mygen.reset(new ompl_multiset::RoadmapGenHalton<GraphTypes>(space, "n=30 radius=0.3"));
+   EdgeIndexedGraphTypes::RoadmapGenPtr p_mygen;
+   p_mygen.reset(new ompl_multiset::RoadmapGenHalton<EdgeIndexedGraphTypes>(space, "n=30 radius=0.3"));
    
    // graph
    GraphTypes::Graph g;
-   GraphTypes::EdgeVectorMap edge_vector(boost::num_edges(g));
    
+   pr_bgl::EdgeIndexedGraph<GraphTypes::Graph, GraphTypes::EdgeIndexMap>
+      eig(g,
+         get(&GraphTypes::EdgeProperties::index, g)
+         );
+
    // generate a graph
-   p_mygen->generate(g,
-      get(boost::vertex_index, g),
-      get(&GraphTypes::EdgeProperties::index, g),
-      edge_vector,
+   p_mygen->generate(eig,
       1,
       get(&GraphTypes::VertexProperties::state, g),
       get(&GraphTypes::EdgeProperties::distance, g),
       get(&GraphTypes::VertexProperties::subgraph, g),
       get(&GraphTypes::EdgeProperties::subgraph, g),
       get(&GraphTypes::VertexProperties::is_shadow, g));
-   
-   
-   
-   
+
    {
       // write it out to file
       pr_bgl::GraphIO<GraphTypes::Graph, GraphTypes::VertexIndexMap, GraphTypes::EdgeIndexMap, GraphTypes::EdgeVectorMap>
          io(g,
             get(boost::vertex_index, g),
             get(&GraphTypes::EdgeProperties::index, g),
-            edge_vector);
+            eig.edge_vector_map);
       io.add_property_map("state", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::state,g)));
       io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::subgraph,g)));
       io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::EdgeProperties::subgraph,g)));
@@ -197,31 +179,21 @@ int main(int argc, char **argv)
       io.dump_properties(std::cout);
    }
    
-   
-   
-   
    GraphTypes::OverGraph og;
 
-
    pr_bgl::OverlayManager<
-         GraphTypes::Graph,
-         GraphTypes::VertexIndexMap,
-         GraphTypes::EdgeIndexMap,
-         GraphTypes::EdgeVectorMap,
+         EdgeIndexedGraphTypes::Graph,
          GraphTypes::OverGraph,
          boost::property_map<GraphTypes::OverGraph, GraphTypes::Vertex GraphTypes::OverVertexProperties::*>::type,
          boost::property_map<GraphTypes::OverGraph, GraphTypes::Edge GraphTypes::OverEdgeProperties::*>::type
          >
       overlay_manager(
-         g, 
-         get(boost::vertex_index, g),
-         get(&GraphTypes::EdgeProperties::index, g),
-         edge_vector,
+         eig,
          og,
          get(&GraphTypes::OverVertexProperties::core_vertex, og),
          get(&GraphTypes::OverEdgeProperties::core_edge, og)
          );
-   
+
    // add some roots to the overlay graph
    {
       // the root itself (doesnt correspond to a core vertex)
@@ -266,7 +238,7 @@ int main(int argc, char **argv)
       og[e].core_properties.distance = dist_closest;
       og[e].core_properties.subgraph = 0;
    }
-   
+
    // ok, APPLY!
    overlay_manager.apply();
    
@@ -286,15 +258,13 @@ int main(int argc, char **argv)
       // IMPORTANT: DONT COPY OVER EDGE INDEX, ITS NOT RIGHT IN OVERLAY!
    }
    
-   
-   
    {
       // write it out to file
       pr_bgl::GraphIO<GraphTypes::Graph, GraphTypes::VertexIndexMap, GraphTypes::EdgeIndexMap, GraphTypes::EdgeVectorMap>
          io(g,
             get(boost::vertex_index, g),
             get(&GraphTypes::EdgeProperties::index, g),
-            edge_vector);
+            eig.edge_vector_map);
       io.add_property_map("state", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::state,g)));
       io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::subgraph,g)));
       io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::EdgeProperties::subgraph,g)));
@@ -304,11 +274,8 @@ int main(int argc, char **argv)
       io.dump_graph(std::cout);
       io.dump_properties(std::cout);
    }
-   
-   
+
    overlay_manager.unapply();
-   
-   
    
    {
       // write it out to file
@@ -316,7 +283,7 @@ int main(int argc, char **argv)
          io(g,
             get(boost::vertex_index, g),
             get(&GraphTypes::EdgeProperties::index, g),
-            edge_vector);
+            eig.edge_vector_map);
       io.add_property_map("state", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::state,g)));
       io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::VertexProperties::subgraph,g)));
       io.add_property_map("subgraph", pr_bgl::make_string_map(get(&GraphTypes::EdgeProperties::subgraph,g)));
@@ -326,7 +293,6 @@ int main(int argc, char **argv)
       io.dump_graph(std::cout);
       io.dump_properties(std::cout);
    }
-   
    
    return 0;
 }

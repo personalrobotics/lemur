@@ -38,9 +38,6 @@ public:
    // sets all of these maps
    virtual void generate(
       typename TypeSet::Graph & g,
-      typename TypeSet::VertexIndexMap vertex_index_map,
-      typename TypeSet::EdgeIndexMap edge_index_map,
-      typename TypeSet::EdgeVectorMap edge_vector_map,
       std::size_t num_subgraphs_desired,
       typename TypeSet::StateMap state_map,
       typename TypeSet::DistanceMap distance_map,

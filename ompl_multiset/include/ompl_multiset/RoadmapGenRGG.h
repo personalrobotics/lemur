@@ -57,9 +57,6 @@ public:
    
    void generate(
       typename TypeSet::Graph & g,
-      typename TypeSet::VertexIndexMap vertex_index_map,
-      typename TypeSet::EdgeIndexMap edge_index_map,
-      typename TypeSet::EdgeVectorMap edge_vector_map,
       std::size_t num_subgraphs_desired,
       typename TypeSet::StateMap state_map,
       typename TypeSet::DistanceMap distance_map,
@@ -72,32 +69,29 @@ public:
       if (num_subgraphs_generated!=0 || num_subgraphs_desired!=1)
          return;
       // ok, generate n nodes!
-      while (boost::num_vertices(g) < n)
+      while (num_vertices(g) < n)
       {
-         Vertex v_new = boost::add_vertex(g);
-         // set vertex index? (only for non-adjacecy list)
+         Vertex v_new = add_vertex(g);
          
          put(vertex_subgraph_map, v_new, 0);
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         put(state_map, v_new,
-            boost::shared_ptr<typename TypeSet::StateContainer>(new typename TypeSet::StateContainer(this->space))
+         get(state_map, v_new).reset(
+            new typename TypeSet::StateContainer(this->space)
          );
          this->sampler->sampleUniform(get(state_map, v_new)->state);
          
          // allocate new undirected edges
-         for (unsigned int ui=0; ui<boost::num_vertices(g)-1; ui++)
+         for (unsigned int ui=0; ui<num_vertices(g)-1; ui++)
          {
-            Vertex v_other = boost::vertex(ui, g);
+            Vertex v_other = vertex(ui, g);
             double dist = this->space->distance(
                get(state_map, v_new)->state,
                get(state_map, v_other)->state);
             if (this->radius < dist)
                continue;
-            Edge e = boost::add_edge(v_new, v_other, g).first;
-            put(edge_index_map, e, edges_generated);
-            put(edge_vector_map, edges_generated, e);
+            Edge e = add_edge(v_new, v_other, g).first;
             put(distance_map, e, dist);
             put(edge_subgraph_map, e, 0);
             edges_generated++;
