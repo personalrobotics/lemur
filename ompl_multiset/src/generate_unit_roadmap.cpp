@@ -21,6 +21,7 @@
 #include <ompl_multiset/RoadmapGen.h>
 #include <ompl_multiset/RoadmapGenAAGrid.h>
 #include <ompl_multiset/RoadmapGenHalton.h>
+#include <ompl_multiset/RoadmapGenHaltonDens.h>
 #include <ompl_multiset/RoadmapGenRGG.h>
 
 
@@ -97,9 +98,9 @@ inline void stringify_to_x(const std::string & in, StateContainerPtr & repr)
 
 int main(int argc, char **argv)
 {
-   if (argc != 4)
+   if (argc != 5)
    {
-      printf("Usage: generate_unit_roadmap <dim> <roadmap-type> '<roadmap-args>'\n");
+      printf("Usage: generate_unit_roadmap <dim> <roadmap-type> '<roadmap-args>' <num-subgraphs>\n");
       return 1;
    }
    
@@ -119,6 +120,8 @@ int main(int argc, char **argv)
       p_mygen.reset(new ompl_multiset::RoadmapGenRGG<RoadmapGen>(space, std::string(argv[3])));
    else if (roadmap_type == "halton")
       p_mygen.reset(new ompl_multiset::RoadmapGenHalton<RoadmapGen>(space, std::string(argv[3])));
+   else if (roadmap_type == "haltondens")
+      p_mygen.reset(new ompl_multiset::RoadmapGenHaltonDens<RoadmapGen>(space, std::string(argv[3])));
    else
    {
       printf("unknown roadmap type!\n");
@@ -131,8 +134,11 @@ int main(int argc, char **argv)
       eig(g, get(&EdgeProperties::index, g));
    
    
+   int num_subgraphs = atoi(argv[4]);
+   printf("generating %d subgraphs ...\n", num_subgraphs);
+   
    // generate a graph
-   p_mygen->generate(eig, 1,
+   p_mygen->generate(eig, num_subgraphs,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),

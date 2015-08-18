@@ -92,14 +92,29 @@ c.line_to(0., 0.)
 c.stroke()
 
 # draw graph lines
-c.set_source_rgb(0., 0., 0.)
+numsubgraphs = 0
+for eidx in graph.edges:
+   isubgraph = int(graph.eprops[eidx]['subgraph'])
+   if numsubgraphs < isubgraph+1:
+      numsubgraphs = isubgraph+1
+
 c.set_line_width(0.005)
-for eidx,(vidx1,vidx2) in graph.edges.items():
-   # compute actual states in floats
-   x1,y1 = map(float,graph.vprops[vidx1]['state'].split())
-   x2,y2 = map(float,graph.vprops[vidx2]['state'].split())
-   c.move_to(x1,y1)
-   c.line_to(x2,y2)
-   c.stroke()
+level_colors = [
+   (0.0, 0.0, 0.0),
+   (0.3, 0.3, 0.3),
+   (0.6, 0.6, 0.6),
+]
+for isubgraph in reversed(range(numsubgraphs)):
+   color = level_colors[isubgraph]
+   c.set_source_rgb(*color)
+   for eidx,(vidx1,vidx2) in graph.edges.items():
+      if int(graph.eprops[eidx]['subgraph']) != isubgraph:
+         continue
+      # compute actual states in floats
+      x1,y1 = map(float,graph.vprops[vidx1]['state'].split())
+      x2,y2 = map(float,graph.vprops[vidx2]['state'].split())
+      c.move_to(x1,y1)
+      c.line_to(x2,y2)
+      c.stroke()
 
 s.write_to_png(args.image)

@@ -12,7 +12,23 @@
 #include <openssl/sha.h>
 #include <ompl_multiset/util.h>
 
-using namespace ompl_multiset::util;
+namespace {
+
+int primes[] =
+{
+     2,   3,   5,   7,  11,  13,  17,  19,  23,  29,
+    31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
+    73,  79,  83,  89,  97, 101, 103, 107, 109, 113,
+   127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
+   179, 181, 191, 193, 197, 199, 211, 223, 227, 229,
+   233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
+   283, 293, 307, 311, 313, 317, 331, 337, 347, 349,
+   353, 359, 367, 373, 379, 383, 389, 397, 401, 409,
+   419, 421, 431, 433, 439, 443, 449, 457, 461, 463,
+   467, 479, 487, 491, 499, 503, 509, 521, 523, 541
+};
+
+} // anonymous namespace
 
 std::string ompl_multiset::util::sf(const char * fmt, ...)
 {
@@ -95,4 +111,24 @@ std::string ompl_multiset::util::double_to_text(double in)
    }
    sprintf(buf, "%.*f", max, in);
    return std::string(buf);
+}
+
+
+// prime[0] = 2
+// returns 0 if its not hardcoded!
+std::size_t ompl_multiset::util::get_prime(std::size_t which)
+{
+   if (sizeof(primes)/sizeof(primes[0]) <= which)
+      return 0;
+   return primes[which];
+}
+
+// index is 0-indexed
+double ompl_multiset::util::halton(std::size_t prime, std::size_t index)
+{
+   double sample = 0.0;
+   double denom = prime;
+   for (index++; index; index/=prime, denom*=prime)
+      sample += (index % prime) / denom;
+   return sample;
 }

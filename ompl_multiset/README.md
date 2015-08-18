@@ -20,6 +20,12 @@ Halton sequences with fixed connection radii.  One level.  Arguments: `n=30 radi
 
 ![roadmap-halton-n30-radius0.3](img/roadmap-halton-n30-radius0.3.png)
 
+### `RoadmapGenHaltonDens`
+
+Densified, batched Halton sequences with connection radii reduced at each batch according to dispersion estimate.  Infinite levels.  Arguments: `n_perbatch=30 radius_firstbatch=0.3`.  Shown here up to three subgraphs.
+
+![roadmap-haltondens-nperbatch30-radiusfirstbatch0.3](img/roadmap-haltondens-nperbatch30-radiusfirstbatch0.3.png)
+
 ### `RoadmapGenRGG`
 
 Random geometric graphs.  One level.  Arguments: `n=30 radius=0.3 seed=1`.

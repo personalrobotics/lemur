@@ -20,5 +20,9 @@ double volume_n_ball(unsigned int n);
 
 std::string double_to_text(double in);
 
+std::size_t get_prime(std::size_t which);
+
+double halton(std::size_t prime, std::size_t index);
+
 } // namespace util
 } // namespace ompl_multiset

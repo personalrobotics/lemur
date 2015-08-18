@@ -7,31 +7,6 @@
 namespace ompl_multiset
 {
 
-int primes[] =
-{
-     2,   3,   5,   7,  11,  13,  17,  19,  23,  29,
-    31,  37,  41,  43,  47,  53,  59,  61,  67,  71,
-    73,  79,  83,  89,  97, 101, 103, 107, 109, 113,
-   127, 131, 137, 139, 149, 151, 157, 163, 167, 173,
-   179, 181, 191, 193, 197, 199, 211, 223, 227, 229,
-   233, 239, 241, 251, 257, 263, 269, 271, 277, 281,
-   283, 293, 307, 311, 313, 317, 331, 337, 347, 349,
-   353, 359, 367, 373, 379, 383, 389, 397, 401, 409,
-   419, 421, 431, 433, 439, 443, 449, 457, 461, 463,
-   467, 479, 487, 491, 499, 503, 509, 521, 523, 541
-};
-
-// index is 0-indexed
-double halton(int prime, int index)
-{
-   double sample = 0.0;
-   double denom = prime;
-   for (index++; index; index/=prime, denom*=prime)
-      sample += (index % prime) / denom;
-   return sample;
-}
-
-
 // for now this is an r-disk prm,
 // uniform milestone sampling with given seed,
 // uses the space's default sampler
@@ -68,8 +43,8 @@ public:
       if (space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
          throw std::runtime_error("RoadmapGenHalton only supports rel vector state spaces!");
       dim = space->getDimension();
-      if (sizeof(primes)/sizeof(primes[0]) < dim)
-         throw std::runtime_error("too many dims, not enough primes hardcoded!");
+      if (0 == ompl_multiset::util::get_prime(dim-1))
+         throw std::runtime_error("not enough primes hardcoded!");
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
       int ret = sscanf(args.c_str(), "n=%u radius=%lf", &n, &radius);
       if (ret != 2)
@@ -113,7 +88,9 @@ public:
          ompl::base::State * v_state = get(state_map, v_new)->state;
          double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
          for (unsigned int ui=0; ui<dim; ui++)
-            values[ui] = bounds.low[ui] + (bounds.high[ui] - bounds.low[ui]) * halton(primes[ui], vertices_generated);
+            values[ui] = bounds.low[ui] + (bounds.high[ui] - bounds.low[ui])
+               * ompl_multiset::util::halton(
+                  ompl_multiset::util::get_prime(ui), vertices_generated);
                   
          // allocate new undirected edges
          for (unsigned int ui=0; ui<num_vertices(g)-1; ui++)
@@ -122,7 +99,7 @@ public:
             double dist = this->space->distance(
                get(state_map, v_new)->state,
                get(state_map, v_other)->state);
-            if (this->radius < dist)
+            if (radius < dist)
                continue;
             Edge e = add_edge(v_new, v_other, g).first;
             put(distance_map, e, dist);
