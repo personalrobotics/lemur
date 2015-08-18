@@ -19,6 +19,7 @@ class RoadmapGenAAGrid : public RoadmapGenSpec
 
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
+   typedef typename GraphTypes::edge_descriptor Edge;
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
@@ -109,7 +110,9 @@ public:
             if (idimvert)
             {
                std::size_t ivert_dimprev = ivert - dim_stride;
-               add_edge(vertices[ivert_dimprev], v_new, g);
+               Edge e = add_edge(vertices[ivert_dimprev], v_new, g).first;
+               put(distance_map, e, res);
+               put(edge_subgraph_map, e, 0);
             }
             // continue
             if (idim == 0) break;
