@@ -9,7 +9,6 @@
 
 #include <boost/property_map/property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
-#include <ompl/base/ScopedState.h>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 

@@ -17,6 +17,7 @@ public:
    // first element is from 0 to n-1 (which one to check)
    // second element is distance to nearest already-evaluated thing
    // (assuming the ends are already evaluated)
+   // TODO: back with a vector for faster indexing!
    const std::vector< std::pair<int,int> > & get(int n)
    {
       // look it up in the cache
@@ -74,4 +75,4 @@ private:
    std::map<int, const std::vector< std::pair<int,int> > > cache;
 };
 
-} // amespace ompl_multiset
+} // namespace ompl_multiset

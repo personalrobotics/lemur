@@ -24,10 +24,12 @@ public:
    typedef typename boost::graph_traits<Graph>::vertices_size_type vertices_size_type;
    typedef typename boost::graph_traits<Graph>::edges_size_type edges_size_type;
    typedef typename boost::graph_traits<Graph>::degree_size_type degree_size_type;
+   
+   typedef typename boost::vector_property_map<edge_descriptor> EdgeVectorMap;
 
    Graph & m_g;
    EdgeIndexMap edge_index_map;
-   boost::vector_property_map<edge_descriptor> edge_vector_map;
+   EdgeVectorMap edge_vector_map;
    
    EdgeIndexedGraph(Graph & g, EdgeIndexMap edge_index_map):
       m_g(g),
