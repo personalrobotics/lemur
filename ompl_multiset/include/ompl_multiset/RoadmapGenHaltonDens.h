@@ -77,7 +77,6 @@ public:
          // compute radius,
          double radius = radius_firstbatch
             * pow(1./(num_subgraphs_generated+1.), 1./dim);
-         printf("NEW RADIUS: %f\n", radius);
          
          while (num_vertices(g) < (num_subgraphs_generated+1) * n_perbatch)
          {

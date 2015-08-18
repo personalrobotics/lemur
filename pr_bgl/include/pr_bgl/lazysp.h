@@ -21,10 +21,11 @@ namespace pr_bgl
 template <class Graph,
    class WMap, class WLazyMap, class IsEvaledMap,
    class EvalStrategy, class LazySPVisitor>
-void lazy_shortest_path(Graph & g,
+bool lazy_shortest_path(Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
    WMap wmap, WLazyMap wlazymap, IsEvaledMap isevaledmap,
+   std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & path,
    EvalStrategy evalstrategy, LazySPVisitor visitor)
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -53,7 +54,7 @@ void lazy_shortest_path(Graph & g,
       if (startdist[v_goal] == std::numeric_limits<double>::max())
       {
          visitor.no_path();
-         return;
+         return false;
       }
       
       // get path
@@ -83,7 +84,9 @@ void lazy_shortest_path(Graph & g,
       if (path_evaled)
       {
          visitor.path_found();
-         return;
+         for (unsigned int ui=0; ui<eepath.size(); ui++)
+            path.push_back(eepath[ui].first);
+         return true;
       }
       
       // determine edges to evaluate

@@ -131,7 +131,6 @@ public:
    std::ostream & os_graph;
    std::ostream & os_alglog;
 
-   // construct a graph
    Graph g;
    pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> eig;
    OverGraph og;
@@ -145,13 +144,20 @@ public:
    OverVertex ov_goal;
    
    BisectPerm bisect_perm;
+   
+   // parameters
+   // can be set in between calls to solve
+   double cost_per_exec_distance;
+   double cost_per_plan_check;
+   double cost_per_subgraph_execcost;
 
    // part 3: ompl methods
 
    FamilyPlanner(
       const ompl::base::StateSpacePtr space,
       const RoadmapGenPtr roadmap_gen,
-      std::ostream & os_graph, std::ostream & os_alglog);
+      std::ostream & os_graph, std::ostream & os_alglog,
+      int num_subgraphs);
    
    ~FamilyPlanner(void);
    

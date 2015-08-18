@@ -12,6 +12,7 @@
 #include <ompl/base/Planner.h>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/goals/GoalState.h>
+#include <ompl/geometric/PathGeometric.h>
 
 // TEMP for stringify
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -127,7 +128,8 @@ get_bogus_si(const ompl::base::StateSpacePtr space)
 ompl_multiset::FamilyPlanner::FamilyPlanner(
       const ompl::base::StateSpacePtr space,
       const RoadmapGenPtr roadmap_gen,
-      std::ostream & os_graph, std::ostream & os_alglog):
+      std::ostream & os_graph, std::ostream & os_alglog,
+      int num_subgraphs):
    ompl::base::Planner(get_bogus_si(space), "FamilyPlanner"),
    space(space),
    check_radius(0.5*space->getLongestValidSegmentLength()),
@@ -135,13 +137,16 @@ ompl_multiset::FamilyPlanner::FamilyPlanner(
    eig(g, get(&EProps::index,g)),
    overlay_manager(eig,og,
       get(&OverVProps::core_vertex, og),
-      get(&OverEProps::core_edge, og))
+      get(&OverEProps::core_edge, og)),
+   cost_per_exec_distance(1.0),
+   cost_per_plan_check(0.0),
+   cost_per_subgraph_execcost(0.0)
 {
    // before we start,
    // generate one level into our graph
    // generate a graph
    // note that new vertices/edges get properties from constructor
-   roadmap_gen->generate(eig, 1,
+   roadmap_gen->generate(eig, num_subgraphs,
       get(&VProps::state, g),
       get(&EProps::distance, g),
       get(&VProps::subgraph, g),
@@ -266,7 +271,10 @@ ompl_multiset::FamilyPlanner::solve(
    EdgeIter ei, ei_end;
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
-      g[*ei].w_lazy = g[*ei].distance;
+      g[*ei].w_lazy = 0.0;
+      g[*ei].w_lazy += cost_per_exec_distance * g[*ei].distance;
+      g[*ei].w_lazy += cost_per_plan_check * (1 + g[*ei].points.size());
+      g[*ei].w_lazy += cost_per_subgraph_execcost * cost_per_exec_distance * g[*ei].distance;
       g[*ei].is_evaled = false;
       for (unsigned int ui=0; ui<g[*ei].points.size(); ui++)
          g[*ei].points[ui].status = 0;
@@ -287,17 +295,31 @@ ompl_multiset::FamilyPlanner::solve(
    io.dump_graph(os_graph);
    io.dump_properties(os_graph);
    
-   pr_bgl::lazy_shortest_path(g,
+   // run lazy search
+   std::vector<Edge> epath;
+   bool success = pr_bgl::lazy_shortest_path(g,
       og[ov_start].core_vertex,
       og[ov_goal].core_vertex,
       ompl_multiset::WMap(*this),
       get(&EProps::w_lazy,g),
       get(&EProps::is_evaled,g),
+      epath,
       pr_bgl::LazySpEvalFwd(),
       make_lazysp_log_visitor(
          get(boost::vertex_index, g),
          get(&EProps::index, g),
          os_alglog));
+   
+   if (success)
+   {
+      /* create the path */
+      ompl::geometric::PathGeometric * path
+         = new ompl::geometric::PathGeometric(si_);
+      path->append(g[og[ov_start].core_vertex].state->state);
+      for (std::vector<Edge>::iterator it=epath.begin(); it!=epath.end(); it++)
+         path->append(g[target(*it,g)].state->state);
+      pdef_->addSolutionPath(ompl::base::PathPtr(path));
+   }
    
    return ompl::base::PlannerStatus::EXACT_SOLUTION;
 }
