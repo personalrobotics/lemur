@@ -72,7 +72,6 @@ typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexSu
 typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
 
 
-// Tests factorial of 0.
 TEST(RoadmapGenRRGTestCase, FixedExampleTest)
 {
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(2));
