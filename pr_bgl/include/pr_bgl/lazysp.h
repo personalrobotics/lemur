@@ -91,7 +91,7 @@ bool lazy_shortest_path(Graph & g,
       
       // determine edges to evaluate
       std::vector<Edge> to_evaluate;
-      evalstrategy.get_to_evaluate(eepath, to_evaluate);
+      evalstrategy.get_to_evaluate(g, eepath, to_evaluate);
       BOOST_ASSERT(to_evaluate.size());
 
       // perform the evaluations
@@ -108,10 +108,11 @@ bool lazy_shortest_path(Graph & g,
 class LazySpEvalFwd
 {
 public:
-   template <class Edge>
+   template <class Graph>
    void get_to_evaluate(
-      const std::vector< std::pair<Edge,bool> > & path,
-      std::vector<Edge> & to_evaluate)
+      const Graph & g,
+      const std::vector< std::pair<typename boost::graph_traits<Graph>::edge_descriptor,bool> > & path,
+      std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & to_evaluate)
    {
       unsigned int ui;
       for (ui=0; ui<path.size(); ui++)
@@ -121,5 +122,125 @@ public:
          to_evaluate.push_back(path[ui].first);
    }
 };
+
+class LazySpEvalRev
+{
+public:
+   template <class Graph>
+   void get_to_evaluate(
+      const Graph & g,
+      const std::vector< std::pair<typename boost::graph_traits<Graph>::edge_descriptor,bool> > & path,
+      std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & to_evaluate)
+   {
+      int i;
+      for (i=path.size()-1; 0<=i; i--)
+         if (path[i].second == false)
+            break;
+      if (0<=i)
+         to_evaluate.push_back(path[i].first);
+   }
+};
+
+class LazySpEvalAlt
+{
+public:
+   LazySpEvalFwd fwd;
+   LazySpEvalRev rev;
+   bool do_fwd;
+   LazySpEvalAlt(): do_fwd(true) {}
+   template <class Graph>
+   void get_to_evaluate(
+      const Graph & g,
+      const std::vector< std::pair<typename boost::graph_traits<Graph>::edge_descriptor,bool> > & path,
+      std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & to_evaluate)
+   {
+      if (do_fwd)
+         fwd.get_to_evaluate(g, path, to_evaluate);
+      else
+         rev.get_to_evaluate(g, path, to_evaluate);
+      do_fwd = !do_fwd;
+   }
+};
+
+class LazySpEvalBisect
+{
+public:
+   template <class Graph>
+   void get_to_evaluate(
+      const Graph & g,
+      const std::vector< std::pair<typename boost::graph_traits<Graph>::edge_descriptor,bool> > & path,
+      std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & to_evaluate)
+   {
+      // dists = min(dist_backwards, dist_forwards)
+      // distance for now is just number of edges
+      // dist[e_evaled] = 0
+      int i;
+      std::vector<int> dists(path.size());
+      // forward
+      for (i=0; i<path.size(); i++)
+      {
+         int fwd_dist;
+         if (path[i].second)
+            fwd_dist = 0;
+         else if (i==0)
+            fwd_dist = 1;
+         else
+            fwd_dist = dists[i-1] + 1;
+         dists[i] = fwd_dist;
+      }
+      // backwards
+      for (i=path.size()-1; i>=0; i--)
+      {
+         int rev_dist;
+         if (path[i].second)
+            rev_dist = 0;
+         else if (i==path.size()-1)
+            rev_dist = 1;
+         else
+            rev_dist = dists[i+1] + 1;
+         if (rev_dist < dists[i])
+            dists[i] = rev_dist;
+      }
+      // choose max
+      int max = -1;
+      int max_i = 0;
+      for (i=0; i<path.size(); i++)
+      {
+         if (max < dists[i])
+         {
+            max = dists[i];
+            max_i = i;
+         }
+      }
+      if (max < 0)
+      {
+         printf("error with max!\n");
+         abort();
+      }
+      to_evaluate.push_back(path[max_i].first);
+   }
+};
+
+class LazySpEvalFwdExpand
+{
+public:
+   template <class Graph>
+   void get_to_evaluate(
+      const Graph & g,
+      const std::vector< std::pair<typename boost::graph_traits<Graph>::edge_descriptor,bool> > & path,
+      std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & to_evaluate)
+   {
+      unsigned int ui;
+      for (ui=0; ui<path.size(); ui++)
+         if (path[ui].second == false)
+            break;
+      if (!(ui<path.size()))
+         return;
+      typename boost::graph_traits<Graph>::out_edge_iterator ei, ei_end;
+      for (boost::tie(ei,ei_end)=out_edges(source(path[ui].first,g),g); ei!=ei_end; ++ei)
+         to_evaluate.push_back(*ei);
+   }
+};
+         
 
 } // namespace pr_bgl
