@@ -10,21 +10,23 @@ namespace pr_bgl
 inline void stringify_from_x(std::string & repr, const double & val)
 {
    char buf[2048];
-   int min = 0;
-   int max = 2047;
    // invariant: min DOESNT WORK, max DOES WORK
    // validate invariants
+   int min = 0;
    sprintf(buf, "%.*f", min, val);
    if (val == strtod(buf,0))
    {
       repr = std::string(buf);
       return;
    }
+   // what is it at 1?
+   sprintf(buf, "%.*f", 1, val);
+   int max = sizeof(buf)-strlen(buf);
    sprintf(buf, "%.*f", max, val);
    if (val != strtod(buf,0))
    {
-      repr = std::string(buf);
-      return;
+      printf("stringify_from_x invariant failed!\n");
+      abort();
    }
    // binary search
    for (;;)
