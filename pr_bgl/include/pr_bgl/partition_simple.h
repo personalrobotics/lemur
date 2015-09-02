@@ -12,11 +12,12 @@ struct partition_simple_el
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::out_edge_iterator EdgeOutIter;
-   Vertex v;
-   double len;
+   Vertex v; // source vertex
+   double len; // total len from start
    std::pair<EdgeOutIter,EdgeOutIter> es;
+   double score; // total score through this vertex
    partition_simple_el(Vertex v, double len, std::pair<EdgeOutIter,EdgeOutIter> es):
-      v(v), len(len), es(es) {}
+      v(v), len(len), es(es), score(0) {}
 };
 
 // WeightMap: edges to weights (double?)
@@ -60,8 +61,21 @@ void partition_simple(
       if (stack.back().es.first == stack.back().es.second)
       {
          put(is_used_map, stack.back().v, false);
+         // back-copy score
+         double score_popped = stack.back().score;
          stack.pop_back();
-         stack.back().es.first++;
+         if (stack.size())
+         {
+            put(score_map, *stack.back().es.first,
+               get(score_map, *stack.back().es.first) + score_popped);
+            
+            stack.back().es.first++;
+            stack.back().score += score_popped;
+         }
+         else
+         {
+            score_total = score_popped;
+         }
          continue;
       }
       
@@ -77,7 +91,7 @@ void partition_simple(
       }
       double len = stack.back().len + get(weight_map, *stack.back().es.first);
       
-      // is this path so far to this vertex too long?
+      // is the path so far to this target next vertex too long?
       if (len_max < len + get(goal_distance_map, v_next) )
       {
          stack.back().es.first++;
@@ -90,11 +104,11 @@ void partition_simple(
          // compute score for this path
          double score = exp(-beta*len);
          
-         for (int i=0; i<stack.size(); i++)
-            put(score_map, *stack[i].es.first,
-               get(score_map, *stack[i].es.first) + score);
+         stack.back().score += score;
          
-         score_total += score;
+         // add to last edge
+         put(score_map, *stack.back().es.first,
+            get(score_map, *stack.back().es.first) + score);
          
          stack.back().es.first++;
          continue;
