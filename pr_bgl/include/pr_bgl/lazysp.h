@@ -30,13 +30,14 @@ bool lazy_shortest_path(Graph & g,
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
+   typedef typename boost::property_traits<WMap>::value_type weight_type;
 
    for (;;)
    {
       // find the lazy shortest path, for now using dijkstra's
       // TODO: we should use faster temporary storage for these!
       std::map<Vertex,Vertex> startpreds;
-      std::map<Vertex,double> startdist;
+      std::map<Vertex,weight_type> startdist;
       boost::dijkstra_shortest_paths(
          g,
          v_start,
@@ -44,14 +45,14 @@ bool lazy_shortest_path(Graph & g,
          boost::make_assoc_property_map(startdist),
          wlazymap,
          boost::get(boost::vertex_index, g), // implicit vertex index map
-         std::less<double>(), // compare
-         boost::closed_plus<double>(std::numeric_limits<double>::max()), // combine
-         std::numeric_limits<double>::max(),
-         double(),
+         std::less<weight_type>(), // compare
+         boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
+         std::numeric_limits<weight_type>::max(),
+         weight_type(),
          boost::make_dijkstra_visitor(boost::null_visitor())
       );
       
-      if (startdist[v_goal] == std::numeric_limits<double>::max())
+      if (startdist[v_goal] == std::numeric_limits<weight_type>::max())
       {
          visitor.no_path();
          return false;
@@ -98,8 +99,9 @@ bool lazy_shortest_path(Graph & g,
       for (unsigned int ui=0; ui<to_evaluate.size(); ui++)
       {
          Edge & e = to_evaluate[ui];
-         visitor.edge_evaluate(e);
-         put(wlazymap, e, get(wmap,e));
+         weight_type e_weight = get(wmap,e);
+         visitor.edge_evaluate(e, e_weight);
+         put(wlazymap, e, e_weight);
          put(isevaledmap, e, true);
       }
    }

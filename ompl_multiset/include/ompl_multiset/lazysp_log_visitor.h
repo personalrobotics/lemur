@@ -46,9 +46,10 @@ public:
    }
    
    template <class Edge>
-   void edge_evaluate(Edge & e)
+   void edge_evaluate(Edge & e, double e_weight)
    {
-      stream << "eval_edge " << get(edge_index_map,e) << std::endl;
+      stream << "eval_edge " << get(edge_index_map,e)
+         << " " << e_weight << std::endl;
    }
 };
 template <class VertexIndexMap, class EdgeIndexMap>
