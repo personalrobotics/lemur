@@ -20,6 +20,7 @@ public:
    GOver & gover;
    OverVertexMap over_vertex_map;
    OverEdgeMap over_edge_map;
+   bool is_applied;
    
    OverlayManager(
          GCore & gcore,
@@ -29,7 +30,8 @@ public:
       gcore(gcore),
       gover(gover),
       over_vertex_map(over_vertex_map),
-      over_edge_map(over_edge_map)
+      over_edge_map(over_edge_map),
+      is_applied(false)
    {
    }
    
@@ -39,6 +41,7 @@ public:
    
    void apply()
    {
+      assert(is_applied == false);
       // copy non-anchor VERTICES first
       typename boost::graph_traits<GOver>::vertex_iterator vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(gover); vi!=vi_end; ++vi)
@@ -64,10 +67,12 @@ public:
          applied_edges.push_back(*ei);
          // copy data?
       }
+      is_applied = true;
    }
    
    void unapply()
    {
+      assert(is_applied == true);
       // remove edges in reverse order
       while (applied_edges.size())
       {
@@ -88,6 +93,7 @@ public:
          // reset vertex pointer so over vertex is known to be a non-anchor vertex
          put(over_vertex_map, vover, boost::graph_traits<GCore>::null_vertex());
       }
+      is_applied = false;
    }
 };
 
