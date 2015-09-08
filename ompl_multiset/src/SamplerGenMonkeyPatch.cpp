@@ -16,23 +16,27 @@ namespace {
    // this defines a friend function
    // that can be called by ADL using the tag type
    template<typename Tag, typename Tag::type M>
-   struct Rob { 
-     friend typename Tag::type get(Tag) {
-       return M;
-     }
+   struct Rob
+   { 
+      friend typename Tag::type get(Tag)
+      {
+         return M;
+      }
    };
 
    // tag used to access StateSampler::rng_
-   struct StateSampler_rng { 
-     typedef ompl::RNG ompl::base::StateSampler::*type;
-     friend type get(StateSampler_rng);
+   struct StateSampler_rng
+   { 
+      typedef ompl::RNG ompl::base::StateSampler::*type;
+      friend type get(StateSampler_rng);
    };
    template struct Rob<StateSampler_rng, &ompl::base::StateSampler::rng_>;
 
    // tag used to access RNG::generator_
-   struct RNG_generator { 
-     typedef boost::mt19937 ompl::RNG::*type;
-     friend type get(RNG_generator);
+   struct RNG_generator
+   { 
+      typedef boost::mt19937 ompl::RNG::*type;
+      friend type get(RNG_generator);
    };
    template struct Rob<RNG_generator, &ompl::RNG::generator_>;
    
