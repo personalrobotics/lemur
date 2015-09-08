@@ -102,7 +102,6 @@ bool lazy_shortest_path(Graph & g,
          weight_type e_weight = get(wmap,e);
          visitor.edge_evaluate(e, e_weight);
          put(wlazymap, e, e_weight);
-         put(isevaledmap, e, true);
       }
    }
 }
