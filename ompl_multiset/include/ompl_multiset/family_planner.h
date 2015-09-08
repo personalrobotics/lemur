@@ -1,4 +1,4 @@
-/* File: LazyPRM.h
+/* File: family_planner.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -18,12 +18,7 @@ struct StateCon
 };
 typedef boost::shared_ptr<StateCon> StateConPtr;
 
-// FOR NOW,
-// status:
-//  0 = unknown
-//  1 = valid
-//  2 = invalid
-
+// for now, this does HARD BATCHING with SUBGRAPH COSTS
 class FamilyPlanner : public ompl::base::Planner
 {
 public:
@@ -37,13 +32,7 @@ public:
       int subgraph;
       bool is_shadow;
       // collision status (index or pointer?)
-      int status;
-   };
-   struct EPropsPoint
-   {
-      boost::shared_ptr<StateCon> state;
-      // collision status (index or pointer?)
-      int status;
+      size_t tag;
    };
    struct EProps
    {
@@ -53,9 +42,10 @@ public:
       int subgraph;
       // for lazysp
       double w_lazy;
-      bool is_evaled;
       // interior points, in bisection order
-      std::vector<EPropsPoint> points;
+      std::vector< boost::shared_ptr<StateCon> > edge_states;
+      std::vector< size_t > edge_tags;
+      //size_t tag; // mega tag?
    };
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -69,6 +59,7 @@ public:
    typedef boost::graph_traits<Graph>::vertex_iterator VertexIter;
    typedef boost::graph_traits<Graph>::edge_descriptor Edge;
    typedef boost::graph_traits<Graph>::edge_iterator EdgeIter;
+   typedef boost::graph_traits<Graph>::out_edge_iterator OutEdgeIter;
    
    // types of property maps to bundled properties
    // these are needed by roadmap
@@ -100,7 +91,7 @@ public:
       boost::shared_ptr<StateCon> state;
       int subgraph;
       bool is_shadow;
-      int status;
+      size_t tag;
    };
    struct OverEProps
    {
@@ -110,7 +101,9 @@ public:
       int subgraph;
       double w_lazy;
       bool is_evaled;
-      std::vector<EPropsPoint> points;
+      std::vector< boost::shared_ptr<StateCon> > edge_states;
+      std::vector< size_t > edge_tags;
+      size_t tag; // mega tag?
    };
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -125,6 +118,10 @@ public:
    typedef boost::graph_traits<OverGraph>::edge_iterator OverEdgeIter;
 
    // part 2: members
+
+   FamilyEffortModel family_effort_model;
+
+   const RoadmapGenPtr roadmap_gen;
 
    const ompl::base::StateSpacePtr space;
    double check_radius; // this is half the standard resolution
@@ -145,16 +142,17 @@ public:
    
    BisectPerm bisect_perm;
    
+   int num_subgraphs;
+   
    // parameters
-   // can be set in between calls to solve
-   double cost_per_exec_distance;
-   double cost_per_plan_check;
-   double cost_per_subgraph_execcost;
+   double coeff_checkcost;
+   double coeff_distance;
+   double coeff_subgraph;
 
    // part 3: ompl methods
 
    FamilyPlanner(
-      const ompl::base::StateSpacePtr space,
+      const Family & family,
       const RoadmapGenPtr roadmap_gen,
       std::ostream & os_graph, std::ostream & os_alglog,
       int num_subgraphs);
@@ -167,10 +165,34 @@ public:
    
    // part 4: private-ish methods
    
-   void edge_init_points(const Edge & e);
+   void edge_init_points(ompl::base::State * va_state, ompl::base::State * vb_state,
+      double e_distance, std::vector< boost::shared_ptr<StateCon> > & edge_states);
+   
+   void overlay_apply();
+   void overlay_unapply();
+   
+   void calculate_w_lazy(const Edge & e);
+   
+   bool isevaledmap_get(const Edge & e);
    
    double wmap_get(const Edge & e);
 };
+
+// helper property map which delegates to FamilyPlanner::isevaledmap_get()
+class IsEvaledMap
+{
+public:
+   typedef boost::readable_property_map_tag category;
+   typedef FamilyPlanner::Edge key_type;
+   typedef bool value_type;
+   typedef bool reference;
+   FamilyPlanner & family_planner;
+   IsEvaledMap(FamilyPlanner & family_planner): family_planner(family_planner) {}
+};
+inline const double get(const IsEvaledMap & isevaledmap, const FamilyPlanner::Edge & e)
+{
+   return isevaledmap.family_planner.isevaledmap_get(e);
+}
 
 // helper property map which delegates to FamilyPlanner::wmap_get()
 class WMap
