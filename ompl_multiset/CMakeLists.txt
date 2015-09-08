@@ -48,6 +48,8 @@ target_link_libraries(roadmapgen ${PROJECT_NAME})
 
 catkin_add_gtest(logic test/logic.cpp)
 
+catkin_add_gtest(family_effort_model test/family_effort_model.cpp)
+
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
