@@ -29,7 +29,7 @@ public:
    const std::string type;
    const std::string args;
    const std::size_t num_subgraphs; // 0 means inf
-
+   
    RoadmapGen(
       const ompl::base::StateSpacePtr space,
       const std::string type,
@@ -41,6 +41,8 @@ public:
    virtual ~RoadmapGen() {}
    
    virtual std::size_t get_num_subgraphs_generated() = 0;
+   
+   virtual double root_radius(std::size_t i_subgraph) = 0;
    
    // sets all of these maps
    virtual void generate(

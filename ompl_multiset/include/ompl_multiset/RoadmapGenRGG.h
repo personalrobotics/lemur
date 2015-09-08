@@ -59,6 +59,11 @@ public:
       return num_subgraphs_generated;
    }
    
+   double root_radius(std::size_t i_subgraph)
+   {
+      return radius;
+   }
+   
    void generate(
       Graph & g,
       std::size_t num_subgraphs_desired,

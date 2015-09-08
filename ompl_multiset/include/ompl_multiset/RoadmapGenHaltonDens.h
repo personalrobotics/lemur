@@ -63,6 +63,12 @@ public:
       return num_subgraphs_generated;
    }
    
+   double root_radius(std::size_t i_subgraph)
+   {
+      return radius_firstbatch
+         * pow(1./(i_subgraph+1.), 1./dim);
+   }
+   
    void generate(
       Graph & g,
       std::size_t num_subgraphs_desired,
@@ -75,8 +81,7 @@ public:
       while (num_subgraphs_generated < num_subgraphs_desired)
       {
          // compute radius,
-         double radius = radius_firstbatch
-            * pow(1./(num_subgraphs_generated+1.), 1./dim);
+         double radius = root_radius(num_subgraphs_generated);
          
          while (num_vertices(g) < (num_subgraphs_generated+1) * n_perbatch)
          {

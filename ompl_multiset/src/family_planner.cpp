@@ -181,6 +181,7 @@ void ompl_multiset::FamilyPlanner::setProblemDefinition(
    og[ov_start].tag = 0;
    
    // connect to vertices within fixed radius in roadmap
+   // to all subgraph vertices that we've generated so far
    std::vector<OverVertex> ovs;
    ovs.push_back(ov_start);
    ovs.push_back(ov_goal);
@@ -189,11 +190,15 @@ void ompl_multiset::FamilyPlanner::setProblemDefinition(
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {
+         double root_radius = roadmap_gen->root_radius(g[*vi].subgraph);
+         
          double dist = space->distance(
             og[*it].state->state,
             g[*vi].state->state);
-         if (0.12 < dist)
+         if (root_radius < dist)
             continue;
+         
+         // root_radius(num_subgraphs_generated)
          
          // add new anchor overlay vertex
          OverVertex v_anchor = add_vertex(og);
@@ -206,7 +211,7 @@ void ompl_multiset::FamilyPlanner::setProblemDefinition(
          // add edge properties
          // og[e].core_properties.index -- needs to be set on apply
          og[e].distance = dist;
-         og[e].subgraph = 0;
+         og[e].subgraph = g[*vi].subgraph;
          // w_lazy??
          // interior points, in bisection order
          edge_init_points(og[*it].state->state, g[*vi].state->state,
@@ -227,6 +232,8 @@ ompl_multiset::FamilyPlanner::solve(
    
    bool success = false;
    std::vector<Edge> epath;
+   
+   int iter = 0;
    
    // run batches of lazy search
    while (!success)
@@ -266,15 +273,20 @@ ompl_multiset::FamilyPlanner::solve(
             get(&EProps::index, g),
             os_alglog));
       
+      iter++;
+      
       if (success)
          break;
+      
+      //if (iter == 100)
+      //   break;
       
       if (roadmap_gen->num_subgraphs && roadmap_gen->num_subgraphs < num_subgraphs + 1)
       {
          break;
       }
       
-      printf("densifying ...\n");
+      printf("densifying to %d subgraph ...\n", num_subgraphs+1);
       
       overlay_unapply();
       
@@ -304,6 +316,51 @@ ompl_multiset::FamilyPlanner::solve(
          g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
          //g[*ei].tag = 0;
          calculate_w_lazy(*ei);
+      }
+      
+      // add new edges to roots
+      double root_radius = roadmap_gen->root_radius(num_subgraphs-1);
+      
+      // iterate over all roots, connect them to the new subgraph
+      std::vector<OverVertex> ovs;
+      OverVertexIter ovi, ovi_end;
+      for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ovi++)
+         if (og[*ovi].core_vertex == boost::graph_traits<Graph>::null_vertex())
+            ovs.push_back(*ovi);
+      for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
+      {
+         VertexIter vi, vi_end;
+         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+         {
+            // core vertices in new subgraph only
+            if (g[*vi].subgraph != num_subgraphs-1)
+               continue;
+            
+            double dist = space->distance(
+               og[*it].state->state,
+               g[*vi].state->state);
+            if (root_radius < dist)
+               continue;
+            
+            // add new anchor overlay vertex
+            OverVertex v_anchor = add_vertex(og);
+            og[v_anchor].core_vertex = *vi;
+            // no need to set core properties (e.g. state) on anchors,
+            // since this is just an anchor, wont be copied
+
+            // add overlay edge from root to anchor
+            OverEdge e = add_edge(*it, v_anchor, og).first;
+            // add edge properties
+            // og[e].core_properties.index -- needs to be set on apply
+            og[e].distance = dist;
+            og[e].subgraph = g[*vi].subgraph;
+            // w_lazy??
+            // interior points, in bisection order
+            edge_init_points(og[*it].state->state, g[*vi].state->state,
+               dist, og[e].edge_states);
+            og[e].edge_tags.resize(og[e].edge_states.size(), 0);
+            //og[e].tag = 0;
+         }
       }
       
       overlay_apply();
