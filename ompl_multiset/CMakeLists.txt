@@ -30,7 +30,7 @@ add_definitions("-Wall")
 add_library(${PROJECT_NAME}
    src/Cache.cpp
    src/MultiSetPRM.cpp
-   src/family_planner.cpp
+   src/E8Roadmap.cpp
    src/RoadmapSampledConst.cpp
    src/RoadmapSampledDensified.cpp
    src/SamplerGenMonkeyPatch.cpp

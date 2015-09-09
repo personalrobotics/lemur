@@ -19,7 +19,7 @@ struct StateCon
 typedef boost::shared_ptr<StateCon> StateConPtr;
 
 // for now, this does HARD BATCHING with SUBGRAPH COSTS
-class FamilyPlanner : public ompl::base::Planner
+class E8Roadmap : public ompl::base::Planner
 {
 public:
 
@@ -119,7 +119,7 @@ public:
 
    // part 2: members
 
-   FamilyEffortModel family_effort_model;
+   ompl_multiset::EffortModel & effort_model;
 
    const RoadmapGenPtr roadmap_gen;
 
@@ -151,13 +151,15 @@ public:
 
    // part 3: ompl methods
 
-   FamilyPlanner(
-      const Family & family,
+   E8Roadmap(
+      const ompl::base::SpaceInformationPtr & si,
+      ompl_multiset::EffortModel & effort_model,
+      //const Family & family,
       const RoadmapGenPtr roadmap_gen,
       std::ostream & os_graph, std::ostream & os_alglog,
       int num_subgraphs);
    
-   ~FamilyPlanner(void);
+   ~E8Roadmap(void);
    
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
    
@@ -172,10 +174,10 @@ public:
    void overlay_unapply();
    
    void calculate_w_lazy(const Edge & e);
-   
+
    bool isevaledmap_get(const Edge & e);
-   
    double wmap_get(const Edge & e);
+
 };
 
 // helper property map which delegates to FamilyPlanner::isevaledmap_get()
@@ -183,15 +185,15 @@ class IsEvaledMap
 {
 public:
    typedef boost::readable_property_map_tag category;
-   typedef FamilyPlanner::Edge key_type;
+   typedef E8Roadmap::Edge key_type;
    typedef bool value_type;
    typedef bool reference;
-   FamilyPlanner & family_planner;
-   IsEvaledMap(FamilyPlanner & family_planner): family_planner(family_planner) {}
+   E8Roadmap & e8_roadmap;
+   IsEvaledMap(E8Roadmap & e8_roadmap): e8_roadmap(e8_roadmap) {}
 };
-inline const double get(const IsEvaledMap & isevaledmap, const FamilyPlanner::Edge & e)
+inline const double get(const IsEvaledMap & isevaledmap, const E8Roadmap::Edge & e)
 {
-   return isevaledmap.family_planner.isevaledmap_get(e);
+   return isevaledmap.e8_roadmap.isevaledmap_get(e);
 }
 
 // helper property map which delegates to FamilyPlanner::wmap_get()
@@ -199,15 +201,15 @@ class WMap
 {
 public:
    typedef boost::readable_property_map_tag category;
-   typedef FamilyPlanner::Edge key_type;
+   typedef E8Roadmap::Edge key_type;
    typedef double value_type;
    typedef double reference;
-   FamilyPlanner & family_planner;
-   WMap(FamilyPlanner & family_planner): family_planner(family_planner) {}
+   E8Roadmap & e8_roadmap;
+   WMap(E8Roadmap & e8_roadmap): e8_roadmap(e8_roadmap) {}
 };
-inline const double get(const WMap & wmap, const FamilyPlanner::Edge & e)
+inline const double get(const WMap & wmap, const E8Roadmap::Edge & e)
 {
-   return wmap.family_planner.wmap_get(e);
+   return wmap.e8_roadmap.wmap_get(e);
 }
 
 } // namespace ompl_multiset

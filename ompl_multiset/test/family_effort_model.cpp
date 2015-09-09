@@ -1,23 +1,20 @@
-/* File: logic.cpp
+/* File: family_effort_model.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
  */
 
-//#include <cstdio>
-//#include <cstdlib>
-//#include <algorithm>
-//#include <vector>
 #include <set>
+#include <boost/graph/adjacency_list.hpp>
+
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
-#include <boost/graph/adjacency_list.hpp>
-
 #include <pr_bgl/heap_indexed.h>
 #include <ompl_multiset/logic_engine.h>
-#include <ompl_multiset/family.h>
-#include <ompl_multiset/family_effort_model.h>
+#include <ompl_multiset/EffortModel.h>
+#include <ompl_multiset/Family.h>
+#include <ompl_multiset/FamilyEffortModel.h>
 
 #include <gtest/gtest.h>
 
@@ -46,7 +43,7 @@ TEST(FamilyEffortModelCase, InclusionTest)
    ompl_multiset::FamilyEffortModel model(family);
    model.set_target(si2);
    
-   ASSERT_TRUE(model.p_hat(0) == 1.0);
+   ASSERT_TRUE(model.p_hat(0,0) == 1.0);
 }
 
 int main(int argc, char **argv)

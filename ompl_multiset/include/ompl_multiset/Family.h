@@ -1,4 +1,4 @@
-/* File: family.h
+/* File: Family.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD

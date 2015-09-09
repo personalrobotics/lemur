@@ -1,4 +1,4 @@
-/* File: family_effort_model.h
+/* File: FamilyEffortModel.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -14,7 +14,7 @@ namespace ompl_multiset
 // tag=0 assumed to mean unknown!
 
 // eventually, should be able to reset with a new family definition!
-class FamilyEffortModel
+class FamilyEffortModel : public EffortModel
 {
 public:
    
@@ -71,6 +71,8 @@ public:
    size_t var_target;
    //LogicEngine::VarVal varval_target;
    
+   bool si_is_new;
+   
    // keyed by tag
    struct TagData
    {
@@ -84,7 +86,7 @@ public:
    std::vector<TagData> tag_datas;
    
    FamilyEffortModel(const Family & in_family):
-      family(in_family)
+      family(in_family), si_is_new(false)
    {
       // check that states are the same for all subsets?
       
@@ -250,8 +252,14 @@ public:
    }
    
    // this should clear any caches if its different!
+   // custom, not called by e8roadmap planner
    void set_target(ompl::base::SpaceInformationPtr si)
    {
+      if (si == si_target)
+         return;
+      
+      si_is_new = true;
+      
       // set si_target and var_target
       printf(">> incoming target si: %p\n", si.get());
       si_target = si;
@@ -304,8 +312,15 @@ public:
       }
    }
    
+   bool has_changed()
+   {
+      bool ret = si_is_new;
+      si_is_new = false;
+      return ret;
+   }
+   
    // p_hat is the sum of the check costs of the cheapest way to show target
-   double p_hat(size_t tag)
+   double p_hat(size_t tag, ompl::base::State * state)
    {
       Vertex v = vertex(tag, g);
       return g[v].cost_to_go;

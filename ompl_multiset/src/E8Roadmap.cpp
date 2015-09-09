@@ -1,4 +1,4 @@
-/* File: lazy_prm.cpp
+/* File: E8Roadmap.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -26,9 +26,8 @@
 
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/RoadmapGen.h>
-#include <ompl_multiset/family.h>
-#include <ompl_multiset/family_effort_model.h>
-#include <ompl_multiset/family_planner.h>
+#include <ompl_multiset/EffortModel.h>
+#include <ompl_multiset/E8Roadmap.h>
 #include <ompl_multiset/lazysp_log_visitor.h>
 
 
@@ -58,7 +57,7 @@ inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPt
 
 } // namespace multiset
 
-
+#if 0
 namespace {
 
 ompl::base::SpaceInformationPtr
@@ -78,15 +77,16 @@ get_bogus_si(const ompl_multiset::Family & family)
 }
 
 } // anonymous namespace
+#endif
 
-
-ompl_multiset::FamilyPlanner::FamilyPlanner(
-      const Family & family,
+ompl_multiset::E8Roadmap::E8Roadmap(
+      const ompl::base::SpaceInformationPtr & si,
+      EffortModel & effort_model,
       const RoadmapGenPtr roadmap_gen,
       std::ostream & os_graph, std::ostream & os_alglog,
       int num_subgraphs):
-   ompl::base::Planner(get_bogus_si(family), "FamilyPlanner"),
-   family_effort_model(family),
+   ompl::base::Planner(si, "FamilyPlanner"),
+   effort_model(effort_model),
    roadmap_gen(roadmap_gen),
    space(si_->getStateSpace()),
    check_radius(0.5*space->getLongestValidSegmentLength()),
@@ -124,11 +124,11 @@ ompl_multiset::FamilyPlanner::FamilyPlanner(
    }
 }
 
-ompl_multiset::FamilyPlanner::~FamilyPlanner()
+ompl_multiset::E8Roadmap::~E8Roadmap()
 {
 }
 
-void ompl_multiset::FamilyPlanner::setProblemDefinition(
+void ompl_multiset::E8Roadmap::setProblemDefinition(
    const ompl::base::ProblemDefinitionPtr & pdef)
 {
    // call planner base class implementation
@@ -136,11 +136,12 @@ void ompl_multiset::FamilyPlanner::setProblemDefinition(
    ompl::base::Planner::setProblemDefinition(pdef);
    
    ompl::base::SpaceInformationPtr si_new = pdef->getSpaceInformation();
-   if (si_new != family_effort_model.si_target)
+   //if (si_new != family_effort_model.si_target)
+   if (effort_model.has_changed())
    {
       // route target si to family effort model
       // this will re-run reverse dijkstra's on the family graph
-      family_effort_model.set_target(si_new);
+      //family_effort_model.set_target(si_new);
       
       // recalculate wlazy if necessary
       // we probably always need to recalc wlazy for overlay states!
@@ -225,7 +226,7 @@ void ompl_multiset::FamilyPlanner::setProblemDefinition(
 }
 
 ompl::base::PlannerStatus
-ompl_multiset::FamilyPlanner::solve(
+ompl_multiset::E8Roadmap::solve(
    const ompl::base::PlannerTerminationCondition & ptc)
 {
    // ok, do some sweet sweet lazy search!
@@ -398,7 +399,7 @@ ompl_multiset::FamilyPlanner::solve(
    }
 }
 
-void ompl_multiset::FamilyPlanner::overlay_apply()
+void ompl_multiset::E8Roadmap::overlay_apply()
 {
    if (overlay_manager.is_applied)
       return;
@@ -430,7 +431,7 @@ void ompl_multiset::FamilyPlanner::overlay_apply()
    }
 }
 
-void ompl_multiset::FamilyPlanner::overlay_unapply()
+void ompl_multiset::E8Roadmap::overlay_unapply()
 {
    // unapply the overlay graph if it is applied
    if (!overlay_manager.is_applied)
@@ -462,7 +463,7 @@ void ompl_multiset::FamilyPlanner::overlay_unapply()
    overlay_manager.unapply();
 }
 
-void ompl_multiset::FamilyPlanner::edge_init_points(
+void ompl_multiset::E8Roadmap::edge_init_points(
    ompl::base::State * va_state, ompl::base::State * vb_state,
    double e_distance, std::vector< boost::shared_ptr<StateCon> > & edge_states)
 {
@@ -480,15 +481,15 @@ void ompl_multiset::FamilyPlanner::edge_init_points(
          edge_states[ui]->state);
 }
 
-void ompl_multiset::FamilyPlanner::calculate_w_lazy(const Edge & e)
+void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
 {
    unsigned int ui;
    for (ui=0; ui<g[e].edge_tags.size(); ui++)
-      if (family_effort_model.x_hat(g[e].edge_tags[ui]) == std::numeric_limits<double>::infinity())
+      if (effort_model.x_hat(g[e].edge_tags[ui]) == std::numeric_limits<double>::infinity())
          break;
    if (ui<g[e].edge_states.size()
-      || family_effort_model.x_hat(g[source(e,g)].tag) == std::numeric_limits<double>::infinity()
-      || family_effort_model.x_hat(g[target(e,g)].tag) == std::numeric_limits<double>::infinity())
+      || effort_model.x_hat(g[source(e,g)].tag) == std::numeric_limits<double>::infinity()
+      || effort_model.x_hat(g[target(e,g)].tag) == std::numeric_limits<double>::infinity())
    {
       g[e].w_lazy = std::numeric_limits<double>::infinity();
    }
@@ -499,23 +500,23 @@ void ompl_multiset::FamilyPlanner::calculate_w_lazy(const Edge & e)
       g[e].w_lazy += coeff_subgraph * g[e].distance * g[e].subgraph;
       // interior states
       for (ui=0; ui<g[e].edge_tags.size(); ui++)
-         g[e].w_lazy += coeff_checkcost * family_effort_model.p_hat(g[e].edge_tags[ui]);
+         g[e].w_lazy += coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]->state);
       // half bounary vertices
-      g[e].w_lazy += 0.5 * coeff_checkcost * family_effort_model.p_hat(g[source(e,g)].tag);
-      g[e].w_lazy += 0.5 * coeff_checkcost * family_effort_model.p_hat(g[target(e,g)].tag);
+      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[source(e,g)].tag, g[source(e,g)].state->state);
+      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[target(e,g)].tag, g[source(e,g)].state->state);
    }
 }
 
-bool ompl_multiset::FamilyPlanner::isevaledmap_get(const Edge & e)
+bool ompl_multiset::E8Roadmap::isevaledmap_get(const Edge & e)
 {
    // this directly calls the family effort model (distance not needed!)
    for (unsigned int ui=0; ui<g[e].edge_tags.size(); ui++)
-      if (!family_effort_model.is_evaled(g[e].edge_tags[ui]))
+      if (!effort_model.is_evaled(g[e].edge_tags[ui]))
          return false;
    return true;
 }
 
-double ompl_multiset::FamilyPlanner::wmap_get(const Edge & e)
+double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
 {
    // check all points!   
    Vertex va = source(e, g);
@@ -524,23 +525,23 @@ double ompl_multiset::FamilyPlanner::wmap_get(const Edge & e)
    // check endpoints first
    do
    {
-      if (!family_effort_model.is_evaled(g[va].tag))
+      if (!effort_model.is_evaled(g[va].tag))
       {
-         bool success = family_effort_model.eval_partial(g[va].tag, g[va].state->state);
+         bool success = effort_model.eval_partial(g[va].tag, g[va].state->state);
          if (!success)
             break;
       }
-      if (!family_effort_model.is_evaled(g[vb].tag))
+      if (!effort_model.is_evaled(g[vb].tag))
       {
-         bool success = family_effort_model.eval_partial(g[vb].tag, g[vb].state->state);
+         bool success = effort_model.eval_partial(g[vb].tag, g[vb].state->state);
          if (!success)
             break;
       }
       for (unsigned ui=0; ui<g[e].edge_tags.size(); ui++)
       {
-         if (!family_effort_model.is_evaled(g[e].edge_tags[ui]))
+         if (!effort_model.is_evaled(g[e].edge_tags[ui]))
          {
-            bool success = family_effort_model.eval_partial(g[e].edge_tags[ui], g[e].edge_states[ui]->state);
+            bool success = effort_model.eval_partial(g[e].edge_tags[ui], g[e].edge_states[ui]->state);
             if (!success)
                break;
          }
