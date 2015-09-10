@@ -320,13 +320,13 @@ public:
    }
    
    // p_hat is the sum of the check costs of the cheapest way to show target
-   double p_hat(size_t tag, ompl::base::State * state)
+   double p_hat(size_t tag, const ompl::base::State * state)
    {
       Vertex v = vertex(tag, g);
       return g[v].cost_to_go;
    }
    
-   double x_hat(size_t tag)
+   double x_hat(size_t tag, const ompl::base::State * state)
    {
       Vertex v = vertex(tag, g);
       if (g[v].checks_to_go == std::numeric_limits<size_t>::max())
@@ -336,7 +336,7 @@ public:
    
    // perform checks for this state (may not make target T or F!)
    // returns true if everything went as planned (so that target is T!)
-   bool eval_partial(size_t & tag, ompl::base::State * state)
+   bool eval_partial(size_t & tag, const ompl::base::State * state)
    {
       Vertex v = vertex(tag, g);
       assert(g[v].checks_to_go != 0);

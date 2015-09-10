@@ -485,11 +485,11 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
 {
    unsigned int ui;
    for (ui=0; ui<g[e].edge_tags.size(); ui++)
-      if (effort_model.x_hat(g[e].edge_tags[ui]) == std::numeric_limits<double>::infinity())
+      if (effort_model.x_hat(g[e].edge_tags[ui], g[e].edge_states[ui]->state) == std::numeric_limits<double>::infinity())
          break;
    if (ui<g[e].edge_states.size()
-      || effort_model.x_hat(g[source(e,g)].tag) == std::numeric_limits<double>::infinity()
-      || effort_model.x_hat(g[target(e,g)].tag) == std::numeric_limits<double>::infinity())
+      || effort_model.x_hat(g[source(e,g)].tag, g[source(e,g)].state->state) == std::numeric_limits<double>::infinity()
+      || effort_model.x_hat(g[target(e,g)].tag, g[target(e,g)].state->state) == std::numeric_limits<double>::infinity())
    {
       g[e].w_lazy = std::numeric_limits<double>::infinity();
    }

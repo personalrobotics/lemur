@@ -49,7 +49,7 @@ public:
       int ret = sscanf(args.c_str(), "n_perbatch=%u radius_firstbatch=%lf",
          &n_perbatch, &radius_firstbatch);
       if (ret != 2)
-         throw std::runtime_error("bad args to RoadmapGenHaltonDens!");
+         throw std::runtime_error("bad args to RoadmapGenHaltonDens, expected n_perbatch radius_firstbatch!");
       if (args != ompl_multiset::util::sf("n_perbatch=%u radius_firstbatch=%s",
          n_perbatch, ompl_multiset::util::double_to_text(radius_firstbatch).c_str()))
       {
