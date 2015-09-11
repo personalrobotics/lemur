@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(or_multiset)
 
-find_package(catkin REQUIRED COMPONENTS ompl_multiset)
+find_package(catkin REQUIRED COMPONENTS pr_bgl ompl_multiset)
 find_package(OMPL REQUIRED)
 find_package(OpenRAVE REQUIRED)
 
@@ -37,6 +37,7 @@ add_library(${PROJECT_NAME} src/inter_link_checks.cpp)
 add_library(${PROJECT_NAME}_orplugin MODULE
    src/plugin/module_subset_manager.cpp
    src/plugin/planner_multiset_prm.cpp
+   src/plugin/planner_e8roadmap.cpp
    src/plugin/plugin.cpp)
 target_link_libraries(${PROJECT_NAME}_orplugin ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES

@@ -12,6 +12,7 @@
 #include <ompl/base/Planner.h>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/goals/GoalState.h>
+#include <ompl/base/goals/GoalStates.h>
 #include <ompl/geometric/PathGeometric.h>
 
 // TEMP for stringify
@@ -57,27 +58,6 @@ inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPt
 
 } // namespace multiset
 
-#if 0
-namespace {
-
-ompl::base::SpaceInformationPtr
-get_bogus_si(const ompl_multiset::Family & family)
-{
-   if (!family.subsets.size())
-      throw std::runtime_error("family must be non-empty!");
-   const ompl::base::StateSpacePtr
-      space = family.subsets.begin()->second.si->getStateSpace();
-   ompl::base::SpaceInformationPtr
-      si(new ompl::base::SpaceInformation(space));
-   ompl::base::StateValidityCheckerPtr
-      si_checker(new ompl::base::AllValidStateValidityChecker(si));
-   si->setStateValidityChecker(si_checker);
-   si->setup();
-   return si;
-}
-
-} // anonymous namespace
-#endif
 
 ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
@@ -156,7 +136,8 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
    og.clear();
    
    // add start to overlay graph
-   assert(pdef->getStartStateCount() == 1);
+   if (pdef->getStartStateCount() != 1)
+      throw std::runtime_error("START must have only one state!");
    ov_start = add_vertex(og);
    og[ov_start].core_vertex = boost::graph_traits<Graph>::null_vertex();
    // set state
@@ -169,17 +150,40 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
 
    // add goal to overlay graph
    ompl::base::GoalPtr goal = pdef->getGoal();
-   assert(goal->hasType(ompl::base::GOAL_STATE));
-   ompl::base::GoalState * goal_state = goal->as<ompl::base::GoalState>();
-   ov_goal = add_vertex(og);
-   og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
-   // set state
-   og[ov_goal].state.reset(new StateCon(space.get()));
-   space->copyState(og[ov_goal].state->state, goal_state->getState());
-   // regular vertex properties
-   og[ov_goal].subgraph = 0;
-   og[ov_goal].is_shadow = false;
-   og[ov_start].tag = 0;
+   if (goal->getType() == ompl::base::GOAL_STATE)
+   {
+      ompl::base::GoalState * goal_state = goal->as<ompl::base::GoalState>();
+      ov_goal = add_vertex(og);
+      og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
+      // set state
+      og[ov_goal].state.reset(new StateCon(space.get()));
+      space->copyState(og[ov_goal].state->state, goal_state->getState());
+      {
+         double * q = goal_state->getState()->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         printf("PLANNER GOT FIRST GOAL STATE: %f\n", q[0]);
+      }
+      // regular vertex properties
+      og[ov_goal].subgraph = 0;
+      og[ov_goal].is_shadow = false;
+      og[ov_goal].tag = 0;
+   }
+   else if (goal->getType() == ompl::base::GOAL_STATES)
+   {
+      ompl::base::GoalStates * goal_states = goal->as<ompl::base::GoalStates>();
+      if (goal_states->getStateCount() != 1)
+         throw std::runtime_error("GOAL_STATES must have only one goal!");
+      ov_goal = add_vertex(og);
+      og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
+      // set state
+      og[ov_goal].state.reset(new StateCon(space.get()));
+      space->copyState(og[ov_goal].state->state, goal_states->getState(0));
+      // regular vertex properties
+      og[ov_goal].subgraph = 0;
+      og[ov_goal].is_shadow = false;
+      og[ov_goal].tag = 0;
+   }
+   else
+      throw std::runtime_error("unsupported ompl goal type!");
    
    // connect to vertices within fixed radius in roadmap
    // to all subgraph vertices that we've generated so far
