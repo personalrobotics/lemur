@@ -141,7 +141,7 @@ public:
    
    BisectPerm bisect_perm;
    
-   int num_subgraphs;
+   unsigned int num_subgraphs;
    
    // parameters
    double coeff_checkcost;
@@ -155,7 +155,7 @@ public:
       ompl_multiset::EffortModel & effort_model,
       //const Family & family,
       const RoadmapGenPtr roadmap_gen,
-      int num_subgraphs);
+      unsigned int num_subgraphs);
    
    ~E8Roadmap(void);
    

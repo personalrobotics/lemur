@@ -63,7 +63,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       EffortModel & effort_model,
       const RoadmapGenPtr roadmap_gen,
-      int num_subgraphs):
+      unsigned int num_subgraphs):
    ompl::base::Planner(si, "FamilyPlanner"),
    effort_model(effort_model),
    roadmap_gen(roadmap_gen),
@@ -356,7 +356,7 @@ ompl_multiset::E8Roadmap::solve(
          for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
          {
             // core vertices in new subgraph only
-            if (g[*vi].subgraph != num_subgraphs-1)
+            if (g[*vi].subgraph != (int)(num_subgraphs-1))
                continue;
             
             double dist = space->distance(

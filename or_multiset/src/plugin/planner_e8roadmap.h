@@ -48,6 +48,7 @@ public:
       double coeff_checkcost;
       double coeff_subgraph;
       std::string alglog;
+      std::string graph;
       PlannerParameters();
    private:
       std::string el_deserializing;

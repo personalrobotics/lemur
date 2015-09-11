@@ -16,6 +16,8 @@ RoadmapGen * make_roadmap_gen(const ompl::base::StateSpacePtr & space, std::stri
       return new RoadmapGenAAGrid<RoadmapGen>(space, roadmap_parsed.argstring);
    else if (roadmap_parsed.name == "rgg")
       return new RoadmapGenRGG<RoadmapGen>(space, roadmap_parsed.argstring);
+   else if (roadmap_parsed.name == "rggdensconst")
+      return new RoadmapGenRGGDensConst<RoadmapGen>(space, roadmap_parsed.argstring);
    else if (roadmap_parsed.name == "halton")
       return new RoadmapGenHalton<RoadmapGen>(space, roadmap_parsed.argstring);
    else if (roadmap_parsed.name == "haltondens")

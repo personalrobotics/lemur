@@ -33,6 +33,7 @@
 #include <ompl_multiset/RoadmapGenHalton.h>
 #include <ompl_multiset/RoadmapGenHaltonDens.h>
 #include <ompl_multiset/RoadmapGenRGG.h>
+#include <ompl_multiset/RoadmapGenRGGDensConst.h>
 #include <ompl_multiset/RoadmapGenID.h>
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/E8Roadmap.h>
@@ -113,6 +114,7 @@ or_multiset::E8Roadmap::PlannerParameters::PlannerParameters():
    _vXMLParameters.push_back("coeff_checkcost");
    _vXMLParameters.push_back("coeff_subgraph");
    _vXMLParameters.push_back("alglog");
+   _vXMLParameters.push_back("graph");
 }
 
 bool
@@ -125,6 +127,7 @@ or_multiset::E8Roadmap::PlannerParameters::serialize(std::ostream& sout, int opt
    sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
    sout << "<coeff_subgraph>" << coeff_subgraph << "</coeff_subgraph>";
    sout << "<alglog>" << alglog << "</alglog>";
+   sout << "<graph>" << graph << "</graph>";
    return !!sout;
 }
 
@@ -143,7 +146,8 @@ or_multiset::E8Roadmap::PlannerParameters::startElement(
       || name == "coeff_distance"
       || name == "coeff_checkcost"
       || name == "coeff_subgraph"
-      || name == "alglog")
+      || name == "alglog"
+      || name == "graph")
    {
       el_deserializing = name;
       return PE_Support;
@@ -167,10 +171,9 @@ or_multiset::E8Roadmap::PlannerParameters::endElement(const std::string & name)
       if (el_deserializing == "coeff_subgraph")
          _ss >> coeff_subgraph;
       if (el_deserializing == "alglog")
-      {
          alglog = _ss.str();
-         printf("PARSED alglog=|%s|\n", alglog.c_str());
-      }
+      if (el_deserializing == "graph")
+         graph = _ss.str();
    }
    else
       RAVELOG_WARN("closing tag doesnt match opening tag!\n");
@@ -290,6 +293,14 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    
    ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = 0;
    fp_alglog.close();
+   
+   if (params->graph != "")
+   {
+      std::ofstream fp_graph;
+      fp_graph.open(params->graph.c_str());
+      ompl_planner->as<ompl_multiset::E8Roadmap>()->dump_graph(fp_graph);
+      fp_graph.close();
+   }
    
    if (ompl_status != ompl::base::PlannerStatus::EXACT_SOLUTION) return OpenRAVE::PS_Failed;
    
