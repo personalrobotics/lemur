@@ -70,6 +70,9 @@ public:
       // the ilcs uniquely identifies the subset
       std::set< boost::shared_ptr<InterLinkCheck> > ilcs;
       
+      // if nan, then ignore!
+      double cost_override;
+      
       // the set of live checks that can be performed to validate the ilcs
       // WHEN IS THIS UPDATED?
       // for now, updated by get_current_report()
@@ -143,6 +146,10 @@ public:
    
    bool GetName(std::ostream & sout, std::istream & sin);
    bool SetCostPerIlc(std::ostream & sout, std::istream & sin);
+   
+   // this overrides the already-computed cost for a subset
+   bool OverrideSubsetCost(std::ostream & sout, std::istream & sin);
+   
    // usage:
    // "TagCurrentSubset robotname tagname true|false"
    bool TagCurrentSubset(std::ostream & sout, std::istream & sin);

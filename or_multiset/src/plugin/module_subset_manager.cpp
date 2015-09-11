@@ -52,6 +52,9 @@ or_multiset::ModuleSubsetManager::ModuleSubsetManager(OpenRAVE::EnvironmentBaseP
    this->RegisterCommand("SetCostPerIlc",
       boost::bind(&or_multiset::ModuleSubsetManager::SetCostPerIlc,this,_1,_2),
       "SetCostPerIlc");
+   this->RegisterCommand("OverrideSubsetCost",
+      boost::bind(&or_multiset::ModuleSubsetManager::OverrideSubsetCost,this,_1,_2),
+      "OverrideSubsetCost");
    this->RegisterCommand("TagCurrentSubset",
       boost::bind(&or_multiset::ModuleSubsetManager::TagCurrentSubset,this,_1,_2),
       "TagCurrentSubset");
@@ -117,6 +120,34 @@ bool or_multiset::ModuleSubsetManager::SetCostPerIlc(std::ostream & sout, std::i
    if (args.size() != 1)
       throw OpenRAVE::openrave_exception("SetCostPerIlc args not correct!");
    this->cost_per_ilc = atof(args[0].c_str());
+   return true;
+}
+
+bool or_multiset::ModuleSubsetManager::OverrideSubsetCost(std::ostream & sout, std::istream & sin)
+{
+   std::vector<std::string> args = args_from_sin(sin);
+   if (args.size() != 3)
+      throw OpenRAVE::openrave_exception("OverrideSubsetCost args not correct!");
+   std::string robot_name = args[0];
+   std::string subset_name = args[1];
+   double new_cost = atof(args[2].c_str());
+   OpenRAVE::RobotBasePtr robot = this->penv->GetRobot(robot_name);
+   if (!robot)
+      throw OpenRAVE::openrave_exception("GetCurrentReport robot not found!");
+   
+   // get current space we're talking about
+   Space & space = this->get_current_space(robot);
+   
+   // find the subset
+   std::map< std::string, boost::weak_ptr<Subset> >::iterator it;
+   it = space.named_subsets.find(subset_name);
+   if (it == space.named_subsets.end())
+      throw OpenRAVE::openrave_exception("subset not found!");
+   boost::shared_ptr<Subset> subset = it->second.lock();
+   if (!subset)
+      throw OpenRAVE::openrave_exception("subset got deleted!");
+   subset->cost_override = new_cost;
+   
    return true;
 }
 
@@ -244,6 +275,7 @@ or_multiset::ModuleSubsetManager::retrieve_subset(
    // construct a potential current subset
    // with managed ilcs
    boost::shared_ptr<Subset> ss_current(new Subset());
+   ss_current->cost_override = std::numeric_limits<double>::quiet_NaN();
    for (unsigned int i=0; i<ilcs_vec.size(); i++)
    {
       for (ilcpp=existing_ilcs.begin(); ilcpp!=existing_ilcs.end(); ilcpp++)
@@ -305,6 +337,8 @@ or_multiset::ModuleSubsetManager::retrieve_subset(
       // and one that excludes them
       boost::shared_ptr<Subset> ss_newbase_inc(new Subset());
       boost::shared_ptr<Subset> ss_newbase_exc(new Subset());
+      ss_newbase_inc->cost_override = std::numeric_limits<double>::quiet_NaN();
+      ss_newbase_exc->cost_override = std::numeric_limits<double>::quiet_NaN();
       
       // first, get the ilcs correct
       ss_newbase_inc->ilcs = ilcs_insersection;
@@ -343,6 +377,7 @@ or_multiset::ModuleSubsetManager::retrieve_subset(
    if (ss_current->base_subsets.size())
    {
       boost::shared_ptr<Subset> ss_newbase(new Subset());
+      ss_newbase->cost_override = std::numeric_limits<double>::quiet_NaN();
       ss_newbase->ilcs = ss_current->ilcs;
       for (sspp=ss_current->base_subsets.begin(); sspp!=ss_current->base_subsets.end(); sspp++)
          for (ilcpp=(**sspp).ilcs.begin(); ilcpp!=(**sspp).ilcs.end(); ilcpp++)
@@ -546,7 +581,10 @@ void or_multiset::ModuleSubsetManager::get_current_report(
       report_subset.name = (*sspp)->tag;
       
       // cost
-      report_subset.cost = this->cost_per_ilc * ((*sspp)->ilcs.size()+1);
+      if (std::isnan((*sspp)->cost_override))
+         report_subset.cost = this->cost_per_ilc * ((*sspp)->ilcs.size()+1);
+      else
+         report_subset.cost = (*sspp)->cost_override;
       
       // we need to validate that this check CAN be performed
       // in the current environment!
