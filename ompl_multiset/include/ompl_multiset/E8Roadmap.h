@@ -125,8 +125,7 @@ public:
 
    const ompl::base::StateSpacePtr space;
    double check_radius; // this is half the standard resolution
-   std::ostream & os_graph;
-   std::ostream & os_alglog;
+   std::ostream * os_alglog;
 
    Graph g;
    pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> eig;
@@ -156,7 +155,6 @@ public:
       ompl_multiset::EffortModel & effort_model,
       //const Family & family,
       const RoadmapGenPtr roadmap_gen,
-      std::ostream & os_graph, std::ostream & os_alglog,
       int num_subgraphs);
    
    ~E8Roadmap(void);
@@ -164,6 +162,8 @@ public:
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
    
    ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
+   
+   void dump_graph(std::ostream & os_graph);
    
    // part 4: private-ish methods
    

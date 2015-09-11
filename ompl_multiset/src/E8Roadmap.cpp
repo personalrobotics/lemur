@@ -63,14 +63,13 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       EffortModel & effort_model,
       const RoadmapGenPtr roadmap_gen,
-      std::ostream & os_graph, std::ostream & os_alglog,
       int num_subgraphs):
    ompl::base::Planner(si, "FamilyPlanner"),
    effort_model(effort_model),
    roadmap_gen(roadmap_gen),
    space(si_->getStateSpace()),
    check_radius(0.5*space->getLongestValidSegmentLength()),
-   os_graph(os_graph), os_alglog(os_alglog),
+   os_alglog(0),
    eig(g, get(&EProps::index,g)),
    overlay_manager(eig,og,
       get(&OverVProps::core_vertex, og),
@@ -245,38 +244,57 @@ ompl_multiset::E8Roadmap::solve(
    {
       //os_alglog << "search_with_subgraphs " << num_subgraphs << std::endl;
       
-      os_alglog << "alias reset" << std::endl;
-      
-      for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
+      if (os_alglog)
       {
-         OverVertex vover = overlay_manager.applied_vertices[ui];
-         Vertex vcore = og[vover].core_vertex;
-         os_alglog << "alias vertex applied-" << ui
-            << " index " << get(get(boost::vertex_index,g),vcore) << std::endl;
-      }
-      
-      for (unsigned int ui=0; ui<overlay_manager.applied_edges.size(); ui++)
-      {
-         OverEdge eover = overlay_manager.applied_edges[ui];
-         Edge ecore = og[eover].core_edge;
-         os_alglog << "alias edge applied-" << ui
-            << " index " << g[ecore].index << std::endl;
+         *os_alglog << "alias reset" << std::endl;
+         
+         for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
+         {
+            OverVertex vover = overlay_manager.applied_vertices[ui];
+            Vertex vcore = og[vover].core_vertex;
+            *os_alglog << "alias vertex applied-" << ui
+               << " index " << get(get(boost::vertex_index,g),vcore) << std::endl;
+         }
+         
+         for (unsigned int ui=0; ui<overlay_manager.applied_edges.size(); ui++)
+         {
+            OverEdge eover = overlay_manager.applied_edges[ui];
+            Edge ecore = og[eover].core_edge;
+            *os_alglog << "alias edge applied-" << ui
+               << " index " << g[ecore].index << std::endl;
+         }
       }
       
       // run lazy search
-      success = pr_bgl::lazy_shortest_path(g,
-         og[ov_start].core_vertex,
-         og[ov_goal].core_vertex,
-         ompl_multiset::WMap(*this),
-         get(&EProps::w_lazy,g),
-         ompl_multiset::IsEvaledMap(*this),
-         epath,
-         //pr_bgl::LazySpEvalFwd(),
-         pr_bgl::LazySpEvalAlt(),
-         ompl_multiset::make_lazysp_log_visitor(
-            get(boost::vertex_index, g),
-            get(&EProps::index, g),
-            os_alglog));
+      if (os_alglog)
+      {
+         success = pr_bgl::lazy_shortest_path(g,
+            og[ov_start].core_vertex,
+            og[ov_goal].core_vertex,
+            ompl_multiset::WMap(*this),
+            get(&EProps::w_lazy,g),
+            ompl_multiset::IsEvaledMap(*this),
+            epath,
+            //pr_bgl::LazySpEvalFwd(),
+            pr_bgl::LazySpEvalAlt(),
+            ompl_multiset::make_lazysp_log_visitor(
+               get(boost::vertex_index, g),
+               get(&EProps::index, g),
+               *os_alglog));
+      }
+      else
+      {
+         success = pr_bgl::lazy_shortest_path(g,
+            og[ov_start].core_vertex,
+            og[ov_goal].core_vertex,
+            ompl_multiset::WMap(*this),
+            get(&EProps::w_lazy,g),
+            ompl_multiset::IsEvaledMap(*this),
+            epath,
+            //pr_bgl::LazySpEvalFwd(),
+            pr_bgl::LazySpEvalAlt(),
+            pr_bgl::lazysp_null_visitor());
+      }
       
       iter++;
       
@@ -371,21 +389,6 @@ ompl_multiset::E8Roadmap::solve(
       overlay_apply();
    }
    
-   // dump graph
-   // write it out to file
-   pr_bgl::GraphIO<Graph, VertexIndexMap, EdgeIndexMap, EdgeVectorMap>
-      io(g,
-         get(boost::vertex_index, g),
-         get(&EProps::index, g),
-         eig.edge_vector_map);
-   io.add_property_map("state", pr_bgl::make_string_map(get(&VProps::state,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&VProps::subgraph,g)));
-   io.add_property_map("is_shadow", pr_bgl::make_string_map(get(&VProps::is_shadow,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&EProps::subgraph,g)));
-   io.add_property_map("distance", pr_bgl::make_string_map(get(&EProps::distance,g)));
-   io.dump_graph(os_graph);
-   io.dump_properties(os_graph);
-   
    if (success)
    {
       /* create the path */
@@ -401,6 +404,24 @@ ompl_multiset::E8Roadmap::solve(
    {
       return ompl::base::PlannerStatus::TIMEOUT;
    }
+}
+
+void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
+{
+   // dump graph
+   // write it out to file
+   pr_bgl::GraphIO<Graph, VertexIndexMap, EdgeIndexMap, EdgeVectorMap>
+      io(g,
+         get(boost::vertex_index, g),
+         get(&EProps::index, g),
+         eig.edge_vector_map);
+   io.add_property_map("state", pr_bgl::make_string_map(get(&VProps::state,g)));
+   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&VProps::subgraph,g)));
+   io.add_property_map("is_shadow", pr_bgl::make_string_map(get(&VProps::is_shadow,g)));
+   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&EProps::subgraph,g)));
+   io.add_property_map("distance", pr_bgl::make_string_map(get(&EProps::distance,g)));
+   io.dump_graph(os_graph);
+   io.dump_properties(os_graph);
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()

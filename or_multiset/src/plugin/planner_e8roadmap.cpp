@@ -112,6 +112,7 @@ or_multiset::E8Roadmap::PlannerParameters::PlannerParameters():
    _vXMLParameters.push_back("coeff_distance");
    _vXMLParameters.push_back("coeff_checkcost");
    _vXMLParameters.push_back("coeff_subgraph");
+   _vXMLParameters.push_back("alglog");
 }
 
 bool
@@ -123,6 +124,7 @@ or_multiset::E8Roadmap::PlannerParameters::serialize(std::ostream& sout, int opt
    sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
    sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
    sout << "<coeff_subgraph>" << coeff_subgraph << "</coeff_subgraph>";
+   sout << "<alglog>" << alglog << "</alglog>";
    return !!sout;
 }
 
@@ -140,7 +142,8 @@ or_multiset::E8Roadmap::PlannerParameters::startElement(
    if (name == "roadmap_id"
       || name == "coeff_distance"
       || name == "coeff_checkcost"
-      || name == "coeff_subgraph")
+      || name == "coeff_subgraph"
+      || name == "alglog")
    {
       el_deserializing = name;
       return PE_Support;
@@ -156,17 +159,18 @@ or_multiset::E8Roadmap::PlannerParameters::endElement(const std::string & name)
    if (name == el_deserializing)
    {
       if (el_deserializing == "roadmap_id")
-      {
-         printf("_ss has: |%s|\n", _ss.str().c_str());
          roadmap_id = _ss.str();
-         printf("PULLED OUT roadmap_id:|%s|\n", roadmap_id.c_str());
-      }
       if (el_deserializing == "coeff_distance")
          _ss >> coeff_distance;
       if (el_deserializing == "coeff_checkcost")
          _ss >> coeff_checkcost;
       if (el_deserializing == "coeff_subgraph")
          _ss >> coeff_subgraph;
+      if (el_deserializing == "alglog")
+      {
+         alglog = _ss.str();
+         printf("PARSED alglog=|%s|\n", alglog.c_str());
+      }
    }
    else
       RAVELOG_WARN("closing tag doesnt match opening tag!\n");
@@ -232,11 +236,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
       // set up planner
       sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
       roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::RoadmapGen>(ompl_space, inparams->roadmap_id));
-      std::ofstream * fp_graph_LEAK = new std::ofstream();
-      std::ofstream * fp_alglog_LEAK = new std::ofstream();
-      fp_graph_LEAK->open("/dev/null");
-      fp_alglog_LEAK->open("/dev/null");
-      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, roadmapgen, *fp_graph_LEAK, *fp_alglog_LEAK, 1));
+      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, roadmapgen, 1));
       //ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, roadmapgen, std::cout, std::cout, 1));
    }
    
@@ -276,10 +276,20 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    
    ompl_checker->num_checks = 0;
    
+   std::ofstream fp_alglog;
+   if (params->alglog != "")
+   {
+      fp_alglog.open(params->alglog.c_str());
+      ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &fp_alglog;
+   }
+   
    ompl::base::PlannerStatus ompl_status;
    ompl_status = ompl_planner->solve(ompl::base::timedPlannerTerminationCondition(10.0));
    printf("planner returned: %s\n", ompl_status.asString().c_str());
    printf("planner performed %lu checks!\n", ompl_checker->num_checks);
+   
+   ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = 0;
+   fp_alglog.close();
    
    if (ompl_status != ompl::base::PlannerStatus::EXACT_SOLUTION) return OpenRAVE::PS_Failed;
    
