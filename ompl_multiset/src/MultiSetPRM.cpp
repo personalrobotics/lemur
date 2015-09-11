@@ -1055,7 +1055,8 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
    std::map<Vertex, DijkType> closed_fwd;
    std::map<Vertex, DijkType> closed_bck;
    double cost_connection = HUGE_VAL;
-   Vertex v_connection = GraphTypes::null_vertex();
+   Vertex v_connection_fwd = GraphTypes::null_vertex();
+   Vertex v_connection_bck = GraphTypes::null_vertex();
    for (ui=0; ui<pdefdata.v_starts.size(); ui++)
    {
       Vertex v = pdefdata.v_starts[ui];
@@ -1089,6 +1090,8 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
       std::priority_queue<DijkType> * open_mine;
       std::map<Vertex, DijkType> * closed_mine;
       std::map<Vertex, DijkType> * closed_other;
+      Vertex * v_connection_mine;
+      Vertex * v_connection_other;
       // are we done?
       if (cost_connection <= open_fwd.top().v_cost + open_bck.top().v_cost)
          break;
@@ -1098,12 +1101,16 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
          open_mine = &open_fwd;
          closed_mine = &closed_fwd;
          closed_other = &closed_bck;
+         v_connection_mine = &v_connection_fwd;
+         v_connection_other = &v_connection_bck;
       }
       else
       {
          open_mine = &open_bck;
          closed_mine = &closed_bck;
          closed_other = &closed_fwd;
+         v_connection_mine = &v_connection_bck;
+         v_connection_other = &v_connection_fwd;
       }
       // pop next
       DijkType top = open_mine->top();
@@ -1113,16 +1120,6 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
          continue;
       // add to closed list!
       closed_mine->insert(std::make_pair(top.v,top));
-      // did we find a better potential path?
-      std::map<Vertex, DijkType>::iterator it_other = closed_other->find(top.v);
-      if (it_other != closed_other->end())
-      {
-         if (top.v_cost + it_other->second.v_cost < cost_connection)
-         {
-            cost_connection = top.v_cost + it_other->second.v_cost;
-            v_connection = top.v;
-         }
-      }
       // get all successors
       for (std::pair<EdgeOutIter,EdgeOutIter> ep = boost::out_edges(top.v, g);
          ep.first!=ep.second; ep.first++)
@@ -1153,14 +1150,29 @@ enum P::DijkResult P::dijkstras_bidirectional(ProbDefData & pdefdata,
             new_cost += this->lambda * g[e].estimates[this->pdef_ci].cost_remaining;
          // add to open list
          open_mine->push(DijkType(new_cost, v_succ, top.v, e));
+         // termination condition: is v_succ already expanded (closed) in other list?
+         std::map<Vertex, DijkType>::iterator it_other = closed_other->find(v_succ);
+         if (it_other != closed_other->end())
+         {
+            double this_cost_connection = new_cost + it_other->second.v_cost;
+            if (this_cost_connection < cost_connection)
+            {
+               cost_connection = this_cost_connection;
+               *v_connection_mine = top.v;
+               *v_connection_other = v_succ;
+            }
+         }
       }
    }
-   if (v_connection == GraphTypes::null_vertex())
+   if (v_connection_fwd == GraphTypes::null_vertex()
+      || v_connection_bck == GraphTypes::null_vertex())
       return DIJK_NO_PATH;
    // return cost estimate
    cost_estimate = cost_connection;
    // create the path
-   path_vs.push_back(v_connection);
+   path_vs.push_back(v_connection_fwd);
+   path_vs.push_back(v_connection_bck);
+   path_es.push_back(edge(v_connection_fwd,v_connection_bck,g).first);
    for (;;)
    {
       std::map<Vertex, DijkType>::iterator it = closed_fwd.find(path_vs.front());
