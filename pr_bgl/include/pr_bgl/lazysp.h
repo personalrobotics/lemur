@@ -106,6 +106,31 @@ bool lazy_shortest_path(Graph & g,
    }
 }
 
+class lazysp_null_visitor
+{
+public:
+   
+   lazysp_null_visitor() {}
+   
+   template <class Vertex>
+   void lazy_path(double length, std::vector<Vertex> & vpath)
+   {
+   }
+
+   void no_path()
+   {
+   }
+
+   void path_found()
+   {
+   }
+   
+   template <class Edge>
+   void edge_evaluate(Edge & e, double e_weight)
+   {
+   }
+};
+
 class LazySpEvalFwd
 {
 public:
