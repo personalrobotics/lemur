@@ -157,10 +157,6 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       // set state
       og[ov_goal].state.reset(new StateCon(space.get()));
       space->copyState(og[ov_goal].state->state, goal_state->getState());
-      {
-         double * q = goal_state->getState()->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-         printf("PLANNER GOT FIRST GOAL STATE: %f\n", q[0]);
-      }
       // regular vertex properties
       og[ov_goal].subgraph = 0;
       og[ov_goal].is_shadow = false;
