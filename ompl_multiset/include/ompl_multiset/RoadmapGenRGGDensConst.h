@@ -98,7 +98,7 @@ public:
                   continue;
                Edge e = add_edge(v_new, v_other, g).first;
                put(distance_map, e, dist);
-               put(edge_subgraph_map, e, 0);
+               put(edge_subgraph_map, e, num_subgraphs_generated);
                edges_generated++;
             }
             
