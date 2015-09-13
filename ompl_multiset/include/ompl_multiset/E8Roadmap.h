@@ -136,8 +136,8 @@ public:
          boost::property_map<OverGraph, Edge OverEProps::*>::type>
       overlay_manager;
    
-   OverVertex ov_start;
-   OverVertex ov_goal;
+   OverVertex ov_singlestart;
+   OverVertex ov_singlegoal;
    
    BisectPerm bisect_perm;
    

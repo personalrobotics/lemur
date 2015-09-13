@@ -42,6 +42,11 @@ inline void stringify_to_x(const std::string & in, ompl_multiset::StateConPtr & 
 }
 inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPtr & in)
 {
+   if (!in.get())
+   {
+      repr = "no_state";
+      return;
+   }
    unsigned int dim = in->space->getDimension();
    ompl::base::RealVectorStateSpace::StateType * state
       = in->state->as<ompl::base::RealVectorStateSpace::StateType>();
@@ -134,24 +139,48 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
    // clear overlay graph
    og.clear();
    
-   // add start to overlay graph
-   if (pdef->getStartStateCount() != 1)
-      throw std::runtime_error("START must have only one state!");
-   ov_start = add_vertex(og);
-   og[ov_start].core_vertex = boost::graph_traits<Graph>::null_vertex();
-   // set state
-   og[ov_start].state.reset(new StateCon(space.get()));
-   space->copyState(og[ov_start].state->state, pdef->getStartState(0));
-   // regular vertex properties
-   og[ov_start].subgraph = 0;
-   og[ov_start].is_shadow = false;
-   og[ov_start].tag = 0;
+   // add starts to overlay graph
+   ov_singlestart = add_vertex(og);
+   ov_singlegoal = add_vertex(og);
+   og[ov_singlestart].core_vertex = boost::graph_traits<Graph>::null_vertex();
+   og[ov_singlegoal].core_vertex = boost::graph_traits<Graph>::null_vertex();
+   // leave state null!
+   og[ov_singlestart].subgraph = 0;
+   og[ov_singlestart].is_shadow = false;
+   og[ov_singlestart].tag = 0;
+   og[ov_singlegoal].subgraph = 0;
+   og[ov_singlegoal].is_shadow = false;
+   og[ov_singlegoal].tag = 0;
+   
+   // add all actual start/goal vertices here, for future connection
+   std::vector<OverVertex> ovs;
+   
+   for (unsigned int istart=0; istart<pdef->getStartStateCount(); istart++)
+   {
+      OverVertex ov_start;
+      ov_start = add_vertex(og);
+      og[ov_start].core_vertex = boost::graph_traits<Graph>::null_vertex();
+      // set state
+      og[ov_start].state.reset(new StateCon(space.get()));
+      space->copyState(og[ov_start].state->state, pdef->getStartState(istart));
+      // regular vertex properties
+      og[ov_start].subgraph = 0;
+      og[ov_start].is_shadow = false;
+      og[ov_start].tag = 0;
+      // connecting edge
+      OverEdge e = add_edge(ov_singlestart, ov_start, og).first;
+      og[e].distance = 0.0;
+      og[e].subgraph = 0;
+      // no edge states!
+      ovs.push_back(ov_start);
+   }
 
    // add goal to overlay graph
    ompl::base::GoalPtr goal = pdef->getGoal();
    if (goal->getType() == ompl::base::GOAL_STATE)
    {
       ompl::base::GoalState * goal_state = goal->as<ompl::base::GoalState>();
+      OverVertex ov_goal;
       ov_goal = add_vertex(og);
       og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
       // set state
@@ -161,30 +190,41 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       og[ov_goal].subgraph = 0;
       og[ov_goal].is_shadow = false;
       og[ov_goal].tag = 0;
+      // connecting edge
+      OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
+      og[e].distance = 0.0;
+      og[e].subgraph = 0;
+      // no edge states!
+      ovs.push_back(ov_goal);
    }
    else if (goal->getType() == ompl::base::GOAL_STATES)
    {
       ompl::base::GoalStates * goal_states = goal->as<ompl::base::GoalStates>();
-      if (goal_states->getStateCount() != 1)
-         throw std::runtime_error("GOAL_STATES must have only one goal!");
-      ov_goal = add_vertex(og);
-      og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
-      // set state
-      og[ov_goal].state.reset(new StateCon(space.get()));
-      space->copyState(og[ov_goal].state->state, goal_states->getState(0));
-      // regular vertex properties
-      og[ov_goal].subgraph = 0;
-      og[ov_goal].is_shadow = false;
-      og[ov_goal].tag = 0;
+      for (unsigned int igoal=0; igoal<goal_states->getStateCount(); igoal++)
+      {
+         OverVertex ov_goal;
+         ov_goal = add_vertex(og);
+         og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
+         // set state
+         og[ov_goal].state.reset(new StateCon(space.get()));
+         space->copyState(og[ov_goal].state->state, goal_states->getState(0));
+         // regular vertex properties
+         og[ov_goal].subgraph = 0;
+         og[ov_goal].is_shadow = false;
+         og[ov_goal].tag = 0;
+         // connecting edge
+         OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
+         og[e].distance = 0.0;
+         og[e].subgraph = 0;
+         // no edge states!
+         ovs.push_back(ov_goal);
+      }
    }
    else
       throw std::runtime_error("unsupported ompl goal type!");
    
    // connect to vertices within fixed radius in roadmap
    // to all subgraph vertices that we've generated so far
-   std::vector<OverVertex> ovs;
-   ovs.push_back(ov_start);
-   ovs.push_back(ov_goal);
    for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
    {
       VertexIter vi, vi_end;
@@ -265,8 +305,8 @@ ompl_multiset::E8Roadmap::solve(
       if (os_alglog)
       {
          success = pr_bgl::lazy_shortest_path(g,
-            og[ov_start].core_vertex,
-            og[ov_goal].core_vertex,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
             ompl_multiset::WMap(*this),
             get(&EProps::w_lazy,g),
             ompl_multiset::IsEvaledMap(*this),
@@ -281,8 +321,8 @@ ompl_multiset::E8Roadmap::solve(
       else
       {
          success = pr_bgl::lazy_shortest_path(g,
-            og[ov_start].core_vertex,
-            og[ov_goal].core_vertex,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
             ompl_multiset::WMap(*this),
             get(&EProps::w_lazy,g),
             ompl_multiset::IsEvaledMap(*this),
@@ -344,8 +384,12 @@ ompl_multiset::E8Roadmap::solve(
       std::vector<OverVertex> ovs;
       OverVertexIter ovi, ovi_end;
       for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ovi++)
+      {
+         if (*ovi == ov_singlestart || *ovi == ov_singlegoal)
+            continue;
          if (og[*ovi].core_vertex == boost::graph_traits<Graph>::null_vertex())
             ovs.push_back(*ovi);
+      }
       for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
       {
          VertexIter vi, vi_end;
@@ -390,7 +434,8 @@ ompl_multiset::E8Roadmap::solve(
       /* create the path */
       ompl::geometric::PathGeometric * path
          = new ompl::geometric::PathGeometric(si_);
-      path->append(g[og[ov_start].core_vertex].state->state);
+      //path->append(g[og[ov_start].core_vertex].state->state);
+      epath.pop_back(); // last edge targets singlegoal
       for (std::vector<Edge>::iterator it=epath.begin(); it!=epath.end(); it++)
          path->append(g[target(*it,g)].state->state);
       pdef_->addSolutionPath(ompl::base::PathPtr(path));
@@ -504,13 +549,33 @@ void ompl_multiset::E8Roadmap::edge_init_points(
 
 void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
 {
+   Vertex va = source(e,g);
+   Vertex vb = target(e,g);
+   // special case for singleroot edges
+   if (!g[va].state.get())
+   {
+      if (effort_model.x_hat(g[vb].tag, g[vb].state->state) == std::numeric_limits<double>::infinity())
+         g[e].w_lazy = std::numeric_limits<double>::infinity();
+      else
+         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state->state);
+      return;
+   }
+   if (!g[vb].state.get())
+   {
+      if (effort_model.x_hat(g[va].tag, g[va].state->state) == std::numeric_limits<double>::infinity())
+         g[e].w_lazy = std::numeric_limits<double>::infinity();
+      else
+         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state->state);
+      return;
+   }
+   // ok, its a non-singleroot edge
    unsigned int ui;
    for (ui=0; ui<g[e].edge_tags.size(); ui++)
       if (effort_model.x_hat(g[e].edge_tags[ui], g[e].edge_states[ui]->state) == std::numeric_limits<double>::infinity())
          break;
    if (ui<g[e].edge_states.size()
-      || effort_model.x_hat(g[source(e,g)].tag, g[source(e,g)].state->state) == std::numeric_limits<double>::infinity()
-      || effort_model.x_hat(g[target(e,g)].tag, g[target(e,g)].state->state) == std::numeric_limits<double>::infinity())
+      || effort_model.x_hat(g[va].tag, g[va].state->state) == std::numeric_limits<double>::infinity()
+      || effort_model.x_hat(g[vb].tag, g[vb].state->state) == std::numeric_limits<double>::infinity())
    {
       g[e].w_lazy = std::numeric_limits<double>::infinity();
    }
@@ -523,8 +588,8 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
       for (ui=0; ui<g[e].edge_tags.size(); ui++)
          g[e].w_lazy += coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]->state);
       // half bounary vertices
-      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[source(e,g)].tag, g[source(e,g)].state->state);
-      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[target(e,g)].tag, g[source(e,g)].state->state);
+      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state->state);
+      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state->state);
    }
 }
 
