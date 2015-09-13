@@ -41,7 +41,7 @@ planners = ['MultiSetPRM', 'OMPL_RRTConnect', 'OMPL_LazyPRM', 'OMPL_LBKPIECE1']
 if args.planner not in planners:
    raise RuntimeError('planner must be in:', planners)
 if args.planner == 'MultiSetPRM':
-   if args.lambda_ is None:
+   if None in [args.lambda_, args.radius]:
       raise RuntimeError('MultiSetPRM lamba parameter must be passed!')
 if args.planner == 'OMPL_RRTConnect':
    if args.range is None:
