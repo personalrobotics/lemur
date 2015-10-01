@@ -8,6 +8,7 @@
 #include <cstdarg>
 #include <cstdlib>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <openssl/sha.h>
 #include <ompl_multiset/util.h>
@@ -86,13 +87,15 @@ double ompl_multiset::util::volume_n_ball(unsigned int n)
 std::string ompl_multiset::util::double_to_text(double in)
 {
    char buf[2048];
-   int min = 0;
-   int max = 2047;
    // invariant: min DOESNT WORK, max DOES WORK
    // validate invariants
+   int min = 0;
    sprintf(buf, "%.*f", min, in);
    if (in == strtod(buf,0))
       return std::string(buf);
+   // what is it at 1?
+   sprintf(buf, "%.*f", 1, in);
+   int max = sizeof(buf)-strlen(buf);
    sprintf(buf, "%.*f", max, in);
    if (in != strtod(buf,0))
       return std::string(buf);

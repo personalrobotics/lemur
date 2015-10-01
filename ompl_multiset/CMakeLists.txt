@@ -3,7 +3,7 @@ project(ompl_multiset)
 
 find_package(catkin REQUIRED COMPONENTS pr_bgl)
 find_package(OMPL REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS filesystem system)
 find_package(OpenSSL REQUIRED)
 
 catkin_package(
@@ -22,6 +22,7 @@ include_directories(
 link_libraries(
    ${catkin_LIBRARIES}
    ${OMPL_LIBRARIES}
+   ${Boost_LIBRARIES}
    ${OPENSSL_LIBRARIES})
 
 #add_definitions("-Wall -Werror")
