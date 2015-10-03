@@ -10,6 +10,8 @@
 #include <boost/property_map/property_map.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graphml.hpp>
+#include <boost/program_options.hpp>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
@@ -99,30 +101,51 @@ inline void stringify_to_x(const std::string & in, StateContainerPtr & repr)
 
 int main(int argc, char **argv)
 {
-   if (argc != 5)
+   boost::program_options::options_description desc("Allowed options");
+   desc.add_options()
+      ("help", "produce help message")
+      ("dim", boost::program_options::value<int>(), "unit hypercube dimension (e.g. 2)")
+      ("roadmap-type", boost::program_options::value<std::string>(), "(e.g. Halton)")
+      ("roadmap-args", boost::program_options::value<std::string>(), "(e.g. 'n=30 radius=0.3')")
+      ("num-subgraphs", boost::program_options::value<int>(), "number of subgraphs (e.g. 1)")
+      ("out-file", boost::program_options::value<std::string>(), "output file (can be - for stdout)")
+      ("out-format", boost::program_options::value<std::string>(), "output format (graphml or graphio)")
+   ;
+   
+   boost::program_options::variables_map args;
+   boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), args);
+   boost::program_options::notify(args);    
+
+   if (args.count("help")
+      || args.count("dim") != 1
+      || args.count("roadmap-type") != 1
+      || args.count("roadmap-args") != 1
+      || args.count("num-subgraphs") != 1
+      || args.count("out-file") != 1
+      || args.count("out-format") != 1)
    {
-      printf("Usage: generate_unit_roadmap <dim> <roadmap-type> '<roadmap-args>' <num-subgraphs>\n");
+      std::cout << desc << std::endl;
       return 1;
    }
    
-   int dim = atoi(argv[1]);
+   int dim = args["dim"].as<int>();
    printf("creating unit ompl space of dimension %d ...\n", dim);
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(dim));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
    RoadmapGenPtr p_mygen;
    
-   std::string roadmap_type(argv[2]);
+   std::string roadmap_type(args["roadmap-type"].as<std::string>());
    std::transform(roadmap_type.begin(), roadmap_type.end(), roadmap_type.begin(), ::tolower);
    printf("creating roadmap of type %s ...\n", roadmap_type.c_str());
    if (roadmap_type == "aagrid")
-      p_mygen.reset(new ompl_multiset::RoadmapGenAAGrid<RoadmapGen>(space, std::string(argv[3])));
+      p_mygen.reset(new ompl_multiset::RoadmapGenAAGrid<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
    else if (roadmap_type == "rgg")
-      p_mygen.reset(new ompl_multiset::RoadmapGenRGG<RoadmapGen>(space, std::string(argv[3])));
+      p_mygen.reset(new ompl_multiset::RoadmapGenRGG<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
    else if (roadmap_type == "halton")
-      p_mygen.reset(new ompl_multiset::RoadmapGenHalton<RoadmapGen>(space, std::string(argv[3])));
+      p_mygen.reset(new ompl_multiset::RoadmapGenHalton<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
    else if (roadmap_type == "haltondens")
-      p_mygen.reset(new ompl_multiset::RoadmapGenHaltonDens<RoadmapGen>(space, std::string(argv[3])));
+      p_mygen.reset(new ompl_multiset::RoadmapGenHaltonDens<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
    else
    {
       printf("unknown roadmap type!\n");
@@ -135,7 +158,7 @@ int main(int argc, char **argv)
       eig(g, get(&EdgeProperties::index, g));
    
    
-   int num_subgraphs = atoi(argv[4]);
+   int num_subgraphs = args["num-subgraphs"].as<int>();
    printf("generating %d subgraphs ...\n", num_subgraphs);
    
    // generate a graph
@@ -154,12 +177,36 @@ int main(int argc, char **argv)
    props.property("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));
    props.property("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
    
-   pr_bgl::write_graphio_graph(std::cout, g,
-      get(boost::vertex_index, g), get(&EdgeProperties::index, g));
+   std::ostream * outp;
+   std::ofstream fp;
+   std::string out_file = args["out-file"].as<std::string>();
+   if (out_file == "-")
+      outp = &std::cout;
+   else
+   {
+      fp.open(out_file.c_str());
+      assert(fp.is_open());
+      outp = &fp;
+   }
    
-   pr_bgl::write_graphio_properties(std::cout, g,
-      get(boost::vertex_index, g), get(&EdgeProperties::index, g),
-      props);
+   std::string out_format = args["out-format"].as<std::string>();
+   if (out_format == "graphio")
+   {
+      pr_bgl::write_graphio_graph(*outp, g,
+         get(boost::vertex_index,g), get(&EdgeProperties::index,g));
+      pr_bgl::write_graphio_properties(*outp, g,
+         get(boost::vertex_index,g), get(&EdgeProperties::index,g),
+         props);
+   }
+   else if (out_format == "graphml")
+   {
+      write_graphml(*outp, g, get(boost::vertex_index,g), props, true); // ordered_vertices
+   }
+   else
+      throw std::runtime_error("out format must be graphio or graphml!");
+   
+   if (fp.is_open())
+      fp.close();
    
    return 0;
 }
