@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 
@@ -451,18 +452,17 @@ void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
 {
    // dump graph
    // write it out to file
-   pr_bgl::GraphIO<Graph, VertexIndexMap, EdgeIndexMap, EdgeVectorMap>
-      io(g,
-         get(boost::vertex_index, g),
-         get(&EProps::index, g),
-         eig.edge_vector_map);
-   io.add_property_map("state", pr_bgl::make_string_map(get(&VProps::state,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&VProps::subgraph,g)));
-   io.add_property_map("is_shadow", pr_bgl::make_string_map(get(&VProps::is_shadow,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&EProps::subgraph,g)));
-   io.add_property_map("distance", pr_bgl::make_string_map(get(&EProps::distance,g)));
-   io.dump_graph(os_graph);
-   io.dump_properties(os_graph);
+   boost::dynamic_properties props;
+   props.property("state", pr_bgl::make_string_map(get(&VProps::state,g)));
+   props.property("subgraph", pr_bgl::make_string_map(get(&VProps::subgraph,g)));
+   props.property("subgraph", pr_bgl::make_string_map(get(&EProps::subgraph,g)));
+   props.property("is_shadow", pr_bgl::make_string_map(get(&VProps::is_shadow,g)));
+   props.property("distance", pr_bgl::make_string_map(get(&EProps::distance,g)));
+   pr_bgl::write_graphio_graph(os_graph, g,
+      get(boost::vertex_index, g), get(&EProps::index, g));
+   pr_bgl::write_graphio_properties(os_graph, g,
+      get(boost::vertex_index, g), get(&EProps::index, g),
+      props);
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()

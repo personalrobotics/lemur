@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include <boost/property_map/property_map.hpp>
+#include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -146,20 +147,19 @@ int main(int argc, char **argv)
       get(&VertexProperties::is_shadow, g));
    
    // write it out to file
-   pr_bgl::GraphIO<Graph, VertexIndexMap, EdgeIndexMap, EdgeVectorMap>
-      io(g,
-         get(boost::vertex_index, g),
-         get(&EdgeProperties::index, g),
-         eig.edge_vector_map);
-
-   io.add_property_map("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&VertexProperties::subgraph,g)));
-   io.add_property_map("subgraph", pr_bgl::make_string_map(get(&EdgeProperties::subgraph,g)));
-   io.add_property_map("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));
-   io.add_property_map("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
+   boost::dynamic_properties props;
+   props.property("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
+   props.property("subgraph", pr_bgl::make_string_map(get(&VertexProperties::subgraph,g)));
+   props.property("subgraph", pr_bgl::make_string_map(get(&EdgeProperties::subgraph,g)));
+   props.property("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));
+   props.property("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
    
-   io.dump_graph(std::cout);
-   io.dump_properties(std::cout);
+   pr_bgl::write_graphio_graph(std::cout, g,
+      get(boost::vertex_index, g), get(&EdgeProperties::index, g));
+   
+   pr_bgl::write_graphio_properties(std::cout, g,
+      get(boost::vertex_index, g), get(&EdgeProperties::index, g),
+      props);
    
    return 0;
 }
