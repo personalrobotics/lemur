@@ -29,7 +29,7 @@ public:
    {
       // from roadmap
       boost::shared_ptr<StateCon> state;
-      int subgraph;
+      int batch;
       bool is_shadow;
       // collision status (index or pointer?)
       size_t tag;
@@ -39,7 +39,7 @@ public:
       std::size_t index;
       // from roadmap
       double distance;
-      int subgraph;
+      int batch;
       // for lazysp
       double w_lazy;
       // interior points, in bisection order
@@ -64,11 +64,11 @@ public:
    // types of property maps to bundled properties
    // these are needed by roadmap
    typedef boost::property_map<Graph, boost::shared_ptr<StateCon> VProps::*>::type VPStateMap;
-   typedef boost::property_map<Graph, int VProps::*>::type VPSubgraphMap;
+   typedef boost::property_map<Graph, int VProps::*>::type VPBatchMap;
    typedef boost::property_map<Graph, bool VProps::*>::type VPIsShadowMap;
    typedef boost::property_map<Graph, std::size_t EProps::*>::type EPIndexMap;
    typedef boost::property_map<Graph, double EProps::*>::type EPDistanceMap;
-   typedef boost::property_map<Graph, int EProps::*>::type EPSubgraphMap;
+   typedef boost::property_map<Graph, int EProps::*>::type EPBatchMap;
    typedef boost::property_map<Graph, double EProps::*>::type EPWlazyMap;
    typedef boost::property_map<Graph, bool EProps::*>::type EPIsEvaledMap;
    
@@ -79,7 +79,7 @@ public:
    typedef EdgeIndexedGraph::EdgeVectorMap EdgeVectorMap;
    
    // roadmap generator type
-   typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPSubgraphMap,EPSubgraphMap,VPIsShadowMap> RoadmapGen;
+   typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap> RoadmapGen;
    typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
 
    // roots overlay graph (used internally)
@@ -89,7 +89,7 @@ public:
       Vertex core_vertex;
       // like VProps
       boost::shared_ptr<StateCon> state;
-      int subgraph;
+      int batch;
       bool is_shadow;
       size_t tag;
    };
@@ -98,7 +98,7 @@ public:
       Edge core_edge;
       // like EProps
       double distance;
-      int subgraph;
+      int batch;
       double w_lazy;
       bool is_evaled;
       std::vector< boost::shared_ptr<StateCon> > edge_states;
@@ -141,12 +141,12 @@ public:
    
    BisectPerm bisect_perm;
    
-   unsigned int num_subgraphs;
+   //unsigned int num_batches;
    
    // parameters
    double coeff_checkcost;
    double coeff_distance;
-   double coeff_subgraph;
+   double coeff_batch;
 
    // part 3: ompl methods
 
@@ -155,7 +155,7 @@ public:
       ompl_multiset::EffortModel & effort_model,
       //const Family & family,
       const RoadmapGenPtr roadmap_gen,
-      unsigned int num_subgraphs);
+      unsigned int num_batches);
    
    ~E8Roadmap(void);
    

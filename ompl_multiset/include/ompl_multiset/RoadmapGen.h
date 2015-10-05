@@ -12,46 +12,47 @@ namespace ompl_multiset
 // note, generate() should tolerate the graph having unused but
 // added vertices (e.g. from old/unapplied roots)
 //template <class Graph, class VertexIndexMap, class EdgeIndexMap
-   //,class StateMap, class SubgraphMap, class IsShadowMap, class DistanceMap
+   //,class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
 //   >
-template <class Graph, class VState, class EDistance, class VSubgraph, class ESubgraph, class VShadow>
+template <class Graph, class VState, class EDistance, class VBatch, class EBatch, class VShadow>
 class RoadmapGen
 {
 public:
    typedef Graph BaseGraph;
    typedef VState BaseVState;
    typedef EDistance BaseEDistance;
-   typedef VSubgraph BaseVSubgraph;
-   typedef ESubgraph BaseESubgraph;
+   typedef VBatch BaseVBatch;
+   typedef EBatch BaseEBatch;
    typedef VShadow BaseVShadow;
 
    const ompl::base::StateSpacePtr space;
    const std::string type;
    const std::string args;
-   const std::size_t num_subgraphs; // 0 means inf
+   const std::size_t max_batches; // 0 means inf
    
+   // TODO: make this per-type, and move string parsing into RoadmapGenID
    RoadmapGen(
       const ompl::base::StateSpacePtr space,
       const std::string type,
       const std::string args,
-      int num_subgraphs):
-      space(space), type(type), args(args), num_subgraphs(num_subgraphs)
+      int max_batches):
+      space(space), type(type), args(args), max_batches(max_batches)
    {
    }
    virtual ~RoadmapGen() {}
    
-   virtual std::size_t get_num_subgraphs_generated() = 0;
+   virtual std::size_t get_num_batches_generated() = 0;
    
-   virtual double root_radius(std::size_t i_subgraph) = 0;
+   virtual double root_radius(std::size_t i_batch) = 0;
    
    // sets all of these maps
+   // generates one additional batch
    virtual void generate(
       Graph & g,
-      std::size_t num_subgraphs_desired,
       VState state_map,
       EDistance distance_map,
-      VSubgraph vertex_subgraph_map,
-      ESubgraph edge_subgraph_map,
+      VBatch vertex_batch_map,
+      EBatch edge_batch_map,
       VShadow is_shadow_map) = 0;
    
    virtual void serialize() = 0;

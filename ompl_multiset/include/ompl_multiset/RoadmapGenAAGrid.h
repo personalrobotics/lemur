@@ -13,8 +13,8 @@ class RoadmapGenAAGrid : public RoadmapGenSpec
    typedef typename RoadmapGenSpec::BaseGraph Graph;
    typedef typename RoadmapGenSpec::BaseVState VState;
    typedef typename RoadmapGenSpec::BaseEDistance EDistance;
-   typedef typename RoadmapGenSpec::BaseVSubgraph VSubgraph;
-   typedef typename RoadmapGenSpec::BaseESubgraph ESubgraph;
+   typedef typename RoadmapGenSpec::BaseVBatch VBatch;
+   typedef typename RoadmapGenSpec::BaseEBatch EBatch;
    typedef typename RoadmapGenSpec::BaseVShadow VShadow;
 
    typedef boost::graph_traits<Graph> GraphTypes;
@@ -29,7 +29,7 @@ public:
       RoadmapGenSpec(space,"RoadmapGenAAGrid",args,1),
       dim(0),
       bounds(0),
-      num_subgraphs_generated(0),
+      num_batches_generated(0),
       vertices_generated(0),
       edges_generated(0)
    {
@@ -50,29 +50,26 @@ public:
    }
    ~RoadmapGenAAGrid() {}
    
-   std::size_t get_num_subgraphs_generated()
+   std::size_t get_num_batches_generated()
    {
-      return num_subgraphs_generated;
+      return num_batches_generated;
    }
    
-   double root_radius(std::size_t i_subgraph)
+   double root_radius(std::size_t i_batch)
    {
       return res;
    }
    
    void generate(
       Graph & g,
-      std::size_t num_subgraphs_desired,
       VState state_map,
       EDistance distance_map,
-      VSubgraph vertex_subgraph_map,
-      ESubgraph edge_subgraph_map,
+      VBatch vertex_batch_map,
+      EBatch edge_batch_map,
       VShadow is_shadow_map)
    {
-      if (this->num_subgraphs < num_subgraphs_desired)
-         throw std::runtime_error("this roadmap gen doesnt support that many subgraphs !");
-      if (num_subgraphs_generated!=0 || num_subgraphs_desired!=1)
-         return;
+      if (this->max_batches < num_batches_generated + 1)
+         throw std::runtime_error("this roadmap gen doesnt support that many batches!");
       // ok, generate all nodes!
       // first, compute offset and number of vertices per dimension
       std::vector<double> dim_offsets;
@@ -96,7 +93,7 @@ public:
          Vertex v_new = add_vertex(g);
          vertices[ivert] = v_new;
          
-         put(vertex_subgraph_map, v_new, 0);
+         put(vertex_batch_map, v_new, 0);
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
@@ -117,7 +114,7 @@ public:
                std::size_t ivert_dimprev = ivert - dim_stride;
                Edge e = add_edge(vertices[ivert_dimprev], v_new, g).first;
                put(distance_map, e, res);
-               put(edge_subgraph_map, e, 0);
+               put(edge_batch_map, e, 0);
             }
             // continue
             if (idim == 0) break;
@@ -125,7 +122,7 @@ public:
             dim_stride *= dim_numverts[idim];
          }
       }
-      num_subgraphs_generated++;
+      num_batches_generated++;
    }
    
    void serialize()
@@ -143,7 +140,7 @@ private:
    // from id
    double res;
    // progress
-   std::size_t num_subgraphs_generated;
+   std::size_t num_batches_generated;
    std::size_t vertices_generated;
    std::size_t edges_generated;
 };

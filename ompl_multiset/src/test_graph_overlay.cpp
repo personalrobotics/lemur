@@ -138,7 +138,7 @@ int main(int argc, char **argv)
       eig(g, get(&EdgeProperties::index, g));
 
    // generate a graph
-   p_mygen->generate(eig, 1,
+   p_mygen->generate(eig,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),

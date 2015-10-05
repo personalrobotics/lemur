@@ -69,7 +69,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       EffortModel & effort_model,
       const RoadmapGenPtr roadmap_gen,
-      unsigned int num_subgraphs):
+      unsigned int num_batches):
    ompl::base::Planner(si, "FamilyPlanner"),
    effort_model(effort_model),
    roadmap_gen(roadmap_gen),
@@ -80,20 +80,22 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    overlay_manager(eig,og,
       get(&OverVProps::core_vertex, og),
       get(&OverEProps::core_edge, og)),
-   num_subgraphs(num_subgraphs),
    coeff_checkcost(0.),
    coeff_distance(1.),
-   coeff_subgraph(0.)
+   coeff_batch(0.)
 {
    // before we start,
    // generate some levels into our core eraph
    // note that new vertices/edges get properties from constructor
-   roadmap_gen->generate(eig, num_subgraphs,
-      get(&VProps::state, g),
-      get(&EProps::distance, g),
-      get(&VProps::subgraph, g),
-      get(&EProps::subgraph, g),
-      get(&VProps::is_shadow, g));
+   while (roadmap_gen->get_num_batches_generated() < num_batches)
+   {
+      roadmap_gen->generate(eig,
+         get(&VProps::state, g),
+         get(&EProps::distance, g),
+         get(&VProps::batch, g),
+         get(&EProps::batch, g),
+         get(&VProps::is_shadow, g));
+   }
    
    // initialize stuff
    EdgeIter ei, ei_end;
@@ -146,10 +148,10 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
    og[ov_singlestart].core_vertex = boost::graph_traits<Graph>::null_vertex();
    og[ov_singlegoal].core_vertex = boost::graph_traits<Graph>::null_vertex();
    // leave state null!
-   og[ov_singlestart].subgraph = 0;
+   og[ov_singlestart].batch = 0;
    og[ov_singlestart].is_shadow = false;
    og[ov_singlestart].tag = 0;
-   og[ov_singlegoal].subgraph = 0;
+   og[ov_singlegoal].batch = 0;
    og[ov_singlegoal].is_shadow = false;
    og[ov_singlegoal].tag = 0;
    
@@ -165,13 +167,13 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       og[ov_start].state.reset(new StateCon(space.get()));
       space->copyState(og[ov_start].state->state, pdef->getStartState(istart));
       // regular vertex properties
-      og[ov_start].subgraph = 0;
+      og[ov_start].batch = 0;
       og[ov_start].is_shadow = false;
       og[ov_start].tag = 0;
       // connecting edge
       OverEdge e = add_edge(ov_singlestart, ov_start, og).first;
       og[e].distance = 0.0;
-      og[e].subgraph = 0;
+      og[e].batch = 0;
       // no edge states!
       ovs.push_back(ov_start);
    }
@@ -188,13 +190,13 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       og[ov_goal].state.reset(new StateCon(space.get()));
       space->copyState(og[ov_goal].state->state, goal_state->getState());
       // regular vertex properties
-      og[ov_goal].subgraph = 0;
+      og[ov_goal].batch = 0;
       og[ov_goal].is_shadow = false;
       og[ov_goal].tag = 0;
       // connecting edge
       OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
       og[e].distance = 0.0;
-      og[e].subgraph = 0;
+      og[e].batch = 0;
       // no edge states!
       ovs.push_back(ov_goal);
    }
@@ -210,13 +212,13 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          og[ov_goal].state.reset(new StateCon(space.get()));
          space->copyState(og[ov_goal].state->state, goal_states->getState(0));
          // regular vertex properties
-         og[ov_goal].subgraph = 0;
+         og[ov_goal].batch = 0;
          og[ov_goal].is_shadow = false;
          og[ov_goal].tag = 0;
          // connecting edge
          OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
          og[e].distance = 0.0;
-         og[e].subgraph = 0;
+         og[e].batch = 0;
          // no edge states!
          ovs.push_back(ov_goal);
       }
@@ -225,13 +227,13 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       throw std::runtime_error("unsupported ompl goal type!");
    
    // connect to vertices within fixed radius in roadmap
-   // to all subgraph vertices that we've generated so far
+   // to all batch vertices that we've generated so far
    for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
    {
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {
-         double root_radius = roadmap_gen->root_radius(g[*vi].subgraph);
+         double root_radius = roadmap_gen->root_radius(g[*vi].batch);
          
          double dist = space->distance(
             og[*it].state->state,
@@ -239,7 +241,7 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          if (root_radius < dist)
             continue;
          
-         // root_radius(num_subgraphs_generated)
+         // root_radius(num_batches_generated)
          
          // add new anchor overlay vertex
          OverVertex v_anchor = add_vertex(og);
@@ -252,7 +254,7 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          // add edge properties
          // og[e].core_properties.index -- needs to be set on apply
          og[e].distance = dist;
-         og[e].subgraph = g[*vi].subgraph;
+         og[e].batch = g[*vi].batch;
          // w_lazy??
          // interior points, in bisection order
          edge_init_points(og[*it].state->state, g[*vi].state->state,
@@ -341,25 +343,23 @@ ompl_multiset::E8Roadmap::solve(
       //if (iter == 100)
       //   break;
       
-      if (roadmap_gen->num_subgraphs && roadmap_gen->num_subgraphs < num_subgraphs + 1)
+      if (roadmap_gen->max_batches && roadmap_gen->get_num_batches_generated() == roadmap_gen->max_batches)
       {
          break;
       }
       
-      printf("densifying to %d subgraph ...\n", num_subgraphs+1);
+      printf("densifying to %lu batch ...\n", roadmap_gen->get_num_batches_generated()+1);
       
       overlay_unapply();
       
-      num_subgraphs++;
-      
       size_t num_edges_before = num_edges(g);
       
-      // add a subgraph!
-      roadmap_gen->generate(eig, num_subgraphs,
+      // add a batch!
+      roadmap_gen->generate(eig,
          get(&VProps::state, g),
          get(&EProps::distance, g),
-         get(&VProps::subgraph, g),
-         get(&EProps::subgraph, g),
+         get(&VProps::batch, g),
+         get(&EProps::batch, g),
          get(&VProps::is_shadow, g));
          
       // initialize NEW edges
@@ -379,9 +379,9 @@ ompl_multiset::E8Roadmap::solve(
       }
       
       // add new edges to roots
-      double root_radius = roadmap_gen->root_radius(num_subgraphs-1);
+      double root_radius = roadmap_gen->root_radius(roadmap_gen->get_num_batches_generated()-1);
       
-      // iterate over all roots, connect them to the new subgraph
+      // iterate over all roots, connect them to the new batch
       std::vector<OverVertex> ovs;
       OverVertexIter ovi, ovi_end;
       for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ovi++)
@@ -396,8 +396,8 @@ ompl_multiset::E8Roadmap::solve(
          VertexIter vi, vi_end;
          for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
          {
-            // core vertices in new subgraph only
-            if (g[*vi].subgraph != (int)(num_subgraphs-1))
+            // core vertices in new batch only
+            if (g[*vi].batch != (int)(roadmap_gen->get_num_batches_generated()-1))
                continue;
             
             double dist = space->distance(
@@ -417,7 +417,7 @@ ompl_multiset::E8Roadmap::solve(
             // add edge properties
             // og[e].core_properties.index -- needs to be set on apply
             og[e].distance = dist;
-            og[e].subgraph = g[*vi].subgraph;
+            og[e].batch = g[*vi].batch;
             // w_lazy??
             // interior points, in bisection order
             edge_init_points(og[*it].state->state, g[*vi].state->state,
@@ -454,8 +454,8 @@ void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
    // write it out to file
    boost::dynamic_properties props;
    props.property("state", pr_bgl::make_string_map(get(&VProps::state,g)));
-   props.property("subgraph", pr_bgl::make_string_map(get(&VProps::subgraph,g)));
-   props.property("subgraph", pr_bgl::make_string_map(get(&EProps::subgraph,g)));
+   props.property("batch", pr_bgl::make_string_map(get(&VProps::batch,g)));
+   props.property("batch", pr_bgl::make_string_map(get(&EProps::batch,g)));
    props.property("is_shadow", pr_bgl::make_string_map(get(&VProps::is_shadow,g)));
    props.property("distance", pr_bgl::make_string_map(get(&EProps::distance,g)));
    pr_bgl::write_graphio_graph(os_graph, g,
@@ -478,7 +478,7 @@ void ompl_multiset::E8Roadmap::overlay_apply()
       OverVertex vover = overlay_manager.applied_vertices[ui];
       Vertex vcore = og[vover].core_vertex;
       g[vcore].state = og[vover].state;
-      g[vcore].subgraph = og[vover].subgraph;
+      g[vcore].batch = og[vover].batch;
       g[vcore].is_shadow = og[vover].is_shadow;
       g[vcore].tag = og[vover].tag;
    }
@@ -488,7 +488,7 @@ void ompl_multiset::E8Roadmap::overlay_apply()
       OverEdge eover = overlay_manager.applied_edges[ui];
       Edge ecore = og[eover].core_edge;
       g[ecore].distance = og[eover].distance;
-      g[ecore].subgraph = og[eover].subgraph;
+      g[ecore].batch = og[eover].batch;
       //g[ecore].w_lazy = og[eover].w_lazy;
       g[ecore].edge_states = og[eover].edge_states;
       g[ecore].edge_tags = og[eover].edge_tags;
@@ -508,7 +508,7 @@ void ompl_multiset::E8Roadmap::overlay_unapply()
       OverVertex vover = overlay_manager.applied_vertices[ui];
       Vertex vcore = og[vover].core_vertex;
       og[vover].state = g[vcore].state;
-      og[vover].subgraph = g[vcore].subgraph;
+      og[vover].batch = g[vcore].batch;
       og[vover].is_shadow = g[vcore].is_shadow;
       og[vover].tag = g[vcore].tag;
    }
@@ -518,7 +518,7 @@ void ompl_multiset::E8Roadmap::overlay_unapply()
       OverEdge eover = overlay_manager.applied_edges[ui];
       Edge ecore = og[eover].core_edge;
       og[eover].distance = g[ecore].distance;
-      og[eover].subgraph = g[ecore].subgraph;
+      og[eover].batch = g[ecore].batch;
       //og[eover].w_lazy = g[ecore].w_lazy;
       //og[eover].is_evaled = g[ecore].is_evaled;
       og[eover].edge_states = g[ecore].edge_states;
@@ -583,7 +583,7 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
    {
       g[e].w_lazy = 0.0;
       g[e].w_lazy += coeff_distance * g[e].distance;
-      g[e].w_lazy += coeff_subgraph * g[e].distance * g[e].subgraph;
+      g[e].w_lazy += coeff_batch * g[e].distance * g[e].batch;
       // interior states
       for (ui=0; ui<g[e].edge_tags.size(); ui++)
          g[e].w_lazy += coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]->state);

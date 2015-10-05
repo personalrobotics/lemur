@@ -107,12 +107,12 @@ void ompl_set_roots(ompl::base::ProblemDefinitionPtr ompl_pdef,
 
 or_multiset::E8Roadmap::PlannerParameters::PlannerParameters():
    roadmap_id(""),
-   coeff_distance(1.), coeff_checkcost(0.), coeff_subgraph(0.)
+   coeff_distance(1.), coeff_checkcost(0.), coeff_batch(0.)
 {
    _vXMLParameters.push_back("roadmap_id");
    _vXMLParameters.push_back("coeff_distance");
    _vXMLParameters.push_back("coeff_checkcost");
-   _vXMLParameters.push_back("coeff_subgraph");
+   _vXMLParameters.push_back("coeff_batch");
    _vXMLParameters.push_back("alglog");
    _vXMLParameters.push_back("graph");
 }
@@ -125,7 +125,7 @@ or_multiset::E8Roadmap::PlannerParameters::serialize(std::ostream& sout, int opt
    sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
    sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
    sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
-   sout << "<coeff_subgraph>" << coeff_subgraph << "</coeff_subgraph>";
+   sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
    sout << "<alglog>" << alglog << "</alglog>";
    sout << "<graph>" << graph << "</graph>";
    return !!sout;
@@ -145,7 +145,7 @@ or_multiset::E8Roadmap::PlannerParameters::startElement(
    if (name == "roadmap_id"
       || name == "coeff_distance"
       || name == "coeff_checkcost"
-      || name == "coeff_subgraph"
+      || name == "coeff_batch"
       || name == "alglog"
       || name == "graph")
    {
@@ -168,8 +168,8 @@ or_multiset::E8Roadmap::PlannerParameters::endElement(const std::string & name)
          _ss >> coeff_distance;
       if (el_deserializing == "coeff_checkcost")
          _ss >> coeff_checkcost;
-      if (el_deserializing == "coeff_subgraph")
-         _ss >> coeff_subgraph;
+      if (el_deserializing == "coeff_batch")
+         _ss >> coeff_batch;
       if (el_deserializing == "alglog")
          alglog = _ss.str();
       if (el_deserializing == "graph")
@@ -255,7 +255,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    // planner params
    ompl_planner->coeff_checkcost = params->coeff_checkcost;
    ompl_planner->coeff_distance = params->coeff_distance;
-   ompl_planner->coeff_subgraph = params->coeff_subgraph;
+   ompl_planner->coeff_batch = params->coeff_batch;
    sem->has_changed_called = false; // force reeval of wlazy
    
    // problem definition

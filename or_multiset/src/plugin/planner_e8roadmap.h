@@ -46,7 +46,7 @@ public:
       std::string roadmap_id;
       double coeff_distance;
       double coeff_checkcost;
-      double coeff_subgraph;
+      double coeff_batch;
       std::string alglog;
       std::string graph;
       PlannerParameters();

@@ -41,14 +41,14 @@ typedef boost::shared_ptr<StateContainer> StateContainerPtr;
 struct VertexProperties
 {
    StateContainerPtr state;
-   int subgraph;
+   int batch;
    bool is_shadow;
 };
 struct EdgeProperties
 {
    std::size_t index;
    double distance;
-   int subgraph;
+   int batch;
 };
 
 typedef boost::adjacency_list<
@@ -66,13 +66,13 @@ typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeInde
 typedef boost::vector_property_map<Edge> EdgeVectorMap;
 
 typedef boost::property_map<Graph, StateContainerPtr VertexProperties::*>::type StateMap;
-typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
-typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
+typedef boost::property_map<Graph, int VertexProperties::*>::type VertexBatchMap;
+typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeBatchMap;
 typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> RoadmapGen;
+typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap> RoadmapGen;
 typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
 
 
@@ -107,7 +107,7 @@ int main(int argc, char **argv)
       ("dim", boost::program_options::value<int>(), "unit hypercube dimension (e.g. 2)")
       ("roadmap-type", boost::program_options::value<std::string>(), "(e.g. Halton)")
       ("roadmap-args", boost::program_options::value<std::string>(), "(e.g. 'n=30 radius=0.3')")
-      ("num-subgraphs", boost::program_options::value<int>(), "number of subgraphs (e.g. 1)")
+      ("num-batches", boost::program_options::value<int>(), "number of batches (e.g. 1)")
       ("out-file", boost::program_options::value<std::string>(), "output file (can be - for stdout)")
       ("out-format", boost::program_options::value<std::string>(), "output format (graphml or graphio)")
    ;
@@ -120,7 +120,7 @@ int main(int argc, char **argv)
       || args.count("dim") != 1
       || args.count("roadmap-type") != 1
       || args.count("roadmap-args") != 1
-      || args.count("num-subgraphs") != 1
+      || args.count("num-batches") != 1
       || args.count("out-file") != 1
       || args.count("out-format") != 1)
    {
@@ -158,22 +158,25 @@ int main(int argc, char **argv)
       eig(g, get(&EdgeProperties::index, g));
    
    
-   int num_subgraphs = args["num-subgraphs"].as<int>();
-   printf("generating %d subgraphs ...\n", num_subgraphs);
+   std::size_t num_batches = args["num-batches"].as<unsigned int>();
+   printf("generating %lu batches ...\n", num_batches);
    
-   // generate a graph
-   p_mygen->generate(eig, num_subgraphs,
-      get(&VertexProperties::state, g),
-      get(&EdgeProperties::distance, g),
-      get(&VertexProperties::subgraph, g),
-      get(&EdgeProperties::subgraph, g),
-      get(&VertexProperties::is_shadow, g));
+   while (p_mygen->get_num_batches_generated() < num_batches)
+   {
+      // generate a graph
+      p_mygen->generate(eig,
+         get(&VertexProperties::state, g),
+         get(&EdgeProperties::distance, g),
+         get(&VertexProperties::batch, g),
+         get(&EdgeProperties::batch, g),
+         get(&VertexProperties::is_shadow, g));
+   }
    
    // write it out to file
    boost::dynamic_properties props;
    props.property("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
-   props.property("subgraph", pr_bgl::make_string_map(get(&VertexProperties::subgraph,g)));
-   props.property("subgraph", pr_bgl::make_string_map(get(&EdgeProperties::subgraph,g)));
+   props.property("batch", pr_bgl::make_string_map(get(&VertexProperties::batch,g)));
+   props.property("batch", pr_bgl::make_string_map(get(&EdgeProperties::batch,g)));
    props.property("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));
    props.property("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
    

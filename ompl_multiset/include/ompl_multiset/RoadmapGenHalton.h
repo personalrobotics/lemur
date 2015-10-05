@@ -11,7 +11,7 @@ namespace ompl_multiset
 // uniform milestone sampling with given seed,
 // uses the space's default sampler
 //template <class Graph, class VertexIndexMap, class EdgeIndexMap//,
-   //class StateMap, class SubgraphMap, class IsShadowMap, class DistanceMap
+   //class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
 //   >
 template <class RoadmapGenSpec>
 class RoadmapGenHalton : public RoadmapGenSpec
@@ -19,8 +19,8 @@ class RoadmapGenHalton : public RoadmapGenSpec
    typedef typename RoadmapGenSpec::BaseGraph Graph;
    typedef typename RoadmapGenSpec::BaseVState VState;
    typedef typename RoadmapGenSpec::BaseEDistance EDistance;
-   typedef typename RoadmapGenSpec::BaseVSubgraph VSubgraph;
-   typedef typename RoadmapGenSpec::BaseESubgraph ESubgraph;
+   typedef typename RoadmapGenSpec::BaseVBatch VBatch;
+   typedef typename RoadmapGenSpec::BaseEBatch EBatch;
    typedef typename RoadmapGenSpec::BaseVShadow VShadow;
 
    typedef boost::graph_traits<Graph> GraphTypes;
@@ -35,7 +35,7 @@ public:
       RoadmapGenSpec(space,"RoadmapGenHalton",args,1),
       dim(0),
       bounds(0),
-      num_subgraphs_generated(0),
+      num_batches_generated(0),
       vertices_generated(0),
       edges_generated(0)
    {
@@ -57,35 +57,32 @@ public:
    }
    ~RoadmapGenHalton() {}
    
-   std::size_t get_num_subgraphs_generated()
+   std::size_t get_num_batches_generated()
    {
-      return num_subgraphs_generated;
+      return num_batches_generated;
    }
    
-   double root_radius(std::size_t i_subgraph)
+   double root_radius(std::size_t i_batch)
    {
       return radius;
    }
    
    void generate(
       Graph & g,
-      std::size_t num_subgraphs_desired,
       VState state_map,
       EDistance distance_map,
-      VSubgraph vertex_subgraph_map,
-      ESubgraph edge_subgraph_map,
+      VBatch vertex_batch_map,
+      EBatch edge_batch_map,
       VShadow is_shadow_map)
    {
-      if (this->num_subgraphs < num_subgraphs_desired)
-         throw std::runtime_error("this roadmap gen doesnt support that many subgraphs !");
-      if (num_subgraphs_generated!=0 || num_subgraphs_desired!=1)
-         return;
+      if (this->max_batches < num_batches_generated + 1)
+         throw std::runtime_error("this roadmap gen doesnt support that many batches!");
       // ok, generate n nodes!
       while (num_vertices(g) < n)
       {
          Vertex v_new = add_vertex(g);
          
-         put(vertex_subgraph_map, v_new, 0);
+         put(vertex_batch_map, v_new, 0);
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
@@ -108,13 +105,13 @@ public:
                continue;
             Edge e = add_edge(v_new, v_other, g).first;
             put(distance_map, e, dist);
-            put(edge_subgraph_map, e, 0);
+            put(edge_batch_map, e, 0);
             edges_generated++;
          }
          
          vertices_generated++;
       }
-      num_subgraphs_generated++;
+      num_batches_generated++;
    }
    
    void serialize()
@@ -133,7 +130,7 @@ private:
    unsigned int n;
    double radius;
    // progress
-   std::size_t num_subgraphs_generated;
+   std::size_t num_batches_generated;
    std::size_t vertices_generated;
    std::size_t edges_generated;
 };
