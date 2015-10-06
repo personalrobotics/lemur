@@ -80,6 +80,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    overlay_manager(eig,og,
       get(&OverVProps::core_vertex, og),
       get(&OverEProps::core_edge, og)),
+   tag_cache(0),
    coeff_checkcost(0.),
    coeff_distance(1.),
    coeff_batch(0.)
@@ -98,7 +99,13 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    }
    
    // initialize stuff
+   VertexIter vi, vi_end;
    EdgeIter ei, ei_end;
+   
+   if (tag_cache)
+      for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+         tag_cache->load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
+   
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
       edge_init_points(
@@ -108,6 +115,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
          g[*ei].edge_states);
       g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
       //g[*ei].tag = 0;
+      
+      if (tag_cache)
+         tag_cache->load_edge(g[*ei].index, g[*ei].edge_tags);
    }
 }
 
@@ -352,6 +362,7 @@ ompl_multiset::E8Roadmap::solve(
       
       overlay_unapply();
       
+      size_t num_vertices_before = num_vertices(g);
       size_t num_edges_before = num_edges(g);
       
       // add a batch!
@@ -361,7 +372,19 @@ ompl_multiset::E8Roadmap::solve(
          get(&VProps::batch, g),
          get(&EProps::batch, g),
          get(&VProps::is_shadow, g));
-         
+      
+      if (tag_cache)
+      {
+         VertexIter vi, vi_end;
+         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+         {
+            size_t v_index = get(get(boost::vertex_index,g),*vi);
+            if (v_index < num_vertices_before)
+               continue;
+            tag_cache->load_vertex(v_index, g[*vi].tag);
+         }
+      }
+      
       // initialize NEW edges
       EdgeIter ei, ei_end;
       for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
@@ -375,6 +398,10 @@ ompl_multiset::E8Roadmap::solve(
             g[*ei].edge_states);
          g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
          //g[*ei].tag = 0;
+         
+         if (tag_cache)
+            tag_cache->load_edge(g[*ei].index, g[*ei].edge_tags);
+         
          calculate_w_lazy(*ei);
       }
       
@@ -448,6 +475,10 @@ ompl_multiset::E8Roadmap::solve(
    }
 }
 
+void ompl_multiset::E8Roadmap::solve_all()
+{
+}
+
 void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
 {
    // dump graph
@@ -463,6 +494,42 @@ void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
    pr_bgl::write_graphio_properties(os_graph, g,
       get(boost::vertex_index, g), get(&EProps::index, g),
       props);
+}
+
+void ompl_multiset::E8Roadmap::cache_set(ompl_multiset::TagCache * cache)
+{
+   tag_cache = cache;
+}
+
+void ompl_multiset::E8Roadmap::cache_load_all()
+{
+   if (!tag_cache)
+      return;
+   
+   VertexIter vi, vi_end;
+   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      tag_cache->load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
+   
+   EdgeIter ei, ei_end;
+   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
+   {
+      tag_cache->load_edge(g[*ei].index, g[*ei].edge_tags);
+      calculate_w_lazy(*ei);
+   }
+}
+
+void ompl_multiset::E8Roadmap::cache_save_all()
+{
+   if (!tag_cache)
+      return;
+   
+   VertexIter vi, vi_end;
+   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      tag_cache->save_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
+   
+   EdgeIter ei, ei_end;
+   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
+      tag_cache->save_edge(g[*ei].index, g[*ei].edge_tags);
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()

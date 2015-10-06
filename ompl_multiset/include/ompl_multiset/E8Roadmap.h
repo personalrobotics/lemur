@@ -40,7 +40,7 @@ public:
       // from roadmap
       double distance;
       int batch;
-      // for lazysp
+      // for lazysp; for current subset only!
       double w_lazy;
       // interior points, in bisection order
       std::vector< boost::shared_ptr<StateCon> > edge_states;
@@ -143,6 +143,8 @@ public:
    
    //unsigned int num_batches;
    
+   TagCache * tag_cache;
+   
    // parameters
    double coeff_checkcost;
    double coeff_distance;
@@ -153,7 +155,6 @@ public:
    E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       ompl_multiset::EffortModel & effort_model,
-      //const Family & family,
       const RoadmapGenPtr roadmap_gen,
       unsigned int num_batches);
    
@@ -163,7 +164,13 @@ public:
    
    ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
    
+   void solve_all();
+   
    void dump_graph(std::ostream & os_graph);
+   
+   void cache_set(ompl_multiset::TagCache * cache);
+   void cache_load_all();
+   void cache_save_all();
    
    // part 4: private-ish methods
    
