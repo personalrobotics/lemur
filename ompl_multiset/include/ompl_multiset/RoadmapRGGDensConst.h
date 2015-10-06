@@ -33,15 +33,22 @@ class RoadmapRGGDensConst : public RoadmapSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
+   // input parameters
+   const unsigned int n_perbatch;
+   const double radius;
+   const unsigned int seed;
+
    RoadmapRGGDensConst(
       const ompl::base::StateSpacePtr space,
-      const std::string args):
-      RoadmapSpec(space,"RoadmapRGGDensConst",args,0),
+      unsigned int n_perbatch, double radius, unsigned int seed):
+      RoadmapSpec(space,0),
+      n_perbatch(n_perbatch), radius(radius), seed(seed),
       num_batches_generated(0),
       vertices_generated(0),
       edges_generated(0),
       sampler(space->allocStateSampler())
    {
+#if 0
       int ret = sscanf(args.c_str(), "n_perbatch=%u radius=%lf seed=%u", &n_perbatch, &radius, &seed);
       if (ret != 3)
          throw std::runtime_error("bad args to RoadmapRGGDensConst!");
@@ -50,6 +57,7 @@ public:
       {
          throw std::runtime_error("args not in canonical form!");
       }
+#endif
       ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
    }
    ~RoadmapRGGDensConst() {}
@@ -113,10 +121,6 @@ public:
    }
    
 private:
-   // from id
-   unsigned int n_perbatch;
-   double radius;
-   unsigned int seed;
    // progress
    std::size_t num_batches_generated;
    std::size_t vertices_generated;

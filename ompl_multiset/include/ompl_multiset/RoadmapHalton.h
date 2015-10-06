@@ -29,10 +29,15 @@ class RoadmapHalton : public RoadmapSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
+   // input parameters
+   const unsigned int n;
+   const double radius;
+
    RoadmapHalton(
       const ompl::base::StateSpacePtr space,
-      const std::string args):
-      RoadmapSpec(space,"RoadmapHalton",args,1),
+      unsigned int n, double radius):
+      RoadmapSpec(space,1),
+      n(n), radius(radius),
       dim(0),
       bounds(0),
       num_batches_generated(0),
@@ -46,6 +51,7 @@ public:
       if (0 == ompl_multiset::util::get_prime(dim-1))
          throw std::runtime_error("not enough primes hardcoded!");
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
+#if 0
       int ret = sscanf(args.c_str(), "n=%u radius=%lf", &n, &radius);
       if (ret != 2)
          throw std::runtime_error("bad args to RoadmapHalton!");
@@ -54,6 +60,7 @@ public:
       {
          throw std::runtime_error("args not in canonical form!");
       }
+#endif
    }
    ~RoadmapHalton() {}
    
@@ -127,8 +134,7 @@ private:
    unsigned int dim;
    ompl::base::RealVectorBounds bounds;
    // from id
-   unsigned int n;
-   double radius;
+  
    // progress
    std::size_t num_batches_generated;
    std::size_t vertices_generated;

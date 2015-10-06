@@ -77,7 +77,7 @@ TEST(RoadmapRRGTestCase, FixedExampleTest)
 {
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(2));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
-   RoadmapPtr p_mygen(new ompl_multiset::RoadmapRGG<Roadmap>(space, "n=10 radius=0.3 seed=1"));
+   RoadmapPtr p_mygen(new ompl_multiset::RoadmapRGG<Roadmap>(space, 10, 0.3, 1));
    
    Graph g;
    

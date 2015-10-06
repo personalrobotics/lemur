@@ -20,13 +20,15 @@
 #include <pr_bgl/edge_indexed_graph.h>
 
 #include <ompl_multiset/util.h>
+#include <ompl_multiset/FnString.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapAAGrid.h>
 #include <ompl_multiset/RoadmapHalton.h>
 #include <ompl_multiset/RoadmapHaltonDens.h>
 #include <ompl_multiset/RoadmapRGG.h>
-
+#include <ompl_multiset/RoadmapRGGDensConst.h>
+#include <ompl_multiset/RoadmapID.h>
 
 struct StateContainer
 {
@@ -105,9 +107,8 @@ int main(int argc, char **argv)
    desc.add_options()
       ("help", "produce help message")
       ("dim", boost::program_options::value<int>(), "unit hypercube dimension (e.g. 2)")
-      ("roadmap-type", boost::program_options::value<std::string>(), "(e.g. Halton)")
-      ("roadmap-args", boost::program_options::value<std::string>(), "(e.g. 'n=30 radius=0.3')")
-      ("num-batches", boost::program_options::value<int>(), "number of batches (e.g. 1)")
+      ("roadmap-id", boost::program_options::value<std::string>(), "(e.g. Halton(n=30 radius=0.3))")
+      ("num-batches", boost::program_options::value<std::size_t>(), "number of batches (e.g. 1)")
       ("out-file", boost::program_options::value<std::string>(), "output file (can be - for stdout)")
       ("out-format", boost::program_options::value<std::string>(), "output format (graphml or graphio)")
    ;
@@ -118,8 +119,7 @@ int main(int argc, char **argv)
 
    if (args.count("help")
       || args.count("dim") != 1
-      || args.count("roadmap-type") != 1
-      || args.count("roadmap-args") != 1
+      || args.count("roadmap-id") != 1
       || args.count("num-batches") != 1
       || args.count("out-file") != 1
       || args.count("out-format") != 1)
@@ -135,30 +135,16 @@ int main(int argc, char **argv)
    
    RoadmapPtr p_mygen;
    
-   std::string roadmap_type(args["roadmap-type"].as<std::string>());
-   std::transform(roadmap_type.begin(), roadmap_type.end(), roadmap_type.begin(), ::tolower);
-   printf("creating roadmap of type %s ...\n", roadmap_type.c_str());
-   if (roadmap_type == "aagrid")
-      p_mygen.reset(new ompl_multiset::RoadmapAAGrid<Roadmap>(space, args["roadmap-args"].as<std::string>()));
-   else if (roadmap_type == "rgg")
-      p_mygen.reset(new ompl_multiset::RoadmapRGG<Roadmap>(space, args["roadmap-args"].as<std::string>()));
-   else if (roadmap_type == "halton")
-      p_mygen.reset(new ompl_multiset::RoadmapHalton<Roadmap>(space, args["roadmap-args"].as<std::string>()));
-   else if (roadmap_type == "haltondens")
-      p_mygen.reset(new ompl_multiset::RoadmapHaltonDens<Roadmap>(space, args["roadmap-args"].as<std::string>()));
-   else
-   {
-      printf("unknown roadmap type!\n");
-      return 1;
-   }
+   std::string roadmap_id(args["roadmap-id"].as<std::string>());
+   printf("creating roadmap with id %s ...\n", roadmap_id.c_str());
+   p_mygen.reset(ompl_multiset::make_roadmap_gen<Roadmap>(space, roadmap_id));
    
    Graph g;
    
    pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
       eig(g, get(&EdgeProperties::index, g));
    
-   
-   std::size_t num_batches = args["num-batches"].as<unsigned int>();
+   std::size_t num_batches = args["num-batches"].as<std::size_t>();
    printf("generating %lu batches ...\n", num_batches);
    
    while (p_mygen->get_num_batches_generated() < num_batches)

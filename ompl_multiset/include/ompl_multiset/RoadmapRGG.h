@@ -33,15 +33,22 @@ class RoadmapRGG : public RoadmapSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
+   // input parameters
+   const unsigned int n;
+   const double radius;
+   const unsigned int seed;
+   
    RoadmapRGG(
       const ompl::base::StateSpacePtr space,
-      const std::string args):
-      RoadmapSpec(space,"RoadmapRGG",args,1),
+      unsigned int n, double radius, unsigned int seed):
+      RoadmapSpec(space,1),
+      n(n), radius(radius), seed(seed),
       num_batches_generated(0),
       vertices_generated(0),
       edges_generated(0),
       sampler(space->allocStateSampler())
    {
+#if 0
       int ret = sscanf(args.c_str(), "n=%u radius=%lf seed=%u", &n, &radius, &seed);
       if (ret != 3)
          throw std::runtime_error("bad args to RoadmapRGG!");
@@ -50,6 +57,7 @@ public:
       {
          throw std::runtime_error("args not in canonical form!");
       }
+#endif
       ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
    }
    ~RoadmapRGG() {}
@@ -115,10 +123,6 @@ public:
    }
    
 private:
-   // from id
-   unsigned int n;
-   double radius;
-   unsigned int seed;
    // progress
    std::size_t num_batches_generated;
    std::size_t vertices_generated;

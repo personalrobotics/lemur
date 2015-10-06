@@ -23,10 +23,14 @@ class RoadmapAAGrid : public RoadmapSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
+   // input parameters
+   const double res;
+   
    RoadmapAAGrid(
       const ompl::base::StateSpacePtr space,
-      const std::string args):
-      RoadmapSpec(space,"RoadmapAAGrid",args,1),
+      double res):
+      RoadmapSpec(space,1),
+      res(res),
       dim(0),
       bounds(0),
       num_batches_generated(0),
@@ -38,6 +42,7 @@ public:
          throw std::runtime_error("RoadmapAAGrid only supports rel vector state spaces!");
       dim = space->getDimension();
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
+#if 0
       int ret = sscanf(args.c_str(), "res=%lf", &res);
       if (ret != 1)
          throw std::runtime_error("bad args to RoadmapAAGrid!");
@@ -46,6 +51,7 @@ public:
       {
          throw std::runtime_error("args not in canonical form!");
       }
+#endif
       // check for infinite (no) bounds?
    }
    ~RoadmapAAGrid() {}
@@ -137,8 +143,6 @@ private:
    // from space
    std::size_t dim;
    ompl::base::RealVectorBounds bounds;
-   // from id
-   double res;
    // progress
    std::size_t num_batches_generated;
    std::size_t vertices_generated;

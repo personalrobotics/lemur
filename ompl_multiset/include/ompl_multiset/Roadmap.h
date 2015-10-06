@@ -26,17 +26,11 @@ public:
    typedef VShadow BaseVShadow;
 
    const ompl::base::StateSpacePtr space;
-   const std::string type;
-   const std::string args;
    const std::size_t max_batches; // 0 means inf
    
    // TODO: make this per-type, and move string parsing into RoadmapID
-   Roadmap(
-      const ompl::base::StateSpacePtr space,
-      const std::string type,
-      const std::string args,
-      int max_batches):
-      space(space), type(type), args(args), max_batches(max_batches)
+   Roadmap(const ompl::base::StateSpacePtr space, int max_batches):
+      space(space), max_batches(max_batches)
    {
    }
    virtual ~Roadmap() {}

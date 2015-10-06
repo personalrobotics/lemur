@@ -29,10 +29,15 @@ class RoadmapHaltonDens : public RoadmapSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
+   // input parameters
+   const unsigned int n_perbatch;
+   const double radius_firstbatch;
+   
    RoadmapHaltonDens(
       const ompl::base::StateSpacePtr space,
-      const std::string args):
-      RoadmapSpec(space,"RoadmapHaltonDens",args,0),
+      unsigned int n_perbatch, double radius_firstbatch):
+      RoadmapSpec(space,0),
+      n_perbatch(n_perbatch), radius_firstbatch(radius_firstbatch),
       dim(0),
       bounds(0),
       num_batches_generated(0),
@@ -46,6 +51,7 @@ public:
       if (0 == ompl_multiset::util::get_prime(dim-1))
          throw std::runtime_error("not enough primes hardcoded!");
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
+#if 0
       int ret = sscanf(args.c_str(), "n_perbatch=%u radius_firstbatch=%lf",
          &n_perbatch, &radius_firstbatch);
       if (ret != 2)
@@ -55,6 +61,7 @@ public:
       {
          throw std::runtime_error("args not in canonical form!");
       }
+#endif
    }
    ~RoadmapHaltonDens() {}
    
@@ -127,9 +134,6 @@ private:
    // from space
    unsigned int dim;
    ompl::base::RealVectorBounds bounds;
-   // from id
-   unsigned int n_perbatch; // per batch
-   double radius_firstbatch; // of first batch
    // progress
    std::size_t num_batches_generated;
    std::size_t vertices_generated;

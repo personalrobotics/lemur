@@ -84,7 +84,7 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    // roadmap
    ompl_multiset::E8Roadmap::RoadmapPtr roadmap_gen(
       new ompl_multiset::RoadmapHalton<ompl_multiset::E8Roadmap::Roadmap>(
-      space, "n=30 radius=0.3"));
+      space, 30, 0.3));
    
    // family
    ompl_multiset::Family family;

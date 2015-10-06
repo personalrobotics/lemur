@@ -21,7 +21,6 @@
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/Roadmap.h>
-#include <ompl_multiset/RoadmapRGG.h>
 #include <ompl_multiset/RoadmapHalton.h>
 
 
@@ -129,7 +128,7 @@ int main(int argc, char **argv)
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
    // roadmapgen
-   RoadmapPtr p_mygen(new ompl_multiset::RoadmapHalton<Roadmap>(space, "n=30 radius=0.3"));
+   RoadmapPtr p_mygen(new ompl_multiset::RoadmapHalton<Roadmap>(space, 30, 0.3));
    
    // graph
    Graph g;
