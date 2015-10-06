@@ -8,6 +8,7 @@
 #include <fstream>
 
 #include <boost/property_map/property_map.hpp>
+#include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -84,7 +85,7 @@ TEST(RoadmapGenRRGTestCase, FixedExampleTest)
       eig(g, get(&EdgeProperties::index, g));
    
    // generate a graph
-   p_mygen->generate(eig, 1,
+   p_mygen->generate(eig,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),
@@ -92,18 +93,14 @@ TEST(RoadmapGenRRGTestCase, FixedExampleTest)
       get(&VertexProperties::is_shadow, g));
    
    // write it out to file
-   pr_bgl::GraphIO<Graph, VertexIndexMap, EdgeIndexMap, EdgeVectorMap>
-      io(g,
-         get(boost::vertex_index, g),
-         get(&EdgeProperties::index, g),
-         eig.edge_vector_map);
-
-   io.add_property_map("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
-   
+   boost::dynamic_properties props;
+   props.property("distance", pr_bgl::make_string_map(get(&EdgeProperties::distance,g)));
    std::stringstream ss;
-   
-   io.dump_graph(ss);
-   io.dump_properties(ss);
+   pr_bgl::write_graphio_graph(ss, g,
+      get(boost::vertex_index, g), get(&EdgeProperties::index, g));
+   pr_bgl::write_graphio_properties(ss, g,
+      get(boost::vertex_index, g), get(&EdgeProperties::index, g),
+      props);
    
    EXPECT_EQ(ss.str(), std::string()
       + "vertex 0\n"
