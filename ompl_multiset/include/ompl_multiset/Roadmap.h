@@ -1,4 +1,4 @@
-/* File: RoadmapGen.h
+/* File: Roadmap.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -15,7 +15,7 @@ namespace ompl_multiset
    //,class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
 //   >
 template <class Graph, class VState, class EDistance, class VBatch, class EBatch, class VShadow>
-class RoadmapGen
+class Roadmap
 {
 public:
    typedef Graph BaseGraph;
@@ -30,8 +30,8 @@ public:
    const std::string args;
    const std::size_t max_batches; // 0 means inf
    
-   // TODO: make this per-type, and move string parsing into RoadmapGenID
-   RoadmapGen(
+   // TODO: make this per-type, and move string parsing into RoadmapID
+   Roadmap(
       const ompl::base::StateSpacePtr space,
       const std::string type,
       const std::string args,
@@ -39,7 +39,7 @@ public:
       space(space), type(type), args(args), max_batches(max_batches)
    {
    }
-   virtual ~RoadmapGen() {}
+   virtual ~Roadmap() {}
    
    virtual std::size_t get_num_batches_generated() = 0;
    

@@ -1,4 +1,4 @@
-/* File: RoadmapGenAAGrid.h
+/* File: RoadmapAAGrid.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -7,15 +7,15 @@
 namespace ompl_multiset
 {
 
-template <class RoadmapGenSpec>
-class RoadmapGenAAGrid : public RoadmapGenSpec
+template <class RoadmapSpec>
+class RoadmapAAGrid : public RoadmapSpec
 {
-   typedef typename RoadmapGenSpec::BaseGraph Graph;
-   typedef typename RoadmapGenSpec::BaseVState VState;
-   typedef typename RoadmapGenSpec::BaseEDistance EDistance;
-   typedef typename RoadmapGenSpec::BaseVBatch VBatch;
-   typedef typename RoadmapGenSpec::BaseEBatch EBatch;
-   typedef typename RoadmapGenSpec::BaseVShadow VShadow;
+   typedef typename RoadmapSpec::BaseGraph Graph;
+   typedef typename RoadmapSpec::BaseVState VState;
+   typedef typename RoadmapSpec::BaseEDistance EDistance;
+   typedef typename RoadmapSpec::BaseVBatch VBatch;
+   typedef typename RoadmapSpec::BaseEBatch EBatch;
+   typedef typename RoadmapSpec::BaseVShadow VShadow;
 
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
@@ -23,10 +23,10 @@ class RoadmapGenAAGrid : public RoadmapGenSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
-   RoadmapGenAAGrid(
+   RoadmapAAGrid(
       const ompl::base::StateSpacePtr space,
       const std::string args):
-      RoadmapGenSpec(space,"RoadmapGenAAGrid",args,1),
+      RoadmapSpec(space,"RoadmapAAGrid",args,1),
       dim(0),
       bounds(0),
       num_batches_generated(0),
@@ -35,12 +35,12 @@ public:
    {
       // check that we're in a real vector state space
       if (space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
-         throw std::runtime_error("RoadmapGenAAGrid only supports rel vector state spaces!");
+         throw std::runtime_error("RoadmapAAGrid only supports rel vector state spaces!");
       dim = space->getDimension();
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
       int ret = sscanf(args.c_str(), "res=%lf", &res);
       if (ret != 1)
-         throw std::runtime_error("bad args to RoadmapGenAAGrid!");
+         throw std::runtime_error("bad args to RoadmapAAGrid!");
       if (args != ompl_multiset::util::sf("res=%s",
          ompl_multiset::util::double_to_text(res).c_str()))
       {
@@ -48,7 +48,7 @@ public:
       }
       // check for infinite (no) bounds?
    }
-   ~RoadmapGenAAGrid() {}
+   ~RoadmapAAGrid() {}
    
    std::size_t get_num_batches_generated()
    {

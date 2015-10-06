@@ -68,7 +68,7 @@ public:
    ompl::base::SpaceInformationPtr ompl_si;
    boost::shared_ptr<OrChecker> ompl_checker;
    boost::shared_ptr<ompl_multiset::SimpleEffortModel> sem;
-   ompl_multiset::E8Roadmap::RoadmapGenPtr roadmapgen;
+   ompl_multiset::E8Roadmap::RoadmapPtr roadmapgen;
    boost::shared_ptr<ompl_multiset::E8Roadmap> ompl_planner;
    ompl::base::ProblemDefinitionPtr ompl_pdef;
    

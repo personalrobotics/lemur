@@ -20,9 +20,9 @@
 
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
-#include <ompl_multiset/RoadmapGen.h>
-#include <ompl_multiset/RoadmapGenRGG.h>
-#include <ompl_multiset/RoadmapGenHalton.h>
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapRGG.h>
+#include <ompl_multiset/RoadmapHalton.h>
 
 
 struct StateContainer
@@ -94,8 +94,8 @@ typedef boost::graph_traits<OverGraph>::vertex_descriptor OverVertex;
 typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> RoadmapGen;
-typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
+typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> Roadmap;
+typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
 
 inline void stringify_from_x(std::string & repr, const StateContainerPtr & in)
@@ -129,7 +129,7 @@ int main(int argc, char **argv)
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
    // roadmapgen
-   RoadmapGenPtr p_mygen(new ompl_multiset::RoadmapGenHalton<RoadmapGen>(space, "n=30 radius=0.3"));
+   RoadmapPtr p_mygen(new ompl_multiset::RoadmapHalton<Roadmap>(space, "n=30 radius=0.3"));
    
    // graph
    Graph g;

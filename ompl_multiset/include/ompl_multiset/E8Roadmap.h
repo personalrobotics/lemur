@@ -79,8 +79,8 @@ public:
    typedef EdgeIndexedGraph::EdgeVectorMap EdgeVectorMap;
    
    // roadmap generator type
-   typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap> RoadmapGen;
-   typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
+   typedef ompl_multiset::Roadmap<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap> Roadmap;
+   typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
    // roots overlay graph (used internally)
    // create an overlay graph for roots
@@ -121,7 +121,7 @@ public:
 
    ompl_multiset::EffortModel & effort_model;
 
-   const RoadmapGenPtr roadmap_gen;
+   const RoadmapPtr roadmap_gen;
 
    const ompl::base::StateSpacePtr space;
    double check_radius; // this is half the standard resolution
@@ -155,7 +155,7 @@ public:
    E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       ompl_multiset::EffortModel & effort_model,
-      const RoadmapGenPtr roadmap_gen,
+      const RoadmapPtr roadmap_gen,
       unsigned int num_batches);
    
    ~E8Roadmap(void);

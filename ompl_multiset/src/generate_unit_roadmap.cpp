@@ -21,11 +21,11 @@
 
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
-#include <ompl_multiset/RoadmapGen.h>
-#include <ompl_multiset/RoadmapGenAAGrid.h>
-#include <ompl_multiset/RoadmapGenHalton.h>
-#include <ompl_multiset/RoadmapGenHaltonDens.h>
-#include <ompl_multiset/RoadmapGenRGG.h>
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapAAGrid.h>
+#include <ompl_multiset/RoadmapHalton.h>
+#include <ompl_multiset/RoadmapHaltonDens.h>
+#include <ompl_multiset/RoadmapRGG.h>
 
 
 struct StateContainer
@@ -72,8 +72,8 @@ typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap> RoadmapGen;
-typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
+typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap> Roadmap;
+typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
 
 inline void stringify_from_x(std::string & repr, const StateContainerPtr & in)
@@ -133,19 +133,19 @@ int main(int argc, char **argv)
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(dim));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
-   RoadmapGenPtr p_mygen;
+   RoadmapPtr p_mygen;
    
    std::string roadmap_type(args["roadmap-type"].as<std::string>());
    std::transform(roadmap_type.begin(), roadmap_type.end(), roadmap_type.begin(), ::tolower);
    printf("creating roadmap of type %s ...\n", roadmap_type.c_str());
    if (roadmap_type == "aagrid")
-      p_mygen.reset(new ompl_multiset::RoadmapGenAAGrid<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
+      p_mygen.reset(new ompl_multiset::RoadmapAAGrid<Roadmap>(space, args["roadmap-args"].as<std::string>()));
    else if (roadmap_type == "rgg")
-      p_mygen.reset(new ompl_multiset::RoadmapGenRGG<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
+      p_mygen.reset(new ompl_multiset::RoadmapRGG<Roadmap>(space, args["roadmap-args"].as<std::string>()));
    else if (roadmap_type == "halton")
-      p_mygen.reset(new ompl_multiset::RoadmapGenHalton<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
+      p_mygen.reset(new ompl_multiset::RoadmapHalton<Roadmap>(space, args["roadmap-args"].as<std::string>()));
    else if (roadmap_type == "haltondens")
-      p_mygen.reset(new ompl_multiset::RoadmapGenHaltonDens<RoadmapGen>(space, args["roadmap-args"].as<std::string>()));
+      p_mygen.reset(new ompl_multiset::RoadmapHaltonDens<Roadmap>(space, args["roadmap-args"].as<std::string>()));
    else
    {
       printf("unknown roadmap type!\n");

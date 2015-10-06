@@ -28,13 +28,13 @@
 #include <ompl_multiset/SimpleEffortModel.h>
 #include <ompl_multiset/FnString.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
-#include <ompl_multiset/RoadmapGen.h>
-#include <ompl_multiset/RoadmapGenAAGrid.h>
-#include <ompl_multiset/RoadmapGenHalton.h>
-#include <ompl_multiset/RoadmapGenHaltonDens.h>
-#include <ompl_multiset/RoadmapGenRGG.h>
-#include <ompl_multiset/RoadmapGenRGGDensConst.h>
-#include <ompl_multiset/RoadmapGenID.h>
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapAAGrid.h>
+#include <ompl_multiset/RoadmapHalton.h>
+#include <ompl_multiset/RoadmapHaltonDens.h>
+#include <ompl_multiset/RoadmapRGG.h>
+#include <ompl_multiset/RoadmapRGGDensConst.h>
+#include <ompl_multiset/RoadmapID.h>
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/E8Roadmap.h>
 
@@ -238,7 +238,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
       
       // set up planner
       sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
-      roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::RoadmapGen>(ompl_space, inparams->roadmap_id));
+      roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));
       ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, roadmapgen, 1));
       //ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, roadmapgen, std::cout, std::cout, 1));
    }

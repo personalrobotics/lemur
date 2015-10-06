@@ -19,12 +19,12 @@
 #include <pr_bgl/overlay_manager.h>
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/BisectPerm.h>
-#include <ompl_multiset/RoadmapGen.h>
+#include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/EffortModel.h>
 #include <ompl_multiset/E8Roadmap.h>
 #include <ompl_multiset/Family.h>
 #include <ompl_multiset/FamilyEffortModel.h>
-#include <ompl_multiset/RoadmapGenHalton.h>
+#include <ompl_multiset/RoadmapHalton.h>
 
 #include <gtest/gtest.h>
 
@@ -82,8 +82,8 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    pdef->setGoalState(make_state(space, 0.75, 0.25));
    
    // roadmap
-   ompl_multiset::E8Roadmap::RoadmapGenPtr roadmap_gen(
-      new ompl_multiset::RoadmapGenHalton<ompl_multiset::E8Roadmap::RoadmapGen>(
+   ompl_multiset::E8Roadmap::RoadmapPtr roadmap_gen(
+      new ompl_multiset::RoadmapHalton<ompl_multiset::E8Roadmap::Roadmap>(
       space, "n=30 radius=0.3"));
    
    // family

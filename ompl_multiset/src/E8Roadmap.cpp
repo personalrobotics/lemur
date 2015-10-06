@@ -27,7 +27,7 @@
 #include <pr_bgl/heap_indexed.h>
 
 #include <ompl_multiset/BisectPerm.h>
-#include <ompl_multiset/RoadmapGen.h>
+#include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/EffortModel.h>
 #include <ompl_multiset/E8Roadmap.h>
 #include <ompl_multiset/lazysp_log_visitor.h>
@@ -68,7 +68,7 @@ inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPt
 ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       EffortModel & effort_model,
-      const RoadmapGenPtr roadmap_gen,
+      const RoadmapPtr roadmap_gen,
       unsigned int num_batches):
    ompl::base::Planner(si, "FamilyPlanner"),
    effort_model(effort_model),

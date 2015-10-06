@@ -19,8 +19,8 @@
 
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
-#include <ompl_multiset/RoadmapGen.h>
-#include <ompl_multiset/RoadmapGenRGG.h>
+#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/RoadmapRGG.h>
 
 #include <gtest/gtest.h>
 
@@ -69,15 +69,15 @@ typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::RoadmapGen<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> RoadmapGen;
-typedef boost::shared_ptr<RoadmapGen> RoadmapGenPtr;
+typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> Roadmap;
+typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
 
-TEST(RoadmapGenRRGTestCase, FixedExampleTest)
+TEST(RoadmapRRGTestCase, FixedExampleTest)
 {
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(2));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
-   RoadmapGenPtr p_mygen(new ompl_multiset::RoadmapGenRGG<RoadmapGen>(space, "n=10 radius=0.3 seed=1"));
+   RoadmapPtr p_mygen(new ompl_multiset::RoadmapRGG<Roadmap>(space, "n=10 radius=0.3 seed=1"));
    
    Graph g;
    

@@ -1,4 +1,4 @@
-/* File: RoadmapGenRGG.h
+/* File: RoadmapRGG.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -15,17 +15,17 @@ namespace ompl_multiset
 // uniform milestone sampling with given seed,
 // uses the space's default sampler
 //template <class Graph, class VertexIndexMap, class EdgeIndexMap//,
-   //class StateMap, class BatcMap, class IsShadowMap, class DistanceMap
+   //class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
 //   >
-template <class RoadmapGenSpec>
-class RoadmapGenRGGDensConst : public RoadmapGenSpec
+template <class RoadmapSpec>
+class RoadmapRGG : public RoadmapSpec
 {
-   typedef typename RoadmapGenSpec::BaseGraph Graph;
-   typedef typename RoadmapGenSpec::BaseVState VState;
-   typedef typename RoadmapGenSpec::BaseEDistance EDistance;
-   typedef typename RoadmapGenSpec::BaseVBatch VBatch;
-   typedef typename RoadmapGenSpec::BaseEBatch EBatch;
-   typedef typename RoadmapGenSpec::BaseVShadow VShadow;
+   typedef typename RoadmapSpec::BaseGraph Graph;
+   typedef typename RoadmapSpec::BaseVState VState;
+   typedef typename RoadmapSpec::BaseEDistance EDistance;
+   typedef typename RoadmapSpec::BaseVBatch VBatch;
+   typedef typename RoadmapSpec::BaseEBatch EBatch;
+   typedef typename RoadmapSpec::BaseVShadow VShadow;
    
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
@@ -33,26 +33,26 @@ class RoadmapGenRGGDensConst : public RoadmapGenSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
-   RoadmapGenRGGDensConst(
+   RoadmapRGG(
       const ompl::base::StateSpacePtr space,
       const std::string args):
-      RoadmapGenSpec(space,"RoadmapGenRGGDensConst",args,0),
+      RoadmapSpec(space,"RoadmapRGG",args,1),
       num_batches_generated(0),
       vertices_generated(0),
       edges_generated(0),
       sampler(space->allocStateSampler())
    {
-      int ret = sscanf(args.c_str(), "n_perbatch=%u radius=%lf seed=%u", &n_perbatch, &radius, &seed);
+      int ret = sscanf(args.c_str(), "n=%u radius=%lf seed=%u", &n, &radius, &seed);
       if (ret != 3)
-         throw std::runtime_error("bad args to RoadmapGenRGGDensConst!");
-      if (args != ompl_multiset::util::sf("n_perbatch=%u radius=%s seed=%u",
-         n_perbatch, ompl_multiset::util::double_to_text(radius).c_str(), seed))
+         throw std::runtime_error("bad args to RoadmapRGG!");
+      if (args != ompl_multiset::util::sf("n=%u radius=%s seed=%u",
+         n, ompl_multiset::util::double_to_text(radius).c_str(), seed))
       {
          throw std::runtime_error("args not in canonical form!");
       }
       ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
    }
-   ~RoadmapGenRGGDensConst() {}
+   ~RoadmapRGG() {}
    
    std::size_t get_num_batches_generated()
    {
@@ -72,12 +72,14 @@ public:
       EBatch edge_batch_map,
       VShadow is_shadow_map)
    {
+      if (this->max_batches < num_batches_generated + 1)
+         throw std::runtime_error("this roadmap gen doesnt support that many batches!");
       // ok, generate n nodes!
-      while (num_vertices(g) < (num_batches_generated+1)*n_perbatch)
+      while (num_vertices(g) < n)
       {
          Vertex v_new = add_vertex(g);
          
-         put(vertex_batch_map, v_new, num_batches_generated);
+         put(vertex_batch_map, v_new, 0);
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
@@ -95,7 +97,7 @@ public:
                continue;
             Edge e = add_edge(v_new, v_other, g).first;
             put(distance_map, e, dist);
-            put(edge_batch_map, e, num_batches_generated);
+            put(edge_batch_map, e, 0);
             edges_generated++;
          }
          
@@ -114,7 +116,7 @@ public:
    
 private:
    // from id
-   unsigned int n_perbatch;
+   unsigned int n;
    double radius;
    unsigned int seed;
    // progress

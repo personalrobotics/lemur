@@ -1,4 +1,4 @@
-/* File: RoadmapGenHalton.h
+/* File: RoadmapHalton.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -13,15 +13,15 @@ namespace ompl_multiset
 //template <class Graph, class VertexIndexMap, class EdgeIndexMap//,
    //class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
 //   >
-template <class RoadmapGenSpec>
-class RoadmapGenHaltonDens : public RoadmapGenSpec
+template <class RoadmapSpec>
+class RoadmapHaltonDens : public RoadmapSpec
 {
-   typedef typename RoadmapGenSpec::BaseGraph Graph;
-   typedef typename RoadmapGenSpec::BaseVState VState;
-   typedef typename RoadmapGenSpec::BaseEDistance EDistance;
-   typedef typename RoadmapGenSpec::BaseVBatch VBatch;
-   typedef typename RoadmapGenSpec::BaseEBatch EBatch;
-   typedef typename RoadmapGenSpec::BaseVShadow VShadow;
+   typedef typename RoadmapSpec::BaseGraph Graph;
+   typedef typename RoadmapSpec::BaseVState VState;
+   typedef typename RoadmapSpec::BaseEDistance EDistance;
+   typedef typename RoadmapSpec::BaseVBatch VBatch;
+   typedef typename RoadmapSpec::BaseEBatch EBatch;
+   typedef typename RoadmapSpec::BaseVShadow VShadow;
 
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
@@ -29,10 +29,10 @@ class RoadmapGenHaltonDens : public RoadmapGenSpec
    typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
-   RoadmapGenHaltonDens(
+   RoadmapHaltonDens(
       const ompl::base::StateSpacePtr space,
       const std::string args):
-      RoadmapGenSpec(space,"RoadmapGenHaltonDens",args,0),
+      RoadmapSpec(space,"RoadmapHaltonDens",args,0),
       dim(0),
       bounds(0),
       num_batches_generated(0),
@@ -41,7 +41,7 @@ public:
    {
       // check that we're in a real vector state space
       if (space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
-         throw std::runtime_error("RoadmapGenHaltonDens only supports rel vector state spaces!");
+         throw std::runtime_error("RoadmapHaltonDens only supports rel vector state spaces!");
       dim = space->getDimension();
       if (0 == ompl_multiset::util::get_prime(dim-1))
          throw std::runtime_error("not enough primes hardcoded!");
@@ -49,14 +49,14 @@ public:
       int ret = sscanf(args.c_str(), "n_perbatch=%u radius_firstbatch=%lf",
          &n_perbatch, &radius_firstbatch);
       if (ret != 2)
-         throw std::runtime_error("bad args to RoadmapGenHaltonDens, expected n_perbatch radius_firstbatch!");
+         throw std::runtime_error("bad args to RoadmapHaltonDens, expected n_perbatch radius_firstbatch!");
       if (args != ompl_multiset::util::sf("n_perbatch=%u radius_firstbatch=%s",
          n_perbatch, ompl_multiset::util::double_to_text(radius_firstbatch).c_str()))
       {
          throw std::runtime_error("args not in canonical form!");
       }
    }
-   ~RoadmapGenHaltonDens() {}
+   ~RoadmapHaltonDens() {}
    
    std::size_t get_num_batches_generated()
    {
