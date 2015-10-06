@@ -20,7 +20,7 @@
 #include <ompl/geometric/PathGeometric.h>
 
 #include <ompl_multiset/BisectPerm.h>
-#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
@@ -132,7 +132,7 @@ private:
 public:
 
    P(const ompl::base::StateSpacePtr space,
-      const ompl_multiset::RoadmapPtr roadmap,
+      const ompl_multiset::MultiSetRoadmapPtr roadmap,
       const ompl::base::SpaceInformationPtr si_bogus);
    ~P(void);
 
@@ -239,7 +239,7 @@ private:
    ompl_multiset::BisectPerm bisect_perm;
    
    // private members
-   const ompl_multiset::RoadmapPtr roadmap;
+   const ompl_multiset::MultiSetRoadmapPtr roadmap;
    
    // map from roadmap v/e ids to my boost vertex/edge descriptors
    unsigned int roadmap_subgraphs_used;
@@ -309,7 +309,7 @@ private:
 // static creation method
 ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(
    const ompl::base::StateSpacePtr space,
-   const ompl_multiset::RoadmapPtr roadmap)
+   const ompl_multiset::MultiSetRoadmapPtr roadmap)
 {
    ompl::base::SpaceInformationPtr si_bogus(new ompl::base::SpaceInformation(space));
    si_bogus->setStateValidityChecker(
@@ -322,7 +322,7 @@ ompl_multiset::MultiSetPRM * ompl_multiset::MultiSetPRM::create(
 }
 
 P::P(const ompl::base::StateSpacePtr space,
-      const ompl_multiset::RoadmapPtr roadmap,
+      const ompl_multiset::MultiSetRoadmapPtr roadmap,
       const ompl::base::SpaceInformationPtr si_bogus):
    ompl_multiset::MultiSetPRM(si_bogus, "MultiSetPRM"),
    roadmap(roadmap), roadmap_subgraphs_used(0),
@@ -651,7 +651,7 @@ void P::add_subgraph()
    // ensure new subgraph is generated
    unsigned int gi = this->roadmap_subgraphs_used;
    this->roadmap->subgraphs_generate(gi+1);
-   ompl_multiset::Roadmap::SubGraph & sg = this->roadmap->subgraphs[gi];
+   ompl_multiset::MultiSetRoadmap::SubGraph & sg = this->roadmap->subgraphs[gi];
    
    // add new vertices
    while (this->roadmap_vertices.size() < sg.nv)
@@ -1392,7 +1392,7 @@ void P::add_initial_root_edges(Vertex vroot)
    unsigned int vi=0;
    for (unsigned int gi=0; gi<this->roadmap_subgraphs_used; gi++)
    {
-      ompl_multiset::Roadmap::SubGraph & sg = this->roadmap->subgraphs[gi];
+      ompl_multiset::MultiSetRoadmap::SubGraph & sg = this->roadmap->subgraphs[gi];
       for (; vi<sg.nv; vi++)
       {
          Vertex v = this->roadmap_vertices[vi];

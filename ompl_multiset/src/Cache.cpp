@@ -12,7 +12,7 @@
 #include <boost/filesystem/fstream.hpp>
 #include <boost/functional/hash.hpp>
 #include <ompl/base/StateSpace.h>
-#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
 #include <ompl_multiset/SpaceID.h>
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/util.h>
@@ -27,19 +27,19 @@ public:
    C(std::string cache_dir);
    ~C();
    
-   void roadmap_load(ompl_multiset::Roadmap * roadmap);
-   void roadmap_save(ompl_multiset::Roadmap * roadmap);
+   void roadmap_load(ompl_multiset::MultiSetRoadmap * roadmap);
+   void roadmap_save(ompl_multiset::MultiSetRoadmap * roadmap);
    
    // these load/save results for different edges
    // maybe i should do deltas or something at some point?
    
    void si_load(
-      ompl_multiset::Roadmap * roadmap, std::string set_id,
+      ompl_multiset::MultiSetRoadmap * roadmap, std::string set_id,
       std::vector< std::pair<unsigned int, bool> > & vertex_results,
       std::vector< std::pair<unsigned int, bool> > & edge_results);
    
    void si_save(
-      ompl_multiset::Roadmap * roadmap, std::string set_id,
+      ompl_multiset::MultiSetRoadmap * roadmap, std::string set_id,
       std::vector< std::pair<unsigned int, bool> > & vertex_results,
       std::vector< std::pair<unsigned int, bool> > & edge_results);
    
@@ -66,7 +66,7 @@ C::~C()
 {
 }
 
-void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
+void C::roadmap_load(ompl_multiset::MultiSetRoadmap * roadmap)
 {
    std::string line;
    
@@ -130,7 +130,7 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
             throw std::runtime_error("bad cache file, subgraphs out of order!");
          if (roadmap->subgraphs.size() == line_gi)
          {
-            roadmap->subgraphs.push_back(ompl_multiset::Roadmap::SubGraph(
+            roadmap->subgraphs.push_back(ompl_multiset::MultiSetRoadmap::SubGraph(
                line_nv, line_ne, line_root_radius));
             extended = true;
          }
@@ -203,7 +203,7 @@ void C::roadmap_load(ompl_multiset::Roadmap * roadmap)
    }
 }
 
-void C::roadmap_save(ompl_multiset::Roadmap * roadmap)
+void C::roadmap_save(ompl_multiset::MultiSetRoadmap * roadmap)
 {
    // get the space id
    std::string space_id = ompl_multiset::space_id(roadmap->space);
@@ -260,7 +260,7 @@ void C::roadmap_save(ompl_multiset::Roadmap * roadmap)
 // maybe i should do deltas or something at some point?
 
 void C::si_load(
-   ompl_multiset::Roadmap * roadmap, std::string set_id,
+   ompl_multiset::MultiSetRoadmap * roadmap, std::string set_id,
    std::vector< std::pair<unsigned int, bool> > & vertex_results,
    std::vector< std::pair<unsigned int, bool> > & edge_results)
 {
@@ -348,7 +348,7 @@ void C::si_load(
 }
 
 void C::si_save(
-   ompl_multiset::Roadmap * roadmap, std::string set_id,
+   ompl_multiset::MultiSetRoadmap * roadmap, std::string set_id,
    std::vector< std::pair<unsigned int, bool> > & vertex_results,
    std::vector< std::pair<unsigned int, bool> > & edge_results)
 {

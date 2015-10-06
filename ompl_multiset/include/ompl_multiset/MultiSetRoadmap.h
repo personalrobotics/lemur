@@ -11,7 +11,7 @@ namespace ompl_multiset
  * (infinite as in infinitely dense)
  * vertices 0, 1, 2, ...
  * for now, assumed UNDIRECTED! */
-class Roadmap
+class MultiSetRoadmap
 {
 public:
    struct SubGraph
@@ -30,8 +30,8 @@ public:
    std::vector< std::pair<unsigned int, unsigned int> > edges;
    std::vector< SubGraph > subgraphs; // nv, ne
    
-   Roadmap(ompl::base::StateSpacePtr space): space(space) {};
-   virtual ~Roadmap() {};
+   MultiSetRoadmap(ompl::base::StateSpacePtr space): space(space) {};
+   virtual ~MultiSetRoadmap() {};
    
    virtual std::string get_id() = 0;
    
@@ -47,6 +47,6 @@ public:
    virtual void generator_load(std::string & data) = 0;
 };
 
-typedef boost::shared_ptr<Roadmap> RoadmapPtr;
+typedef boost::shared_ptr<MultiSetRoadmap> MultiSetRoadmapPtr;
 
 } // namespace ompl_multiset

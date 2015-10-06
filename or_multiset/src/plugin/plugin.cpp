@@ -20,7 +20,7 @@
 #include <pr_bgl/overlay_manager.h>
 #include <pr_bgl/heap_indexed.h>
 
-#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 

@@ -8,9 +8,9 @@
 
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
-#include <ompl_multiset/Roadmap.h>
-#include <ompl_multiset/RoadmapSampledConst.h>
-#include <ompl_multiset/RoadmapSampledDensified.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
+#include <ompl_multiset/MultiSetRoadmapSampledConst.h>
+#include <ompl_multiset/MultiSetRoadmapSampledDensified.h>
 
 #include <ompl_multiset/Cache.h>
 
@@ -47,7 +47,7 @@ int main(int argc, char * argv[])
    /* set space resolution */
    //space.setLongestValidSegmentFraction(0.01 / space->getMaximumExtent());
    
-   ompl_multiset::RoadmapSampledDensified roadmap(space, 1, batch_size, gamma_rel);
+   ompl_multiset::MultiSetRoadmapSampledDensified roadmap(space, 1, batch_size, gamma_rel);
    
    
 #if 1

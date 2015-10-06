@@ -17,9 +17,9 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
 
-#include <ompl_multiset/Roadmap.h>
-#include <ompl_multiset/RoadmapSampledConst.h>
-#include <ompl_multiset/RoadmapSampledDensified.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
+#include <ompl_multiset/MultiSetRoadmapSampledConst.h>
+#include <ompl_multiset/MultiSetRoadmapSampledDensified.h>
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
@@ -176,7 +176,7 @@ bool or_multiset::MultiSetPRM::PlannerParameters::endElement(const std::string &
 
 or_multiset::MultiSetPRM::MultiSetPRM(OpenRAVE::EnvironmentBasePtr penv):
    OpenRAVE::PlannerBase(penv), penv(penv),
-   roadmap_string("class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2")
+   roadmap_string("class=MultiSetRoadmapSampledConst seed=419884521 batch_n=1000 radius=2")
 {
    __description = "OmplCheckMask description";
    this->RegisterCommand("UseSubsetManager",
@@ -486,7 +486,7 @@ bool or_multiset::MultiSetPRM::UseSubsetManager(std::ostream & sout, std::istrea
    return true;
 }
 
-// e.g. SetRoadmap class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2
+// e.g. SetRoadmap class=MultiSetRoadmapSampledConst seed=419884521 batch_n=1000 radius=2
 bool or_multiset::MultiSetPRM::SetRoadmap(std::ostream & sout, std::istream & sin)
 {
    std::istreambuf_iterator<char> eos;
@@ -601,15 +601,15 @@ void or_multiset::MultiSetPRM::setup(OpenRAVE::RobotBasePtr robot)
       resolution / this->ompl_space->getMaximumExtent());
 
    // create the roadmap object
-   ompl_multiset::RoadmapPtr roadmap;
-   // class=RoadmapSampledConst seed=419884521 batch_n=1000 radius=2
+   ompl_multiset::MultiSetRoadmapPtr roadmap;
+   // class=MultiSetRoadmapSampledConst seed=419884521 batch_n=1000 radius=2
    {
       // parse roadmap args
       std::stringstream ss(this->roadmap_string);
       std::vector<std::string> args = args_from_sin(ss);
       if (args.size() < 1)
          throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not at least one arg!");
-      if (args[0] == "class=RoadmapSampledConst")
+      if (args[0] == "class=MultiSetRoadmapSampledConst")
       {
          if (args.size() != 4)
             throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not exactly four args!");
@@ -620,9 +620,9 @@ void or_multiset::MultiSetPRM::setup(OpenRAVE::RobotBasePtr robot)
          unsigned int seed = atoi(args[1].c_str()+5);
          unsigned int batch_n = atoi(args[2].c_str()+8);
          double radius = atof(args[3].c_str()+7);
-         roadmap.reset(new ompl_multiset::RoadmapSampledConst(this->ompl_space, seed, batch_n, radius));
+         roadmap.reset(new ompl_multiset::MultiSetRoadmapSampledConst(this->ompl_space, seed, batch_n, radius));
       }
-      else if (args[0] == "class=RoadmapSampledDensified")
+      else if (args[0] == "class=MultiSetRoadmapSampledDensified")
       {
          if (args.size() != 4)
             throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not exactly four args!");
@@ -633,7 +633,7 @@ void or_multiset::MultiSetPRM::setup(OpenRAVE::RobotBasePtr robot)
          unsigned int seed = atoi(args[1].c_str()+5);
          unsigned int batch_n = atoi(args[2].c_str()+8);
          double gamma_rel = atof(args[3].c_str()+10);
-         roadmap.reset(new ompl_multiset::RoadmapSampledDensified(this->ompl_space, seed, batch_n, gamma_rel));
+         roadmap.reset(new ompl_multiset::MultiSetRoadmapSampledDensified(this->ompl_space, seed, batch_n, gamma_rel));
       }
       else
          throw OpenRAVE::openrave_exception("SetRoadmap args not correct, not a known class");

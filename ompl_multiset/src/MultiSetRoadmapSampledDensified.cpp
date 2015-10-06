@@ -1,4 +1,4 @@
-/* File: RoadmapSampledConst.cpp
+/* File: RoadmapSampledDensified.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -8,43 +8,46 @@
 #include <ompl/base/StateSampler.h>
 #include <ompl/base/StateSpace.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
-#include <ompl_multiset/Roadmap.h>
-#include <ompl_multiset/RoadmapSampledConst.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
+#include <ompl_multiset/MultiSetRoadmapSampledDensified.h>
 #include <ompl_multiset/util.h>
 
-using namespace ompl_multiset::util; // for sf, volume_n_ball
+using namespace ompl_multiset::util; // for sf, volume_n_ball, double_to_text
 
-ompl_multiset::RoadmapSampledConst::RoadmapSampledConst(
+ompl_multiset::MultiSetRoadmapSampledDensified::MultiSetRoadmapSampledDensified(
       const ompl::base::StateSpacePtr space,
       unsigned int seed,
       unsigned int batch_n,
-      double radius):
-   Roadmap(space),
+      double gamma_rel):
+   MultiSetRoadmap(space),
    sampler(space->allocStateSampler()),
-   batch_n(batch_n),
-   radius(radius)
+   batch_n(batch_n)
 {
-   this->id = sf("class=RoadmapSampledConst seed=%u batch_n=%u radius=%s",
-      seed, batch_n, double_to_text(radius).c_str());
+   this->id = sf("class=MultiSetRoadmapSampledDensified seed=%u batch_n=%u gamma_rel=%s",
+      seed, batch_n, double_to_text(gamma_rel).c_str());
    ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
+   this->d = this->space->getDimension();
+   double pow_inside = (1.0 + 1.0/this->d)
+      * this->space->getMeasure()/volume_n_ball(this->d);
+   this->gamma = gamma_rel * 2.0 * pow(pow_inside, 1.0/this->d);
 }
 
-ompl_multiset::RoadmapSampledConst::~RoadmapSampledConst()
+ompl_multiset::MultiSetRoadmapSampledDensified::~MultiSetRoadmapSampledDensified()
 {
 }
 
-std::string ompl_multiset::RoadmapSampledConst::get_id()
+std::string ompl_multiset::MultiSetRoadmapSampledDensified::get_id()
 {
    return this->id;
 }
 
-void ompl_multiset::RoadmapSampledConst::subgraphs_limit(
+void ompl_multiset::MultiSetRoadmapSampledDensified::subgraphs_limit(
    unsigned int * num_subgraphs)
 {
    *num_subgraphs = 0; // no limit
 }
 
-void ompl_multiset::RoadmapSampledConst::subgraphs_generate(
+void ompl_multiset::MultiSetRoadmapSampledDensified::subgraphs_generate(
    unsigned int num_subgraphs)
 {
    while (this->subgraphs.size() < num_subgraphs)
@@ -52,7 +55,11 @@ void ompl_multiset::RoadmapSampledConst::subgraphs_generate(
       // add a new denser subgraph
       // with batch_n new vertices!
       
+      // compute radius
       unsigned int new_n = this->vertices.size() + this->batch_n;
+      double radius = this->gamma * pow(log(new_n)/new_n, 1.0/this->d);
+      printf("using radius=%.30f\n", radius);
+      
       while (this->vertices.size() < new_n)
       {
          unsigned int inew = this->vertices.size();
@@ -67,7 +74,7 @@ void ompl_multiset::RoadmapSampledConst::subgraphs_generate(
          for (unsigned int i=0; i<inew; i++)
          {
             double dist = this->space->distance(snew, this->vertices[i]);
-            if (this->radius < dist)
+            if (radius < dist)
                continue;
             
             this->edges.push_back(std::make_pair(i,inew));
@@ -77,11 +84,11 @@ void ompl_multiset::RoadmapSampledConst::subgraphs_generate(
       this->subgraphs.push_back(SubGraph(
          this->vertices.size(),
          this->edges.size(),
-         this->radius));
+         radius));
    }
 }
 
-void ompl_multiset::RoadmapSampledConst::generator_save(
+void ompl_multiset::MultiSetRoadmapSampledDensified::generator_save(
    std::string & data)
 {
    std::stringstream ss;
@@ -89,7 +96,7 @@ void ompl_multiset::RoadmapSampledConst::generator_save(
    data = ss.str();
 }
 
-void ompl_multiset::RoadmapSampledConst::generator_load(
+void ompl_multiset::MultiSetRoadmapSampledDensified::generator_load(
    std::string & data)
 {
    std::stringstream ss(data);

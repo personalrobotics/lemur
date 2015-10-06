@@ -32,8 +32,8 @@ add_library(${PROJECT_NAME}
    src/Cache.cpp
    src/MultiSetPRM.cpp
    src/E8Roadmap.cpp
-   src/RoadmapSampledConst.cpp
-   src/RoadmapSampledDensified.cpp
+   src/MultiSetRoadmapSampledConst.cpp
+   src/MultiSetRoadmapSampledDensified.cpp
    src/SamplerGenMonkeyPatch.cpp
    src/SpaceID.cpp
    src/util.cpp)

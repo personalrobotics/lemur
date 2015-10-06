@@ -8,7 +8,7 @@
 #include <string>
 #include <vector>
 #include <ompl/base/Planner.h>
-#include <ompl_multiset/Roadmap.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
 #include <ompl_multiset/Cache.h>
 */
 
@@ -20,7 +20,7 @@ class MultiSetPRM : public ompl::base::Planner
 public:
    static MultiSetPRM * create(
       const ompl::base::StateSpacePtr space,
-      const ompl_multiset::RoadmapPtr roadmap);
+      const ompl_multiset::MultiSetRoadmapPtr roadmap);
    
    virtual ~MultiSetPRM(void) {};
 

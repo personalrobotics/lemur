@@ -25,8 +25,8 @@
 #include <ompl/geometric/planners/kpiece/LBKPIECE1.h>
 #include <ompl/geometric/planners/rrt/RRTConnect.h>
 
-#include <ompl_multiset/Roadmap.h>
-#include <ompl_multiset/RoadmapSampledConst.h>
+#include <ompl_multiset/MultiSetRoadmap.h>
+#include <ompl_multiset/MultiSetRoadmapSampledConst.h>
 #include <ompl_multiset/Cache.h>
 #include <ompl_multiset/MultiSetPRM.h>
 
@@ -854,8 +854,8 @@ int main(int argc, char * argv[])
 #if PLANNER == PLANNER_MULTISET
 
    /* create planner */
-   ompl_multiset::RoadmapPtr roadmap(
-      new ompl_multiset::RoadmapSampledConst(space, 419884521, 1000, 2.0));
+   ompl_multiset::MultiSetRoadmapPtr roadmap(
+      new ompl_multiset::MultiSetRoadmapSampledConst(space, 419884521, 1000, 2.0));
    ompl_multiset::CachePtr cache;
    // cache.reset(ompl_multiset::cache_create("mycache"));
    ompl_multiset::MultiSetPRM * p
