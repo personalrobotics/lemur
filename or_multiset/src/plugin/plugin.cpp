@@ -29,17 +29,22 @@
 #include <ompl_multiset/EffortModel.h>
 #include <ompl_multiset/E8Roadmap.h>
 #include <ompl_multiset/SimpleEffortModel.h>
+#include <ompl_multiset/Family.h>
+#include <ompl_multiset/FamilyEffortModel.h>
 
 #include <or_multiset/inter_link_checks.h>
 
 #include "module_subset_manager.h"
+#include "or_checker.h"
 #include "planner_multiset_prm.h"
 #include "planner_e8roadmap.h"
+#include "planner_e8roadmapselfcc.h"
 
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {
    info.interfacenames[OpenRAVE::PT_Planner].push_back("MultiSetPRM");
    info.interfacenames[OpenRAVE::PT_Planner].push_back("E8Roadmap");
+   info.interfacenames[OpenRAVE::PT_Planner].push_back("E8RoadmapSelfCC");
    info.interfacenames[OpenRAVE::PT_Module].push_back("SubsetManager");
 }
 
@@ -53,6 +58,8 @@ OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
       return OpenRAVE::InterfaceBasePtr(new or_multiset::MultiSetPRM(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "e8roadmap"))
       return OpenRAVE::InterfaceBasePtr(new or_multiset::E8Roadmap(penv));
+   if((type == OpenRAVE::PT_Planner) && (interfacename == "e8roadmapselfcc"))
+      return OpenRAVE::InterfaceBasePtr(new or_multiset::E8RoadmapSelfCC(penv));
    if((type == OpenRAVE::PT_Module) && (interfacename == "subsetmanager"))
       return OpenRAVE::InterfaceBasePtr(new or_multiset::ModuleSubsetManager(penv));
    return OpenRAVE::InterfaceBasePtr();

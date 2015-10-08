@@ -143,7 +143,7 @@ public:
    
    //unsigned int num_batches;
    
-   TagCache * tag_cache;
+   TagCache & tag_cache;
    
    // parameters
    double coeff_checkcost;
@@ -155,6 +155,7 @@ public:
    E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       ompl_multiset::EffortModel & effort_model,
+      ompl_multiset::TagCache & tag_cache,
       const RoadmapPtr roadmap_gen,
       unsigned int num_batches);
    
@@ -168,7 +169,6 @@ public:
    
    void dump_graph(std::ostream & os_graph);
    
-   void cache_set(ompl_multiset::TagCache * cache);
    void cache_load_all();
    void cache_save_all();
    

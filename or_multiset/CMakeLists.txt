@@ -14,7 +14,7 @@ catkin_add_env_hooks("20.${PROJECT_NAME}"
    DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/catkin-env-hooks"
 )
 
-#set(CMAKE_BUILD_TYPE Release)
+set(CMAKE_BUILD_TYPE Release)
 
 include_directories(
    include
@@ -38,6 +38,7 @@ add_library(${PROJECT_NAME}_orplugin MODULE
    src/plugin/module_subset_manager.cpp
    src/plugin/planner_multiset_prm.cpp
    src/plugin/planner_e8roadmap.cpp
+   src/plugin/planner_e8roadmapselfcc.cpp
    src/plugin/plugin.cpp)
 target_link_libraries(${PROJECT_NAME}_orplugin ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES
@@ -47,6 +48,9 @@ set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES
    PREFIX ""
    LIBRARY_OUTPUT_DIRECTORY
    "${CATKIN_DEVEL_PREFIX}/lib/openrave-${OpenRAVE_LIBRARY_SUFFIX}")
+
+catkin_add_gtest(test_selfcc test/selfcc.cpp)
+target_link_libraries(test_selfcc ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
 install(TARGETS ${PROJECT_NAME}
   LIBRARY DESTINATION "lib/openrave-${OpenRAVE_LIBRARY_SUFFIX}"

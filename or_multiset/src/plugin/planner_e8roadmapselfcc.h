@@ -1,4 +1,4 @@
-/* File: planner_e8roadmap.h
+/* File: planner_e8roadmapselfcc.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -7,7 +7,7 @@
 namespace or_multiset
 {
 
-class E8Roadmap : public OpenRAVE::PlannerBase
+class E8RoadmapSelfCC : public OpenRAVE::PlannerBase
 {
 public:
    
@@ -31,22 +31,45 @@ public:
    };
    typedef boost::shared_ptr<PlannerParameters> PlannerParametersPtr;
    typedef boost::shared_ptr<PlannerParameters const> PlannerParametersConstPtr;
+   
+   class TagCache : public ompl_multiset::TagCache
+   {
+   public:
+      std::string selffile_header;
+      std::string selffile_header_md5;
+      FILE * fp;
+      std::vector<char> tag_letters;
+      void load_vertex(size_t v_index, size_t & v_tag);
+      void load_edge(size_t e_index, std::vector< size_t > & e_tags);
+      void save_begin();
+      void save_vertex(size_t v_index, size_t & v_tag);
+      void save_edge(size_t e_index, std::vector< size_t > & e_tags);
+      void save_end();
+   };
 
    const OpenRAVE::EnvironmentBasePtr env;
+   
+   // all of this set by InitPlan
    PlannerParametersConstPtr params;
    OpenRAVE::RobotBasePtr robot;
    std::vector<int> robot_adofs;
    ompl::base::StateSpacePtr ompl_space;
-   ompl::base::SpaceInformationPtr ompl_si;
-   boost::shared_ptr<or_multiset::OrChecker> ompl_checker;
-   boost::shared_ptr<ompl_multiset::SimpleEffortModel> sem;
-   boost::shared_ptr<ompl_multiset::TagCache> tag_cache;
+   boost::shared_ptr<ompl_multiset::Family> family;
+   boost::shared_ptr<ompl_multiset::FamilyEffortModel> fem;
+   boost::shared_ptr<TagCache> tag_cache;
    ompl_multiset::E8Roadmap::RoadmapPtr roadmapgen;
    boost::shared_ptr<ompl_multiset::E8Roadmap> ompl_planner;
    ompl::base::ProblemDefinitionPtr ompl_pdef;
    
-   E8Roadmap(OpenRAVE::EnvironmentBasePtr env);
-   ~E8Roadmap();
+   // the set of ilcs
+   std::vector<or_multiset::InterLinkCheck> ilcs_self;
+   std::vector<or_multiset::InterLinkCheck> ilcs_targ;
+   std::vector<or_multiset::InterLinkCheck> ilcs_self_only;
+   std::vector<or_multiset::InterLinkCheck> ilcs_targ_only;
+   std::vector<or_multiset::InterLinkCheck> ilcs_both;
+   
+   E8RoadmapSelfCC(OpenRAVE::EnvironmentBasePtr env);
+   ~E8RoadmapSelfCC();
    
    bool InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & isParameters);
    bool InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::PlannerBase::PlannerParametersConstPtr params);
@@ -54,6 +77,7 @@ public:
    
    OpenRAVE::PlannerStatus PlanPath(OpenRAVE::TrajectoryBasePtr);
    
+   bool CacheCalculateSave(std::ostream & sout, std::istream & sin);
    bool GetTimes(std::ostream & sout, std::istream & sin) const;
    
 };

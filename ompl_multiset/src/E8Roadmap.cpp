@@ -68,9 +68,10 @@ inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPt
 ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       EffortModel & effort_model,
+      TagCache & tag_cache,
       const RoadmapPtr roadmap_gen,
       unsigned int num_batches):
-   ompl::base::Planner(si, "FamilyPlanner"),
+   ompl::base::Planner(si, "E8Roadmap"),
    effort_model(effort_model),
    roadmap_gen(roadmap_gen),
    space(si_->getStateSpace()),
@@ -80,11 +81,13 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    overlay_manager(eig,og,
       get(&OverVProps::core_vertex, og),
       get(&OverEProps::core_edge, og)),
-   tag_cache(0),
+   tag_cache(tag_cache),
    coeff_checkcost(0.),
    coeff_distance(1.),
    coeff_batch(0.)
 {
+   printf("E8Roadmap: constructing %u batches ...\n", num_batches);
+   
    // before we start,
    // generate some levels into our core eraph
    // note that new vertices/edges get properties from constructor
@@ -97,14 +100,14 @@ ompl_multiset::E8Roadmap::E8Roadmap(
          get(&EProps::batch, g),
          get(&VProps::is_shadow, g));
    }
+   printf("E8Roadmap: initializing %lu edges ...\n", num_edges(g));
    
    // initialize stuff
    VertexIter vi, vi_end;
    EdgeIter ei, ei_end;
    
-   if (tag_cache)
-      for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-         tag_cache->load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
+   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      tag_cache.load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
    
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
@@ -116,9 +119,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
       //g[*ei].tag = 0;
       
-      if (tag_cache)
-         tag_cache->load_edge(g[*ei].index, g[*ei].edge_tags);
+      tag_cache.load_edge(g[*ei].index, g[*ei].edge_tags);
    }
+   printf("E8Roadmap: constructor finished.\n");
 }
 
 ompl_multiset::E8Roadmap::~E8Roadmap()
@@ -128,6 +131,7 @@ ompl_multiset::E8Roadmap::~E8Roadmap()
 void ompl_multiset::E8Roadmap::setProblemDefinition(
    const ompl::base::ProblemDefinitionPtr & pdef)
 {
+   
    // call planner base class implementation
    // this will set my pdef_ and update my pis_
    ompl::base::Planner::setProblemDefinition(pdef);
@@ -187,40 +191,20 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       // no edge states!
       ovs.push_back(ov_start);
    }
-
+   
    // add goal to overlay graph
    ompl::base::GoalPtr goal = pdef->getGoal();
-   if (goal->getType() == ompl::base::GOAL_STATE)
+   if (goal)
    {
-      ompl::base::GoalState * goal_state = goal->as<ompl::base::GoalState>();
-      OverVertex ov_goal;
-      ov_goal = add_vertex(og);
-      og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
-      // set state
-      og[ov_goal].state.reset(new StateCon(space.get()));
-      space->copyState(og[ov_goal].state->state, goal_state->getState());
-      // regular vertex properties
-      og[ov_goal].batch = 0;
-      og[ov_goal].is_shadow = false;
-      og[ov_goal].tag = 0;
-      // connecting edge
-      OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
-      og[e].distance = 0.0;
-      og[e].batch = 0;
-      // no edge states!
-      ovs.push_back(ov_goal);
-   }
-   else if (goal->getType() == ompl::base::GOAL_STATES)
-   {
-      ompl::base::GoalStates * goal_states = goal->as<ompl::base::GoalStates>();
-      for (unsigned int igoal=0; igoal<goal_states->getStateCount(); igoal++)
+      if (goal->getType() == ompl::base::GOAL_STATE)
       {
+         ompl::base::GoalState * goal_state = goal->as<ompl::base::GoalState>();
          OverVertex ov_goal;
          ov_goal = add_vertex(og);
          og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
          // set state
          og[ov_goal].state.reset(new StateCon(space.get()));
-         space->copyState(og[ov_goal].state->state, goal_states->getState(0));
+         space->copyState(og[ov_goal].state->state, goal_state->getState());
          // regular vertex properties
          og[ov_goal].batch = 0;
          og[ov_goal].is_shadow = false;
@@ -232,9 +216,32 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          // no edge states!
          ovs.push_back(ov_goal);
       }
+      else if (goal->getType() == ompl::base::GOAL_STATES)
+      {
+         ompl::base::GoalStates * goal_states = goal->as<ompl::base::GoalStates>();
+         for (unsigned int igoal=0; igoal<goal_states->getStateCount(); igoal++)
+         {
+            OverVertex ov_goal;
+            ov_goal = add_vertex(og);
+            og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
+            // set state
+            og[ov_goal].state.reset(new StateCon(space.get()));
+            space->copyState(og[ov_goal].state->state, goal_states->getState(0));
+            // regular vertex properties
+            og[ov_goal].batch = 0;
+            og[ov_goal].is_shadow = false;
+            og[ov_goal].tag = 0;
+            // connecting edge
+            OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
+            og[e].distance = 0.0;
+            og[e].batch = 0;
+            // no edge states!
+            ovs.push_back(ov_goal);
+         }
+      }
+      else
+         throw std::runtime_error("unsupported ompl goal type!");
    }
-   else
-      throw std::runtime_error("unsupported ompl goal type!");
    
    // connect to vertices within fixed radius in roadmap
    // to all batch vertices that we've generated so far
@@ -282,6 +289,11 @@ ompl_multiset::E8Roadmap::solve(
    const ompl::base::PlannerTerminationCondition & ptc)
 {
    // ok, do some sweet sweet lazy search!
+   
+   if (out_degree(ov_singlestart,og) == 0)
+      throw std::runtime_error("no start states passed!");
+   if (out_degree(ov_singlegoal,og) == 0)
+      throw std::runtime_error("no goal states passed!");
    
    bool success = false;
    std::vector<Edge> epath;
@@ -373,16 +385,13 @@ ompl_multiset::E8Roadmap::solve(
          get(&EProps::batch, g),
          get(&VProps::is_shadow, g));
       
-      if (tag_cache)
+      VertexIter vi, vi_end;
+      for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {
-         VertexIter vi, vi_end;
-         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-         {
-            size_t v_index = get(get(boost::vertex_index,g),*vi);
-            if (v_index < num_vertices_before)
-               continue;
-            tag_cache->load_vertex(v_index, g[*vi].tag);
-         }
+         size_t v_index = get(get(boost::vertex_index,g),*vi);
+         if (v_index < num_vertices_before)
+            continue;
+         tag_cache.load_vertex(v_index, g[*vi].tag);
       }
       
       // initialize NEW edges
@@ -399,8 +408,7 @@ ompl_multiset::E8Roadmap::solve(
          g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
          //g[*ei].tag = 0;
          
-         if (tag_cache)
-            tag_cache->load_edge(g[*ei].index, g[*ei].edge_tags);
+         tag_cache.load_edge(g[*ei].index, g[*ei].edge_tags);
          
          calculate_w_lazy(*ei);
       }
@@ -477,6 +485,30 @@ ompl_multiset::E8Roadmap::solve(
 
 void ompl_multiset::E8Roadmap::solve_all()
 {
+   overlay_unapply();
+   
+   // evaluate all vertices first
+   printf("solve_all() evaluating vertices ...\n");
+   VertexIter vi, vi_end;
+   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      while (!effort_model.is_evaled(g[*vi].tag))
+         effort_model.eval_partial(g[*vi].tag, g[*vi].state->state);
+   
+   printf("solve_all() evaluating edges ...\n");
+   EdgeIter ei, ei_end;
+   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
+   {
+      for (unsigned ui=0; ui<g[*ei].edge_tags.size(); ui++)
+      {
+         while (!effort_model.is_evaled(g[*ei].edge_tags[ui]))
+            effort_model.eval_partial(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]->state);
+         if (effort_model.x_hat(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]->state)
+            == std::numeric_limits<double>::infinity())
+            break;
+      }
+   }
+   
+   overlay_apply();
 }
 
 void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
@@ -496,40 +528,29 @@ void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
       props);
 }
 
-void ompl_multiset::E8Roadmap::cache_set(ompl_multiset::TagCache * cache)
-{
-   tag_cache = cache;
-}
-
 void ompl_multiset::E8Roadmap::cache_load_all()
 {
-   if (!tag_cache)
-      return;
-   
    VertexIter vi, vi_end;
    for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-      tag_cache->load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
+      tag_cache.load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
    
    EdgeIter ei, ei_end;
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
-      tag_cache->load_edge(g[*ei].index, g[*ei].edge_tags);
+      tag_cache.load_edge(g[*ei].index, g[*ei].edge_tags);
       calculate_w_lazy(*ei);
    }
 }
 
 void ompl_multiset::E8Roadmap::cache_save_all()
 {
-   if (!tag_cache)
-      return;
-   
    VertexIter vi, vi_end;
    for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-      tag_cache->save_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
+      tag_cache.save_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
    
    EdgeIter ei, ei_end;
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
-      tag_cache->save_edge(g[*ei].index, g[*ei].edge_tags);
+      tag_cache.save_edge(g[*ei].index, g[*ei].edge_tags);
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()

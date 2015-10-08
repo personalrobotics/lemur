@@ -73,18 +73,6 @@ public:
    
    bool si_is_new;
    
-   // keyed by tag
-   struct TagData
-   {
-      //LogicEngine::Assignment assignment;
-      bool calculated; // if false, the below is garbage
-      bool is_known;
-      bool known_valid;
-      //std::vector<LogicEngine::AssignmentDelta> deltas;
-      double total_check_cost;
-   };
-   std::vector<TagData> tag_datas;
-   
    FamilyEffortModel(const Family & in_family):
       family(in_family), si_is_new(false)
    {
@@ -113,9 +101,43 @@ public:
          if (!(var_subset<subsets.size()) || !(var_superset<subsets.size()))
             throw std::runtime_error("inclusion references unknown subset!");
          ConjunctionImplication x;
-         x.antecedents.resize(1,var_subset);
+         x.antecedents.push_back(var_subset);
          x.consequent = var_superset;
          conjunction_implications.push_back(x);
+      }
+      
+      for (std::set<Family::Intersection>::const_iterator
+           it=family.intersections.begin(); it!=family.intersections.end(); it++)
+      {
+         size_t var_subset;
+         size_t var_superset_a;
+         size_t var_superset_b;
+         for (var_subset=0; var_subset<subsets.size(); var_subset++)
+            if (subsets[var_subset].first == it->subset)
+               break;
+         for (var_superset_a=0; var_superset_a<subsets.size(); var_superset_a++)
+            if (subsets[var_superset_a].first == it->superset_a)
+               break;
+         for (var_superset_b=0; var_superset_b<subsets.size(); var_superset_b++)
+            if (subsets[var_superset_b].first == it->superset_b)
+               break;
+         if (!(var_subset<subsets.size())
+            || !(var_superset_a<subsets.size())
+            || !(var_superset_b<subsets.size()))
+            throw std::runtime_error("intersection references unknown subset!");
+         ConjunctionImplication x1;
+         x1.antecedents.push_back(var_subset);
+         x1.consequent = var_superset_a;
+         conjunction_implications.push_back(x1);
+         ConjunctionImplication x2;
+         x2.antecedents.push_back(var_subset);
+         x2.consequent = var_superset_b;
+         conjunction_implications.push_back(x2);
+         ConjunctionImplication x3;
+         x3.antecedents.push_back(var_superset_a);
+         x3.antecedents.push_back(var_superset_b);
+         x3.consequent = var_subset;
+         conjunction_implications.push_back(x3);
       }
       
       // compute truth table

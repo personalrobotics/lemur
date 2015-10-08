@@ -1,4 +1,4 @@
-/* File: planner_e8.cpp
+/* File: planner_e8roadmap.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -38,6 +38,7 @@
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/E8Roadmap.h>
 
+#include "or_checker.h"
 #include "planner_e8roadmap.h"
 
 
@@ -232,15 +233,22 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
       
       // set up si / checker
       ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
-      ompl_checker.reset(new OrChecker(ompl_si, env, robot, robot_adofs.size()));
+      ompl_checker.reset(new or_multiset::OrChecker(ompl_si, env, robot, robot_adofs.size()));
       ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_checker));
       ompl_si->setup();
       
       // set up planner
       sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
-      roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));
-      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, roadmapgen, 1));
-      //ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, roadmapgen, std::cout, std::cout, 1));
+      tag_cache.reset(new ompl_multiset::DummyTagCache());
+      try
+      {
+         roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));
+      }
+      catch (const std::runtime_error & ex)
+      {
+         throw OpenRAVE::openrave_exception("failure to create roadmap!");
+      }
+      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, *tag_cache, roadmapgen, 1));
    }
    
    // check consistency

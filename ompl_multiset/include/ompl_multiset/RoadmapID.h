@@ -80,4 +80,61 @@ Roadmap * make_roadmap_gen(const ompl::base::StateSpacePtr & space, std::string 
    throw std::runtime_error("unknown roadmap type!");
 }
 
+template <class Roadmap>
+std::string roadmap_header(const Roadmap * roadmap)
+{
+   if (const RoadmapAAGrid<Roadmap> * x
+      = dynamic_cast<const RoadmapAAGrid<Roadmap>*>(roadmap))
+   {
+      std::string header;
+      header = "roadmap_type: AAGrid\n";
+      header += ompl_multiset::util::sf("res: %s\n",
+         ompl_multiset::util::double_to_text(x->res).c_str());
+      return header;
+   }
+   if (const RoadmapHalton<Roadmap> * x
+      = dynamic_cast<const RoadmapHalton<Roadmap>*>(roadmap))
+   {
+      std::string header;
+      header = "roadmap_type: Halton\n";
+      header += ompl_multiset::util::sf("n: %u\n", x->n);
+      header += ompl_multiset::util::sf("radius: %s\n",
+         ompl_multiset::util::double_to_text(x->radius).c_str());
+      return header;
+   }
+   if (const RoadmapHaltonDens<Roadmap> * x
+      = dynamic_cast<const RoadmapHaltonDens<Roadmap>*>(roadmap))
+   {
+      std::string header;
+      header = "roadmap_type: HaltonDens\n";
+      header += ompl_multiset::util::sf("n_perbatch: %u\n", x->n_perbatch);
+      header += ompl_multiset::util::sf("radius_firstbatch: %s\n",
+         ompl_multiset::util::double_to_text(x->radius_firstbatch).c_str());
+      return header;
+   }
+   if (const RoadmapRGG<Roadmap> * x
+      = dynamic_cast<const RoadmapRGG<Roadmap>*>(roadmap))
+   {
+      std::string header;
+      header = "roadmap_type: RGG\n";
+      header += ompl_multiset::util::sf("n: %u\n", x->n);
+      header += ompl_multiset::util::sf("radius: %s\n",
+         ompl_multiset::util::double_to_text(x->radius).c_str());
+      header += ompl_multiset::util::sf("seed: %u\n", x->seed);
+      return header;
+   }
+   if (const RoadmapRGGDensConst<Roadmap> * x
+      = dynamic_cast<const RoadmapRGGDensConst<Roadmap>*>(roadmap))
+   {
+      std::string header;
+      header = "roadmap_type: RGGDensConst\n";
+      header += ompl_multiset::util::sf("n_perbatch: %u\n", x->n_perbatch);
+      header += ompl_multiset::util::sf("radius: %s\n",
+         ompl_multiset::util::double_to_text(x->radius).c_str());
+      header += ompl_multiset::util::sf("seed: %u\n", x->seed);
+      return header;
+   }
+   throw std::runtime_error("unknown roadmap type!");
+}
+
 } // namespace ompl_multiset

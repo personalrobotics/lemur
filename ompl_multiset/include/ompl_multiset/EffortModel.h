@@ -25,12 +25,21 @@ public:
 class TagCache
 {
 public:
-
    virtual void load_vertex(size_t v_index, size_t & v_tag) = 0;
    virtual void load_edge(size_t e_index, std::vector< size_t > & e_tags) = 0;
    
    virtual void save_vertex(size_t v_index, size_t & v_tag) = 0;
    virtual void save_edge(size_t e_index, std::vector< size_t > & e_tags) = 0;
+};
+
+class DummyTagCache : public TagCache
+{
+public:
+   void load_vertex(size_t v_index, size_t & v_tag) {}
+   void load_edge(size_t e_index, std::vector< size_t > & e_tags) {}
+   
+   void save_vertex(size_t v_index, size_t & v_tag) {}
+   void save_edge(size_t e_index, std::vector< size_t > & e_tags) {}
 };
 
 } // namespace ompl_multiset

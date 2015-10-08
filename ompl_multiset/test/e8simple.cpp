@@ -93,9 +93,12 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    ompl_multiset::FamilyEffortModel fem(family);
    fem.set_target(si);
    
+   // cache
+   ompl_multiset::DummyTagCache tag_cache;
+   
    // planner
    ompl::base::PlannerPtr planner(
-      new ompl_multiset::E8Roadmap(si, fem, roadmap_gen, 1));
+      new ompl_multiset::E8Roadmap(si, fem, tag_cache, roadmap_gen, 1));
    planner->as<ompl_multiset::E8Roadmap>()->coeff_distance = 1.;
    planner->as<ompl_multiset::E8Roadmap>()->coeff_checkcost = 0.;
    planner->as<ompl_multiset::E8Roadmap>()->coeff_batch = 0.;
