@@ -37,6 +37,11 @@ TEST(SelfCCTestCase, SimpleTest)
    OpenRAVE::KinBodyPtr mug3 = env->ReadKinBodyURI("models/objects/mug3.iv");
    env->Add(mug3);
    mug3->SetTransform(mk_ortx(1,0,0, 0,0,0,1));
+   
+   // construct planner
+   OpenRAVE::PlannerBasePtr planner = OpenRAVE::RaveCreatePlanner(env, "E8RoadmapSelfCC");
+   ASSERT_TRUE(planner);
+   
    // construct planner parameters
    OpenRAVE::PlannerBase::PlannerParametersPtr params(new OpenRAVE::PlannerBase::PlannerParameters());
    params->SetRobotActiveJoints(robot);
@@ -44,14 +49,12 @@ TEST(SelfCCTestCase, SimpleTest)
    // trivial planning query
    params->vinitialconfig.clear();
    params->vgoalconfig.clear();
-   params->_sExtraParameters = "<roadmap_id>RGGDensConst(n_perbatch=1000 radius=1.0 seed=1)</roadmap_id>";
+   params->_sExtraParameters = "<roadmap_id>RGG(n=1000 radius=1.6 seed=1)</roadmap_id>";
+   //params->_sExtraParameters = "<roadmap_id>RGG(n=1000 radius=1.0 seed=1)</roadmap_id>";
+   
+#if 1
    params->Validate();
-   // call planner
-   OpenRAVE::PlannerBasePtr planner = OpenRAVE::RaveCreatePlanner(env, "E8RoadmapSelfCC");
-   ASSERT_TRUE(planner);
-   printf("calling init ...\n");
    success = planner->InitPlan(robot, params);
-   printf("init called!\n");
    ASSERT_TRUE(success);
    
    std::stringstream ssin;
@@ -59,12 +62,22 @@ TEST(SelfCCTestCase, SimpleTest)
    ssin << "CacheCalculateSave";
    success = planner->SendCommand(ssout,ssin);
    ASSERT_TRUE(success);
+#endif
    
-#if 0
+   params->vinitialconfig.resize(7, 0.);
+   params->vinitialconfig[0] = -1.0;
+   params->vgoalconfig.resize(7, 0.);
+   params->vgoalconfig[0] = 1.0;
+   params->Validate();
+   success = planner->InitPlan(robot, params);
+   ASSERT_TRUE(success);
+   
    OpenRAVE::TrajectoryBasePtr traj = OpenRAVE::RaveCreateTrajectory(env);
    ASSERT_TRUE(traj);
    OpenRAVE::PlannerStatus status = planner->PlanPath(traj);
-   ASSERT_EQ(status, OpenRAVE::PS_HasSolution);
+   ASSERT_EQ(OpenRAVE::PS_HasSolution, status);
+
+#if 0
    // validate trajectory
    const OpenRAVE::ConfigurationSpecification & tracj_cspec = traj->GetConfigurationSpecification();
    unsigned int gidx;
@@ -73,7 +86,7 @@ TEST(SelfCCTestCase, SimpleTest)
          break;
    ASSERT_LT(gidx, tracj_cspec._vgroups.size());
    const OpenRAVE::ConfigurationSpecification::Group & group = tracj_cspec._vgroups[gidx];
-   ASSERT_EQ(group.dof, 7);
+   ASSERT_EQ(7, group.dof);
    // validate endpoints
    ASSERT_GE(traj->GetNumWaypoints(), 2);
    std::vector<OpenRAVE::dReal> traj_start;

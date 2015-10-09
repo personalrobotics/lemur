@@ -38,19 +38,29 @@ public:
       std::string selffile_header;
       std::string selffile_header_md5;
       FILE * fp;
+      // for saving
       std::vector<char> tag_letters;
+      // for loading
+      size_t tag_self_valid;
+      size_t tag_self_invalid;
+      // methods
+      TagCache();
+      void load_begin(void);
       void load_vertex(size_t v_index, size_t & v_tag);
       void load_edge(size_t e_index, std::vector< size_t > & e_tags);
-      void save_begin();
+      void load_end(void);
+      void save_begin(void);
       void save_vertex(size_t v_index, size_t & v_tag);
       void save_edge(size_t e_index, std::vector< size_t > & e_tags);
-      void save_end();
+      void save_end(void);
    };
 
    const OpenRAVE::EnvironmentBasePtr env;
    
    // all of this set by InitPlan
-   PlannerParametersConstPtr params;
+   PlannerParametersConstPtr params_ptr;
+   std::string alglog;
+   std::string graph;
    OpenRAVE::RobotBasePtr robot;
    std::vector<int> robot_adofs;
    ompl::base::StateSpacePtr ompl_space;
