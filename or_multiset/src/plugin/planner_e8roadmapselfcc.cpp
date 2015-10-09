@@ -186,7 +186,8 @@ public:
       std::vector<OpenRAVE::dReal> adofvals(q, q+dim);
       robot->SetActiveDOFValues(adofvals, OpenRAVE::KinBody::CLA_Nothing);
       for (unsigned int i=0; i<ilcs.size(); i++)
-         if (checker->CheckCollision(ilcs[i].link1, ilcs[i].link2))
+         //if (checker->CheckCollision(ilcs[i].link1, ilcs[i].link2))
+         if (robot->GetEnv()->CheckCollision(ilcs[i].link1, ilcs[i].link2))
             return false;
       return true;
    }
@@ -404,6 +405,9 @@ or_multiset::E8RoadmapSelfCC::E8RoadmapSelfCC(OpenRAVE::EnvironmentBasePtr env):
    OpenRAVE::PlannerBase(env), env(env)
 {
    __description = "E8 roadmap planner";
+   RegisterCommand("GetSelfHash",
+      boost::bind(&or_multiset::E8RoadmapSelfCC::GetSelfHash,this,_1,_2),
+      "get self hash");
    RegisterCommand("GetTimes",
       boost::bind(&or_multiset::E8RoadmapSelfCC::GetTimes,this,_1,_2),
       "get timing information from last plan");
@@ -758,6 +762,12 @@ or_multiset::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       return OpenRAVE::PS_HasSolution;
 }
 
+bool or_multiset::E8RoadmapSelfCC::GetSelfHash(std::ostream & sout, std::istream & sin) const
+{
+   sout << tag_cache->selffile_header_md5;
+   return true;
+}
+
 bool or_multiset::E8RoadmapSelfCC::CacheCalculateSave(std::ostream & sout, std::istream & sin)
 {
    printf("CacheCalculateSave called ...\n");
@@ -770,7 +780,6 @@ bool or_multiset::E8RoadmapSelfCC::CacheCalculateSave(std::ostream & sout, std::
    ompl_planner->setProblemDefinition(ompl_pdef);
    fem->set_target(family->subsets.find("self")->second.si);
    
-   printf("checking all edges ...\n");
    ompl_planner->solve_all();
    
    ompl_planner->cache_save_all();

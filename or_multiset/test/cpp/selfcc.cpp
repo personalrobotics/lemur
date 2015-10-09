@@ -58,6 +58,17 @@ TEST(SelfCCTestCase, SimpleTest)
    params->Validate();
    success = planner->InitPlan(robot, params);
    ASSERT_TRUE(success);
+   
+   ssin.str(std::string()); ssin.clear();
+   ssout.str(std::string()); ssout.clear();
+   ssin << "GetSelfHash";
+   success = planner->SendCommand(ssout,ssin);
+   printf("self hash: |%s|\n", ssout.str().c_str());
+   ASSERT_TRUE(success);
+   return;
+   
+   ssin.str(std::string()); ssin.clear();
+   ssout.str(std::string()); ssout.clear();
    ssin << "CacheCalculateSave";
    success = planner->SendCommand(ssout,ssin);
    ASSERT_TRUE(success);
