@@ -786,7 +786,7 @@ bool or_multiset::E8RoadmapSelfCC::GetTimes(std::ostream & sout, std::istream & 
       it=family->subsets.begin(); it!=family->subsets.end(); it++)
    {
       sout << " n_checks " << it->first;
-      sout << boost::dynamic_pointer_cast<IlcChecker>(it->second.si->getStateValidityChecker())->num_checks);
+      sout << " " << boost::dynamic_pointer_cast<IlcChecker>(it->second.si->getStateValidityChecker())->num_checks;
    }
    return true;
 }

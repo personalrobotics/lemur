@@ -21,6 +21,9 @@ OpenRAVE::Transform mk_ortx(
 TEST(SelfCCTestCase, SimpleTest)
 {
    bool success;
+   std::stringstream ssin;
+   std::stringstream ssout;
+   
    // initialize with wam7
    OpenRAVE::RaveInitialize(true, OpenRAVE::Level_Info);
    OpenRAVE::EnvironmentBasePtr env = OpenRAVE::RaveCreateEnvironment();
@@ -52,17 +55,12 @@ TEST(SelfCCTestCase, SimpleTest)
    params->_sExtraParameters = "<roadmap_id>RGG(n=1000 radius=1.6 seed=1)</roadmap_id>";
    //params->_sExtraParameters = "<roadmap_id>RGG(n=1000 radius=1.0 seed=1)</roadmap_id>";
    
-#if 1
    params->Validate();
    success = planner->InitPlan(robot, params);
    ASSERT_TRUE(success);
-   
-   std::stringstream ssin;
-   std::stringstream ssout;
    ssin << "CacheCalculateSave";
    success = planner->SendCommand(ssout,ssin);
    ASSERT_TRUE(success);
-#endif
    
    params->vinitialconfig.resize(7, 0.);
    params->vinitialconfig[0] = -1.0;
@@ -76,6 +74,13 @@ TEST(SelfCCTestCase, SimpleTest)
    ASSERT_TRUE(traj);
    OpenRAVE::PlannerStatus status = planner->PlanPath(traj);
    ASSERT_EQ(OpenRAVE::PS_HasSolution, status);
+   
+   ssin.str(std::string()); ssin.clear();
+   ssout.str(std::string()); ssout.clear();
+   ssin << "GetTimes";
+   success = planner->SendCommand(ssout,ssin);
+   ASSERT_TRUE(success);
+   printf("collision checking stats: %s\n", ssout.str().c_str()); 
 
 #if 0
    // validate trajectory
