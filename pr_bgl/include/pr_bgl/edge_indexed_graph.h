@@ -74,6 +74,27 @@ vertices(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
 }
 
 template <class Graph, class EdgeIndexMap>
+inline std::pair<typename boost::graph_traits<Graph>::edge_iterator, typename boost::graph_traits<Graph>::edge_iterator>
+edges(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+{
+   return edges(g.m_g);
+}
+
+template <class Graph, class EdgeIndexMap>
+inline typename boost::graph_traits<Graph>::vertex_descriptor
+source(typename boost::graph_traits<Graph>::edge_descriptor e, const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+{
+   return source(e, g.m_g);
+}
+
+template <class Graph, class EdgeIndexMap>
+inline typename boost::graph_traits<Graph>::vertex_descriptor
+target(typename boost::graph_traits<Graph>::edge_descriptor e, const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+{
+   return target(e, g.m_g);
+}
+
+template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::vertex_descriptor
 add_vertex(EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
 {

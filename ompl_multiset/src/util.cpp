@@ -9,6 +9,8 @@
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
+#include <fstream>
+#include <sstream>
 #include <string>
 #include <openssl/sha.h>
 #include <ompl_multiset/util.h>
@@ -60,7 +62,16 @@ std::string ompl_multiset::util::sha1(std::string in)
       out += sf("%02x", hashed[i]);
    return out;
 }
-   
+
+std::string ompl_multiset::util::file_sha1(std::string fname)
+{
+   std::ifstream fp;
+   fp.open(fname.c_str());;
+   std::stringstream ss;
+   ss << fp.rdbuf();
+   return sha1(ss.str());
+}
+
 // volume of an n-ball
 // https://en.wikipedia.org/wiki/Volume_of_an_n-ball
 double ompl_multiset::util::volume_n_ball(unsigned int n)

@@ -76,7 +76,18 @@ Roadmap * make_roadmap_gen(const ompl::base::StateSpacePtr & space, std::string 
       unsigned int seed = atoi(parsed.args[2].second.c_str());
       return new RoadmapRGGDensConst<Roadmap>(space, n_perbatch, radius, seed);
    }
-
+   
+   if (parsed.name == "FromFile")
+   {
+      if (parsed.args.size() != 2
+         || parsed.args[0].first != "filename"
+         || parsed.args[1].first != "root_radius")
+         throw std::runtime_error("roadmap args incorrect!");
+      std::string filename = parsed.args[0].second.c_str();
+      double root_radius = atof(parsed.args[1].second.c_str());
+      return new RoadmapFromFile<Roadmap>(space, filename, root_radius);
+   }
+   
    throw std::runtime_error("unknown roadmap type!");
 }
 

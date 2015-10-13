@@ -7,6 +7,8 @@
 #include <openrave/openrave.h>
 
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graphml.hpp>
+#include <boost/property_map/dynamic_property_map.hpp>
 
 #include <ompl/base/State.h>
 #include <ompl/base/StateSpace.h>
@@ -21,6 +23,7 @@
 
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>
+#include <pr_bgl/string_map.h>
 #include <pr_bgl/heap_indexed.h>
 
 #include <ompl_multiset/util.h>
@@ -30,6 +33,7 @@
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapAAGrid.h>
+#include <ompl_multiset/RoadmapFromFile.h>
 #include <ompl_multiset/RoadmapHalton.h>
 #include <ompl_multiset/RoadmapHaltonDens.h>
 #include <ompl_multiset/RoadmapRGG.h>

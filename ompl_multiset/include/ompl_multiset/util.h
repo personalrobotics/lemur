@@ -15,6 +15,8 @@ bool startswith(std::string s, std::string prefix);
 
 std::string sha1(std::string in);
 
+std::string file_sha1(std::string in);
+
 // volume of an n-ball
 double volume_n_ball(unsigned int n);
 

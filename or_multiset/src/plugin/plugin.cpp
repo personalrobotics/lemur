@@ -18,6 +18,7 @@
 
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>
+#include <pr_bgl/string_map.h>
 #include <pr_bgl/heap_indexed.h>
 
 #include <ompl_multiset/MultiSetRoadmap.h>

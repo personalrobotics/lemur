@@ -18,6 +18,32 @@ struct StateCon
 };
 typedef boost::shared_ptr<StateCon> StateConPtr;
 
+inline void stringify_to_x(const std::string & in, ompl_multiset::StateConPtr & statecon)
+{
+   statecon.reset();
+   //repr = atof(in.c_str());
+}
+inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPtr & in)
+{
+   if (!in.get())
+   {
+      repr = "no_state";
+      return;
+   }
+   unsigned int dim = in->space->getDimension();
+   ompl::base::RealVectorStateSpace::StateType * state
+      = in->state->as<ompl::base::RealVectorStateSpace::StateType>();
+   repr.clear();
+   for (unsigned int ui=0; ui<dim; ui++)
+   {
+      if (ui)
+         repr += " ";
+      std::string component_repr;
+      pr_bgl::stringify_from_x(component_repr, (double)state->values[ui]);
+      repr += component_repr;
+   }
+}
+
 // for now, this does HARD BATCHING with SUBGRAPH COSTS
 class E8Roadmap : public ompl::base::Planner
 {

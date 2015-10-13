@@ -24,6 +24,7 @@
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapAAGrid.h>
+#include <ompl_multiset/RoadmapFromFile.h>
 #include <ompl_multiset/RoadmapHalton.h>
 #include <ompl_multiset/RoadmapHaltonDens.h>
 #include <ompl_multiset/RoadmapRGG.h>
@@ -189,7 +190,7 @@ int main(int argc, char **argv)
    }
    else if (out_format == "graphml")
    {
-      write_graphml(*outp, g, get(boost::vertex_index,g), props, true); // ordered_vertices
+      boost::write_graphml(*outp, g, get(boost::vertex_index,g), props, true); // ordered_vertices
    }
    else
       throw std::runtime_error("out format must be graphio or graphml!");
