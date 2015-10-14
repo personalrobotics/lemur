@@ -50,6 +50,9 @@ set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES
    "${CATKIN_DEVEL_PREFIX}/lib/openrave-${OpenRAVE_LIBRARY_SUFFIX}")
 
 if (CATKIN_ENABLE_TESTING)
+   
+   catkin_add_gtest(test_wam7 test/cpp/wam7.cpp)
+   target_link_libraries(test_wam7 ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
 
    catkin_add_gtest(test_selfcc test/cpp/selfcc.cpp)
    target_link_libraries(test_selfcc ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
@@ -58,7 +61,7 @@ if (CATKIN_ENABLE_TESTING)
    set_target_properties(test_hashes PROPERTIES COMPILE_FLAGS -DORDATA="${PROJECT_SOURCE_DIR}/test/ordata")
    target_link_libraries(test_hashes ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
    
-   catkin_add_nosetests(test/python/hashes.py)
+   catkin_add_nosetests(test/python/wam7.py)
    
 endif()
 

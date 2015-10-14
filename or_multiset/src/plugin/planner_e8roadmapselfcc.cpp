@@ -429,7 +429,6 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr robot, std::istrea
 {
    PlannerParametersPtr inparams(new PlannerParameters());
    inparams_ser >> *inparams;
-   //RAVELOG_WARN("skipping custom PlannerParameters validation due to exception!\n");
    inparams->Validate();
    return this->InitPlan(robot, inparams);
 }

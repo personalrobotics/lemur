@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 from __future__ import print_function, unicode_literals, absolute_import, division
-import atexit
-import sys
 import openravepy
 import prpy_multiset.planning_e8roadmapselfcc
 
