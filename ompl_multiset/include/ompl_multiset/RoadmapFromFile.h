@@ -85,7 +85,8 @@ public:
       filename(filename),
       filesha1(ompl_multiset::util::file_sha1(filename)),
       m_root_radius(root_radius),
-      bounds(0)
+      bounds(0),
+      num_batches_generated(0)
    {
       // check that we're in a real vector state space
       if (space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
