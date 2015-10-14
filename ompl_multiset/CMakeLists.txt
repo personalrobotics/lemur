@@ -44,15 +44,23 @@ target_link_libraries(generate-unit-roadmap ${PROJECT_NAME})
 add_executable(test_graph_overlay src/test_graph_overlay.cpp)
 target_link_libraries(test_graph_overlay ${PROJECT_NAME})
 
-catkin_add_gtest(test_roadmapgen test/roadmapgen.cpp)
-target_link_libraries(test_roadmapgen ${PROJECT_NAME})
+if (CATKIN_ENABLE_TESTING)
 
-catkin_add_gtest(test_logic test/logic.cpp)
+   catkin_add_gtest(test_roadmapgen test/roadmapgen.cpp)
+   target_link_libraries(test_roadmapgen ${PROJECT_NAME})
 
-catkin_add_gtest(test_family_effort_model test/family_effort_model.cpp)
+   catkin_add_gtest(test_logic test/logic.cpp)
 
-catkin_add_gtest(test_e8simple test/e8simple.cpp)
-target_link_libraries(test_e8simple ${PROJECT_NAME})
+   catkin_add_gtest(test_family_effort_model test/family_effort_model.cpp)
+
+   catkin_add_gtest(test_e8simple test/e8simple.cpp)
+   target_link_libraries(test_e8simple ${PROJECT_NAME})
+
+   catkin_add_gtest(test_e8fromfile test/e8fromfile.cpp)
+   set_target_properties(test_e8fromfile PROPERTIES COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
+   target_link_libraries(test_e8fromfile ${PROJECT_NAME})
+
+endif ()
 
 install(TARGETS ${PROJECT_NAME}
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

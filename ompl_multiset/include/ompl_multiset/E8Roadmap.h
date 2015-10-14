@@ -20,8 +20,8 @@ typedef boost::shared_ptr<StateCon> StateConPtr;
 
 inline void stringify_to_x(const std::string & in, ompl_multiset::StateConPtr & statecon)
 {
-   statecon.reset();
-   //repr = atof(in.c_str());
+   printf("stringify_to_x(in,statecon) not yet implemented!\n");
+   abort();
 }
 inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPtr & in)
 {

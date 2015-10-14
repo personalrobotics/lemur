@@ -1,11 +1,15 @@
-/* File: e8simple.cpp
+/* File: e8fromfile.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
  */
 
+#include <fstream>
+
 #include <boost/shared_ptr.hpp>
+#include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/graphml.hpp>
 
 #include <ompl/base/ScopedState.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -25,9 +29,12 @@
 #include <ompl_multiset/E8Roadmap.h>
 #include <ompl_multiset/Family.h>
 #include <ompl_multiset/FamilyEffortModel.h>
-#include <ompl_multiset/RoadmapHalton.h>
+#include <ompl_multiset/RoadmapFromFile.h>
 
 #include <gtest/gtest.h>
+
+#define XSTR(s) STR(s)
+#define STR(s) # s
 
 bool isvalid(const ompl::base::State * state)
 {
@@ -60,7 +67,7 @@ get_path_state(boost::shared_ptr<ompl::geometric::PathGeometric> path, size_t id
    return traj_state;
 }
 
-TEST(E8SimpleTestCase, E8SimpleTest)
+TEST(E8FromFileTestCase, E8FromFileTest)
 {
    // state space
    boost::shared_ptr<ompl::base::RealVectorStateSpace> space(
@@ -84,8 +91,8 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    
    // roadmap
    ompl_multiset::E8Roadmap::RoadmapPtr roadmap_gen(
-      new ompl_multiset::RoadmapHalton<ompl_multiset::E8Roadmap::Roadmap>(
-      space, 30, 0.3));
+      new ompl_multiset::RoadmapFromFile<ompl_multiset::E8Roadmap::Roadmap>(
+      space, XSTR(DATADIR) "/halton2d.xml", 0.3));
    
    // family
    ompl_multiset::Family family;
