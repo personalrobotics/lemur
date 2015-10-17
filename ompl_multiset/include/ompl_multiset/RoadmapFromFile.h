@@ -15,7 +15,7 @@ public:
    typedef boost::writable_property_map_tag category;
    typedef typename boost::property_traits<PropMap>::key_type key_type;
    typedef std::string value_type;
-   typedef std::string & reference;
+   typedef std::string reference;
    const PropMap prop_map;
    ompl::base::StateSpace * space;
    const unsigned int dim;

@@ -89,7 +89,7 @@ public:
    typedef typename boost::property_traits<PropMap>::category category;
    typedef typename boost::property_traits<PropMap>::key_type key_type;
    typedef std::string value_type;
-   typedef typename boost::property_traits<PropMap>::reference reference;
+   typedef std::string reference;
    PropMap prop_map;
    StringMap(PropMap prop_map) : prop_map(prop_map) {}
 };
@@ -101,7 +101,7 @@ StringMap<PropMap> make_string_map(PropMap prop_map)
 }
 
 template <class PropMap>
-inline const std::string
+inline std::string
 get(const StringMap<PropMap> & map, const typename StringMap<PropMap>::key_type & k)
 {
    std::string repr;
@@ -115,7 +115,7 @@ put(const StringMap<PropMap> & map, const typename StringMap<PropMap>::key_type 
 {
    typename boost::property_traits<PropMap>::value_type val;
    stringify_to_x(repr, val);
-   boost::put(map.prop_map, k, val);
+   put(map.prop_map, k, val);
 }
 
 } // namespace pr_bgl
