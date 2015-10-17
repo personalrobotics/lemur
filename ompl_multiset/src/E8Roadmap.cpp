@@ -77,7 +77,10 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    tag_cache.load_begin();
    
    for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+   {
+      g[*vi].tag = 0;
       tag_cache.load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
+   }
    
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
@@ -364,6 +367,7 @@ ompl_multiset::E8Roadmap::solve(
          size_t v_index = get(get(boost::vertex_index,g),*vi);
          if (v_index < num_vertices_before)
             continue;
+         g[*vi].tag = 0;
          tag_cache.load_vertex(v_index, g[*vi].tag);
       }
       
