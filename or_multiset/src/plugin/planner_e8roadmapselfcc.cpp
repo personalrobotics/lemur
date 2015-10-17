@@ -275,7 +275,7 @@ or_multiset::E8RoadmapSelfCC::PlannerParameters::endElement(const std::string & 
    return false;
 }
 
-or_multiset::E8RoadmapSelfCC::TagCache::TagCache(): fp(fp)
+or_multiset::E8RoadmapSelfCC::TagCache::TagCache()
 {
 }
 
