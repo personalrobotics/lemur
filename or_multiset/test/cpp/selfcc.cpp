@@ -65,8 +65,8 @@ TEST(SelfCCTestCase, SimpleTest)
    success = planner->SendCommand(ssout,ssin);
    printf("self hash: |%s|\n", ssout.str().c_str());
    ASSERT_TRUE(success);
-   return;
    
+#if 0
    ssin.str(std::string()); ssin.clear();
    ssout.str(std::string()); ssout.clear();
    ssin << "CacheCalculateSave";
@@ -93,7 +93,6 @@ TEST(SelfCCTestCase, SimpleTest)
    ASSERT_TRUE(success);
    printf("collision checking stats: %s\n", ssout.str().c_str()); 
 
-#if 0
    // validate trajectory
    const OpenRAVE::ConfigurationSpecification & tracj_cspec = traj->GetConfigurationSpecification();
    unsigned int gidx;
