@@ -92,11 +92,11 @@ c.line_to(0., 0.)
 c.stroke()
 
 # draw graph lines
-numsubgraphs = 0
+numbatches = 0
 for eidx in graph.edges:
-   isubgraph = int(graph.eprops[eidx]['subgraph'])
-   if numsubgraphs < isubgraph+1:
-      numsubgraphs = isubgraph+1
+   ibatch = int(graph.eprops[eidx]['batch'])
+   if numbatches < ibatch+1:
+      numbatches = ibatch+1
 
 c.set_line_width(0.005)
 level_colors = [
@@ -104,11 +104,11 @@ level_colors = [
    (0.3, 0.3, 0.3),
    (0.6, 0.6, 0.6),
 ]
-for isubgraph in reversed(range(numsubgraphs)):
-   color = level_colors[isubgraph]
+for ibatch in reversed(range(numbatches)):
+   color = level_colors[ibatch]
    c.set_source_rgb(*color)
    for eidx,(vidx1,vidx2) in graph.edges.items():
-      if int(graph.eprops[eidx]['subgraph']) != isubgraph:
+      if int(graph.eprops[eidx]['batch']) != ibatch:
          continue
       # compute actual states in floats
       x1,y1 = map(float,graph.vprops[vidx1]['state'].split())

@@ -63,6 +63,7 @@ class RoadmapFromFile : public RoadmapSpec
    typedef typename RoadmapSpec::BaseVBatch VBatch;
    typedef typename RoadmapSpec::BaseEBatch EBatch;
    typedef typename RoadmapSpec::BaseVShadow VShadow;
+   typedef typename RoadmapSpec::BaseNN NN;
 
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
@@ -110,6 +111,7 @@ public:
    
    void generate(
       Graph & g,
+      NN & nn,
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,

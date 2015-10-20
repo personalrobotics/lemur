@@ -105,7 +105,9 @@ public:
    typedef EdgeIndexedGraph::EdgeVectorMap EdgeVectorMap;
    
    // roadmap generator type
-   typedef ompl_multiset::Roadmap<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap> Roadmap;
+   //typedef ompl_multiset::NNOmplBatched<Graph,VPStateMap> NN;
+   typedef ompl_multiset::NNLinear<Graph,VPStateMap> NN;
+   typedef ompl_multiset::Roadmap<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap,NN> Roadmap;
    typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
    // roots overlay graph (used internally)
@@ -171,6 +173,9 @@ public:
    
    TagCache & tag_cache;
    
+   boost::shared_ptr< ompl::NearestNeighbors<Vertex> > ompl_nn;
+   NN nn;
+   
    // parameters
    double coeff_checkcost;
    double coeff_distance;
@@ -210,7 +215,8 @@ public:
 
    bool isevaledmap_get(const Edge & e);
    double wmap_get(const Edge & e);
-
+   
+   double ompl_nn_dist(const Vertex & va, const Vertex & vb);
 };
 
 // helper property map which delegates to FamilyPlanner::isevaledmap_get()

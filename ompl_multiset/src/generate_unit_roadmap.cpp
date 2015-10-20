@@ -13,7 +13,9 @@
 #include <boost/graph/graphml.hpp>
 #include <boost/program_options.hpp>
 #include <ompl/base/StateSpace.h>
+#include <ompl/base/ScopedState.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/datastructures/NearestNeighbors.h>
 
 #include <pr_bgl/graph_io.h>
 #include <pr_bgl/string_map.h>
@@ -27,6 +29,7 @@
 #include <ompl_multiset/RoadmapFromFile.h>
 #include <ompl_multiset/RoadmapHalton.h>
 #include <ompl_multiset/RoadmapHaltonDens.h>
+#include <ompl_multiset/RoadmapHaltonOffDens.h>
 #include <ompl_multiset/RoadmapRGG.h>
 #include <ompl_multiset/RoadmapRGGDensConst.h>
 #include <ompl_multiset/RoadmapID.h>
@@ -75,7 +78,8 @@ typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap> Roadmap;
+typedef ompl_multiset::NNLinear<Graph,StateMap> NN;
+typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,NN> Roadmap;
 typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
 
@@ -151,7 +155,8 @@ int main(int argc, char **argv)
    while (p_mygen->get_num_batches_generated() < num_batches)
    {
       // generate a graph
-      p_mygen->generate(eig,
+      NN nnlin(g, get(&VertexProperties::state,g), space);
+      p_mygen->generate(eig, nnlin,
          get(&VertexProperties::state, g),
          get(&EdgeProperties::distance, g),
          get(&VertexProperties::batch, g),

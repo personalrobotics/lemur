@@ -1,12 +1,8 @@
-/* File: RoadmapRGG.h
+/* File: RoadmapHalton.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
  */
-
-/* requires:
-#include <ompl_multiset/SamplerGenMonkeyPatch.h>
-*/
 
 namespace ompl_multiset
 {
@@ -15,10 +11,10 @@ namespace ompl_multiset
 // uniform milestone sampling with given seed,
 // uses the space's default sampler
 //template <class Graph, class VertexIndexMap, class EdgeIndexMap//,
-   //class StateMap, class BatcMap, class IsShadowMap, class DistanceMap
+   //class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
 //   >
 template <class RoadmapSpec>
-class RoadmapRGGDensConst : public RoadmapSpec
+class RoadmapHaltonOffDens : public RoadmapSpec
 {
    typedef typename RoadmapSpec::BaseGraph Graph;
    typedef typename RoadmapSpec::BaseVState VState;
@@ -27,7 +23,7 @@ class RoadmapRGGDensConst : public RoadmapSpec
    typedef typename RoadmapSpec::BaseEBatch EBatch;
    typedef typename RoadmapSpec::BaseVShadow VShadow;
    typedef typename RoadmapSpec::BaseNN NN;
-   
+
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
    typedef typename GraphTypes::edge_descriptor Edge;
@@ -36,22 +32,35 @@ class RoadmapRGGDensConst : public RoadmapSpec
 public:
    // input parameters
    const unsigned int n_perbatch;
-   const double radius;
+   const double radius_firstbatch;
    const unsigned int seed;
-
-   RoadmapRGGDensConst(
+   
+   RoadmapHaltonOffDens(
       const ompl::base::StateSpacePtr space,
-      unsigned int n_perbatch, double radius, unsigned int seed):
+      unsigned int n_perbatch, double radius_firstbatch, unsigned int seed):
       RoadmapSpec(space,0),
-      n_perbatch(n_perbatch), radius(radius), seed(seed),
+      n_perbatch(n_perbatch), radius_firstbatch(radius_firstbatch), seed(seed),
+      dim(0),
+      bounds(0),
+      offset_state(space),
       num_batches_generated(0),
       vertices_generated(0),
-      edges_generated(0),
-      sampler(space->allocStateSampler())
+      edges_generated(0)
    {
+      // check that we're in a real vector state space
+      if (space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
+         throw std::runtime_error("RoadmapHaltonDens only supports rel vector state spaces!");
+      dim = space->getDimension();
+      if (0 == ompl_multiset::util::get_prime(dim-1))
+         throw std::runtime_error("not enough primes hardcoded!");
+      bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
+      
+      ompl::base::StateSamplerPtr sampler(space->allocStateSampler());
       ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
+      sampler->sampleUniform(offset_state.get());
+      offset_values = offset_state.get()->as<ompl::base::RealVectorStateSpace::StateType>()->values;
    }
-   ~RoadmapRGGDensConst() {}
+   ~RoadmapHaltonOffDens() {}
    
    std::size_t get_num_batches_generated()
    {
@@ -60,7 +69,8 @@ public:
    
    double root_radius(std::size_t i_batch)
    {
-      return radius;
+      return radius_firstbatch
+         * pow(1./(i_batch+1.), 1./dim);
    }
    
    void generate(
@@ -72,8 +82,9 @@ public:
       EBatch edge_batch_map,
       VShadow is_shadow_map)
    {
-      // ok, generate n nodes!
-      while (num_vertices(g) < (num_batches_generated+1)*n_perbatch)
+      // compute radius
+      double radius = root_radius(num_batches_generated);
+      while (num_vertices(g) < (num_batches_generated+1) * n_perbatch)
       {
          Vertex v_new = add_vertex(g);
          
@@ -82,8 +93,18 @@ public:
          
          // allocate a new state for this vertex
          get(state_map, v_new).reset(new StateCon(this->space.get()));
-         this->sampler->sampleUniform(get(state_map, v_new)->state);
-         
+         ompl::base::State * v_state = get(state_map, v_new)->state;
+         double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         for (unsigned int ui=0; ui<dim; ui++)
+         {
+            double value = offset_values[ui];
+            value += (bounds.high[ui] - bounds.low[ui])
+               * ompl_multiset::util::halton(ompl_multiset::util::get_prime(ui), vertices_generated);
+            if (bounds.high[ui] < value)
+               value -= (bounds.high[ui] - bounds.low[ui]);
+            values[ui] = value;
+         }
+                  
          // allocate new undirected edges
          std::vector< std::pair<Vertex,double> > vs_near;
          nn.nearestR(v_new, radius, vs_near);
@@ -109,11 +130,15 @@ public:
    }
    
 private:
+   // from space
+   unsigned int dim;
+   ompl::base::RealVectorBounds bounds;
+   ompl::base::ScopedState<ompl::base::RealVectorStateSpace> offset_state;
+   double * offset_values;
    // progress
    std::size_t num_batches_generated;
    std::size_t vertices_generated;
    std::size_t edges_generated;
-   ompl::base::StateSamplerPtr sampler;
 };
 
 } // namespace ompl_multiset

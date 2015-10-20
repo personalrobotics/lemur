@@ -16,6 +16,7 @@ class RoadmapAAGrid : public RoadmapSpec
    typedef typename RoadmapSpec::BaseVBatch VBatch;
    typedef typename RoadmapSpec::BaseEBatch EBatch;
    typedef typename RoadmapSpec::BaseVShadow VShadow;
+   typedef typename RoadmapSpec::BaseNN NN;
 
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
@@ -42,16 +43,6 @@ public:
          throw std::runtime_error("RoadmapAAGrid only supports rel vector state spaces!");
       dim = space->getDimension();
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
-#if 0
-      int ret = sscanf(args.c_str(), "res=%lf", &res);
-      if (ret != 1)
-         throw std::runtime_error("bad args to RoadmapAAGrid!");
-      if (args != ompl_multiset::util::sf("res=%s",
-         ompl_multiset::util::double_to_text(res).c_str()))
-      {
-         throw std::runtime_error("args not in canonical form!");
-      }
-#endif
       // check for infinite (no) bounds?
    }
    ~RoadmapAAGrid() {}
@@ -68,6 +59,7 @@ public:
    
    void generate(
       Graph & g,
+      NN & nn,
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,

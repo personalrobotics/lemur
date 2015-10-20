@@ -26,6 +26,7 @@ class RoadmapRGG : public RoadmapSpec
    typedef typename RoadmapSpec::BaseVBatch VBatch;
    typedef typename RoadmapSpec::BaseEBatch EBatch;
    typedef typename RoadmapSpec::BaseVShadow VShadow;
+   typedef typename RoadmapSpec::BaseNN NN;
    
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
@@ -48,16 +49,6 @@ public:
       edges_generated(0),
       sampler(space->allocStateSampler())
    {
-#if 0
-      int ret = sscanf(args.c_str(), "n=%u radius=%lf seed=%u", &n, &radius, &seed);
-      if (ret != 3)
-         throw std::runtime_error("bad args to RoadmapRGG!");
-      if (args != ompl_multiset::util::sf("n=%u radius=%s seed=%u",
-         n, ompl_multiset::util::double_to_text(radius).c_str(), seed))
-      {
-         throw std::runtime_error("args not in canonical form!");
-      }
-#endif
       ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
    }
    ~RoadmapRGG() {}
@@ -74,6 +65,7 @@ public:
    
    void generate(
       Graph & g,
+      NN & nn,
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,
@@ -95,16 +87,12 @@ public:
          this->sampler->sampleUniform(get(state_map, v_new)->state);
          
          // allocate new undirected edges
-         for (unsigned int ui=0; ui<num_vertices(g)-1; ui++)
+         std::vector< std::pair<Vertex,double> > vs_near;
+         nn.nearestR(v_new, radius, vs_near);
+         for (unsigned int ui=0; ui<vs_near.size(); ui++)
          {
-            Vertex v_other = vertex(ui, g);
-            double dist = this->space->distance(
-               get(state_map, v_new)->state,
-               get(state_map, v_other)->state);
-            if (this->radius < dist)
-               continue;
-            Edge e = add_edge(v_new, v_other, g).first;
-            put(distance_map, e, dist);
+            Edge e = add_edge(v_new, vs_near[ui].first, g).first;
+            put(distance_map, e, vs_near[ui].second);
             put(edge_batch_map, e, 0);
             edges_generated++;
          }

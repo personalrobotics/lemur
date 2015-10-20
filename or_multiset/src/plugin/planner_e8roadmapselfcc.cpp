@@ -21,6 +21,7 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 #include <ompl/geometric/PathGeometric.h>
+#include <ompl/datastructures/NearestNeighbors.h>
 
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>
@@ -39,6 +40,7 @@
 #include <ompl_multiset/RoadmapFromFile.h>
 #include <ompl_multiset/RoadmapHalton.h>
 #include <ompl_multiset/RoadmapHaltonDens.h>
+#include <ompl_multiset/RoadmapHaltonOffDens.h>
 #include <ompl_multiset/RoadmapRGG.h>
 #include <ompl_multiset/RoadmapRGGDensConst.h>
 #include <ompl_multiset/RoadmapID.h>
@@ -704,7 +706,11 @@ or_multiset::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    }
    
    std::ofstream fp_alglog;
-   if (alglog != "")
+   if (alglog == "-")
+   {
+      ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &std::cout;
+   }
+   else if (alglog != "")
    {
       fp_alglog.open(alglog.c_str());
       ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &fp_alglog;
@@ -717,7 +723,11 @@ or_multiset::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = 0;
    fp_alglog.close();
    
-   if (graph != "")
+   if (graph == "-")
+   {
+      ompl_planner->as<ompl_multiset::E8Roadmap>()->dump_graph(std::cout);
+   }
+   else if (graph != "")
    {
       std::ofstream fp_graph;
       fp_graph.open(graph.c_str());

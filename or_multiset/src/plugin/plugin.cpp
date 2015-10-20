@@ -15,6 +15,7 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/Planner.h>
 #include <ompl/base/ProblemDefinition.h>
+#include <ompl/datastructures/NearestNeighbors.h>
 
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>

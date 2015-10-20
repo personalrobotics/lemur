@@ -22,6 +22,7 @@ class RoadmapHalton : public RoadmapSpec
    typedef typename RoadmapSpec::BaseVBatch VBatch;
    typedef typename RoadmapSpec::BaseEBatch EBatch;
    typedef typename RoadmapSpec::BaseVShadow VShadow;
+   typedef typename RoadmapSpec::BaseNN NN;
 
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
@@ -51,16 +52,6 @@ public:
       if (0 == ompl_multiset::util::get_prime(dim-1))
          throw std::runtime_error("not enough primes hardcoded!");
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
-#if 0
-      int ret = sscanf(args.c_str(), "n=%u radius=%lf", &n, &radius);
-      if (ret != 2)
-         throw std::runtime_error("bad args to RoadmapHalton!");
-      if (args != ompl_multiset::util::sf("n=%u radius=%s",
-         n, ompl_multiset::util::double_to_text(radius).c_str()))
-      {
-         throw std::runtime_error("args not in canonical form!");
-      }
-#endif
    }
    ~RoadmapHalton() {}
    
@@ -76,6 +67,7 @@ public:
    
    void generate(
       Graph & g,
+      NN & nn,
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,
@@ -100,18 +92,14 @@ public:
             values[ui] = bounds.low[ui] + (bounds.high[ui] - bounds.low[ui])
                * ompl_multiset::util::halton(
                   ompl_multiset::util::get_prime(ui), vertices_generated);
-                  
+         
          // allocate new undirected edges
-         for (unsigned int ui=0; ui<num_vertices(g)-1; ui++)
+         std::vector< std::pair<Vertex,double> > vs_near;
+         nn.nearestR(v_new, radius, vs_near);
+         for (unsigned int ui=0; ui<vs_near.size(); ui++)
          {
-            Vertex v_other = vertex(ui, g);
-            double dist = this->space->distance(
-               get(state_map, v_new)->state,
-               get(state_map, v_other)->state);
-            if (radius < dist)
-               continue;
-            Edge e = add_edge(v_new, v_other, g).first;
-            put(distance_map, e, dist);
+            Edge e = add_edge(v_new, vs_near[ui].first, g).first;
+            put(distance_map, e, vs_near[ui].second);
             put(edge_batch_map, e, 0);
             edges_generated++;
          }

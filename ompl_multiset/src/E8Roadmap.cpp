@@ -15,6 +15,8 @@
 #include <ompl/base/goals/GoalState.h>
 #include <ompl/base/goals/GoalStates.h>
 #include <ompl/geometric/PathGeometric.h>
+#include <ompl/datastructures/NearestNeighbors.h>
+#include <ompl/datastructures/NearestNeighborsGNAT.h>
 
 // TEMP for stringify
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -50,10 +52,16 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       get(&OverVProps::core_vertex, og),
       get(&OverEProps::core_edge, og)),
    tag_cache(tag_cache),
+   ompl_nn(new ompl::NearestNeighborsGNAT<Vertex>),
+   //nn(g, get(&VProps::state,g), space, ompl_nn.get()),
+   nn(g, get(&VProps::state,g), space),
    coeff_checkcost(0.),
    coeff_distance(1.),
    coeff_batch(0.)
 {
+   // setup ompl_nn
+   ompl_nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::ompl_nn_dist, this, _1, _2));
+   
    printf("E8Roadmap: constructing %u batches ...\n", num_batches);
    
    // before we start,
@@ -61,7 +69,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    // note that new vertices/edges get properties from constructor
    while (roadmap_gen->get_num_batches_generated() < num_batches)
    {
-      roadmap_gen->generate(eig,
+      //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
+      nn.sync();
+      roadmap_gen->generate(eig, nn,
          get(&VProps::state, g),
          get(&EProps::distance, g),
          get(&VProps::batch, g),
@@ -302,6 +312,9 @@ ompl_multiset::E8Roadmap::solve(
          }
       }
       
+      printf("running lazy search over %lu vertices and %lu edges...\n",
+         num_vertices(g), num_edges(g));
+      
       // run lazy search
       if (os_alglog)
       {
@@ -352,7 +365,9 @@ ompl_multiset::E8Roadmap::solve(
       size_t num_edges_before = num_edges(g);
       
       // add a batch!
-      roadmap_gen->generate(eig,
+      //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
+      nn.sync();
+      roadmap_gen->generate(eig, nn,
          get(&VProps::state, g),
          get(&EProps::distance, g),
          get(&VProps::batch, g),
@@ -419,6 +434,8 @@ ompl_multiset::E8Roadmap::solve(
                g[*vi].state->state);
             if (root_radius < dist)
                continue;
+            
+            printf("adding new root edge ...\n");
             
             // add new anchor overlay vertex
             OverVertex v_anchor = add_vertex(og);
@@ -722,4 +739,9 @@ double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
       calculate_w_lazy(*ei);
    
    return g[e].w_lazy;
+}
+
+double ompl_multiset::E8Roadmap::ompl_nn_dist(const Vertex & va, const Vertex & vb)
+{
+   return space->distance(g[va].state->state, g[vb].state->state);
 }

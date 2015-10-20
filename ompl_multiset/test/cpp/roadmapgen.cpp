@@ -69,7 +69,8 @@ typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> Roadmap;
+typedef ompl_multiset::NNLinear<EdgeIndexedGraph,StateMap> NN;
+typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,NN> Roadmap;
 typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
 
@@ -85,7 +86,8 @@ TEST(RoadmapRRGTestCase, FixedExampleTest)
       eig(g, get(&EdgeProperties::index, g));
    
    // generate a graph
-   p_mygen->generate(eig,
+   NN nnlin(eig, get(&VertexProperties::state,g), space);
+   p_mygen->generate(eig, nnlin,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),

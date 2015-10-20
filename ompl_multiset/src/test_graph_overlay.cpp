@@ -12,6 +12,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/datastructures/NearestNeighbors.h>
 
 #include <pr_bgl/graph_io.h>
 #include <pr_bgl/string_map.h>
@@ -93,7 +94,8 @@ typedef boost::graph_traits<OverGraph>::vertex_descriptor OverVertex;
 typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap> Roadmap;
+typedef ompl_multiset::NNLinear<EdgeIndexedGraph,StateMap> NN;
+typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,NN> Roadmap;
 typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
 
@@ -137,7 +139,8 @@ int main(int argc, char **argv)
       eig(g, get(&EdgeProperties::index, g));
 
    // generate a graph
-   p_mygen->generate(eig,
+   NN nnlin(eig, get(&VertexProperties::state,g), space);
+   p_mygen->generate(eig, nnlin,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),
