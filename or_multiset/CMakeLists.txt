@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(or_multiset)
 
+find_package(Boost REQUIRED COMPONENTS thread)
 find_package(catkin REQUIRED COMPONENTS pr_bgl ompl_multiset)
 find_package(OMPL REQUIRED)
 find_package(OpenRAVE REQUIRED)
@@ -52,14 +53,26 @@ set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES
 if (CATKIN_ENABLE_TESTING)
    
    catkin_add_gtest(test_wam7 test/cpp/wam7.cpp)
-   target_link_libraries(test_wam7 ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
+   target_link_libraries(test_wam7
+     ${OpenRAVE_LIBRARIES}
+     ${OpenRAVE_CORE_LIBRARIES}
+     ${Boost_LIBRARIES}
+    )
 
    catkin_add_gtest(test_selfcc test/cpp/selfcc.cpp)
-   target_link_libraries(test_selfcc ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
+   target_link_libraries(test_selfcc
+     ${OpenRAVE_LIBRARIES}
+     ${OpenRAVE_CORE_LIBRARIES}
+     ${Boost_LIBRARIES}
+    )
 
    catkin_add_gtest(test_hashes test/cpp/hashes.cpp)
    set_target_properties(test_hashes PROPERTIES COMPILE_FLAGS -DORDATA="${PROJECT_SOURCE_DIR}/test/ordata")
-   target_link_libraries(test_hashes ${OpenRAVE_LIBRARIES} ${OpenRAVE_CORE_LIBRARIES})
+   target_link_libraries(test_hashes
+     ${OpenRAVE_LIBRARIES}
+     ${OpenRAVE_CORE_LIBRARIES}
+     ${Boost_LIBRARIES}
+    )
    
    catkin_add_nosetests(test/python/wam7.py)
    
