@@ -4,7 +4,7 @@ project(test_multiset)
 
 find_package(catkin REQUIRED COMPONENTS ompl_multiset)
 find_package(OMPL REQUIRED)
-find_package(Boost REQUIRED COMPONENTS thread)
+find_package(Boost REQUIRED COMPONENTS system thread)
 find_package(OpenRAVE REQUIRED)
 
 catkin_package()

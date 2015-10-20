@@ -9,6 +9,7 @@ find_package(OpenSSL REQUIRED)
 catkin_package(
    INCLUDE_DIRS include
    LIBRARIES ${PROJECT_NAME}
+   DEPENDS Boost
 )
 
 set(CMAKE_BUILD_TYPE Release)
