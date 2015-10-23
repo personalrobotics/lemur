@@ -12,6 +12,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl/datastructures/NearestNeighbors.h>
 
 #include <pr_bgl/graph_io.h>
 #include <pr_bgl/string_map.h>

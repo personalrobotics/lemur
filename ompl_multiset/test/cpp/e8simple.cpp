@@ -13,6 +13,7 @@
 #include <ompl/base/ProblemDefinition.h>
 #include <ompl/base/Planner.h>
 #include <ompl/geometric/PathGeometric.h>
+#include <ompl/datastructures/NearestNeighbors.h>
 
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/heap_indexed.h>
