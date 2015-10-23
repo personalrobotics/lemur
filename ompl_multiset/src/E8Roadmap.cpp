@@ -212,7 +212,7 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
             og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
             // set state
             og[ov_goal].state.reset(new StateCon(space.get()));
-            space->copyState(og[ov_goal].state->state, goal_states->getState(0));
+            space->copyState(og[ov_goal].state->state, goal_states->getState(igoal));
             // regular vertex properties
             og[ov_goal].batch = 0;
             og[ov_goal].is_shadow = false;
@@ -293,6 +293,8 @@ ompl_multiset::E8Roadmap::solve(
       
       if (os_alglog)
       {
+         *os_alglog << "subgraph " << roadmap_gen->get_num_batches_generated() << std::endl;
+         
          *os_alglog << "alias reset" << std::endl;
          
          for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
@@ -351,8 +353,8 @@ ompl_multiset::E8Roadmap::solve(
       if (success)
          break;
       
-      //if (iter == 100)
-      //   break;
+      if (iter == 10)
+         break;
       
       if (roadmap_gen->max_batches && roadmap_gen->get_num_batches_generated() == roadmap_gen->max_batches)
          return ompl::base::PlannerStatus::EXACT_SOLUTION;
@@ -435,7 +437,7 @@ ompl_multiset::E8Roadmap::solve(
             if (root_radius < dist)
                continue;
             
-            printf("adding new root edge ...\n");
+            //printf("adding new root edge ...\n");
             
             // add new anchor overlay vertex
             OverVertex v_anchor = add_vertex(og);
