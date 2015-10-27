@@ -28,11 +28,13 @@ public:
    typedef typename boost::vector_property_map<edge_descriptor> EdgeVectorMap;
 
    Graph & m_g;
+   size_t edge_count;
    EdgeIndexMap edge_index_map;
    EdgeVectorMap edge_vector_map;
    
    EdgeIndexedGraph(Graph & g, EdgeIndexMap edge_index_map):
       m_g(g),
+      edge_count(0),
       edge_index_map(edge_index_map),
       edge_vector_map(0)
    {
@@ -56,7 +58,8 @@ template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::edges_size_type
 num_edges(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
 {
-   return num_edges(g.m_g);
+   //return num_edges(g.m_g);
+   return g.edge_count;
 }
 
 template <class Graph, class EdgeIndexMap>
@@ -112,8 +115,9 @@ add_edge(
       res = add_edge(u, v, g.m_g);
    if (res.second)
    {
-      put(g.edge_index_map, res.first, num_edges(g.m_g)-1);
-      put(g.edge_vector_map, num_edges(g.m_g)-1, res.first);
+      put(g.edge_index_map, res.first, g.edge_count);
+      put(g.edge_vector_map, g.edge_count, res.first);
+      g.edge_count++;
    }
    return res;
 }
@@ -135,12 +139,13 @@ remove_edge(
 {
    // ensure that we're removing edges in reverse order
    // (we may be able to loosen this requirement a bit!)
-   BOOST_ASSERT(get(g.edge_index_map, e) == (num_edges(g)-1));
+   BOOST_ASSERT(get(g.edge_index_map, e) == (g.edge_count-1));
    // assume that external edge index map will get cleaned up for us
    // leave edge_vector_map alone
    // (indices bigger than num_edges()-1
    //  will just map to bogus edge descriptors)
    remove_edge(e, g.m_g);
+   g.edge_count--;
 }
 
 } // namespace pr_bgl

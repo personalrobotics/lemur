@@ -3,7 +3,7 @@ project(ompl_multiset)
 
 find_package(catkin REQUIRED COMPONENTS pr_bgl)
 find_package(OMPL REQUIRED)
-find_package(Boost REQUIRED COMPONENTS filesystem graph program_options system)
+find_package(Boost REQUIRED COMPONENTS chrono filesystem graph program_options system)
 find_package(OpenSSL REQUIRED)
 
 catkin_package(

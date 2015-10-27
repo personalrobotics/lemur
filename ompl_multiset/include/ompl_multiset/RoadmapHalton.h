@@ -84,8 +84,8 @@ public:
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         put(state_map, v_new, this->space->allocState());
-         ompl::base::State * v_state = get(state_map, v_new);
+         ompl::base::State * v_state = this->space->allocState();
+         put(state_map, v_new, v_state);
          double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
          for (unsigned int ui=0; ui<dim; ui++)
             values[ui] = bounds.low[ui] + (bounds.high[ui] - bounds.low[ui])
