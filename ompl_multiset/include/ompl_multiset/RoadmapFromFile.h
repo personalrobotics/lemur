@@ -7,53 +7,6 @@
 namespace ompl_multiset
 {
 
-// turns values from doubles to strings
-template <class PropMap, class StateCon>
-class RoadmapFromFilePutStateMap
-{
-public:
-   typedef boost::writable_property_map_tag category;
-   typedef typename boost::property_traits<PropMap>::key_type key_type;
-   typedef std::string value_type;
-   typedef std::string reference;
-   const PropMap prop_map;
-   ompl::base::StateSpace * space;
-   const unsigned int dim;
-   RoadmapFromFilePutStateMap(PropMap prop_map, ompl::base::StateSpace * space, unsigned int dim):
-      prop_map(prop_map), space(space), dim(dim)
-   {
-   }
-};
-
-template <class PropMap, class StateCon>
-inline std::string
-get(const RoadmapFromFilePutStateMap<PropMap,StateCon> & map,
-   const typename RoadmapFromFilePutStateMap<PropMap,StateCon>::key_type & k)
-{
-   printf("get on RoadmapFromFilePutStateMap not yet implemented!\n");
-   abort();
-}
-
-template <class PropMap, class StateCon>
-inline void
-put(const RoadmapFromFilePutStateMap<PropMap,StateCon> & map,
-   const typename RoadmapFromFilePutStateMap<PropMap,StateCon>::key_type & k,
-   const std::string repr)
-{
-   get(map.prop_map, k).reset(new StateCon(map.space));
-   ompl::base::State * v_state = get(map.prop_map, k)->state;
-   double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
-   std::stringstream ss(repr);
-   for (unsigned int ui=0; ui<map.dim; ui++)
-      ss >> values[ui];
-}
-
-// for now this is an r-disk prm,
-// uniform milestone sampling with given seed,
-// uses the space's default sampler
-//template <class Graph, class VertexIndexMap, class EdgeIndexMap//,
-   //class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
-//   >
 template <class RoadmapSpec>
 class RoadmapFromFile : public RoadmapSpec
 {
@@ -70,7 +23,6 @@ class RoadmapFromFile : public RoadmapSpec
    typedef typename GraphTypes::vertex_iterator VertexIter;
    typedef typename GraphTypes::edge_descriptor Edge;
    typedef typename GraphTypes::edge_iterator EdgeIter;
-   typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
 
@@ -125,8 +77,11 @@ public:
       fp.open(filename.c_str());
       
       boost::dynamic_properties props;
+      const ompl::base::StateSpacePtr & myspace = this->space;
       props.property("state",
-         RoadmapFromFilePutStateMap<VState,StateCon>(state_map, this->space.get(), dim));
+         ompl_multiset::make_rvstate_map_string_adaptor(
+            state_map,
+            myspace->as<ompl::base::RealVectorStateSpace>()));
       boost::read_graphml(fp, g, props);
       
       VertexIter vi, vi_end;
@@ -140,8 +95,8 @@ public:
       for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
       {
          put(edge_batch_map, *ei, 0);
-         ompl::base::State * state1 = get(state_map, source(*ei,g))->state;
-         ompl::base::State * state2 = get(state_map, target(*ei,g))->state;
+         ompl::base::State * state1 = get(state_map, source(*ei,g));
+         ompl::base::State * state2 = get(state_map, target(*ei,g));
          put(distance_map, *ei, this->space->distance(state1, state2));
       }
       

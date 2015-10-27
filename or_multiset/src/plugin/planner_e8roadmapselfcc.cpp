@@ -29,6 +29,7 @@
 #include <pr_bgl/heap_indexed.h>
 
 #include <ompl_multiset/util.h>
+#include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/EffortModel.h>
 #include <ompl_multiset/Family.h>
 #include <ompl_multiset/FamilyEffortModel.h>

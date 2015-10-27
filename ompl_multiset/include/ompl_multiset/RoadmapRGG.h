@@ -31,7 +31,6 @@ class RoadmapRGG : public RoadmapSpec
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
    typedef typename GraphTypes::edge_descriptor Edge;
-   typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
    // input parameters
@@ -83,8 +82,8 @@ public:
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         get(state_map, v_new).reset(new StateCon(this->space.get()));
-         this->sampler->sampleUniform(get(state_map, v_new)->state);
+         put(state_map, v_new, this->space->allocState());
+         this->sampler->sampleUniform(get(state_map, v_new));
          
          // allocate new undirected edges
          std::vector< std::pair<Vertex,double> > vs_near;

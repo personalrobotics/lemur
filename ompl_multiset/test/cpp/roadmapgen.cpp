@@ -25,20 +25,9 @@
 
 #include <gtest/gtest.h>
 
-
-struct StateContainer
-{
-   const ompl::base::StateSpace * space;
-   ompl::base::State * state;
-   StateContainer(ompl::base::StateSpace * space):
-      space(space), state(space->allocState()) {}
-   ~StateContainer() { space->freeState(this->state); }
-};
-typedef boost::shared_ptr<StateContainer> StateContainerPtr;
-
 struct VertexProperties
 {
-   StateContainerPtr state;
+   ompl::base::State * state;
    int subgraph;
    bool is_shadow;
 };
@@ -63,7 +52,7 @@ typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
 typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
 typedef boost::vector_property_map<Edge> EdgeVectorMap;
 
-typedef boost::property_map<Graph, StateContainerPtr VertexProperties::*>::type StateMap;
+typedef boost::property_map<Graph, ompl::base::State * VertexProperties::*>::type StateMap;
 typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
 typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
 typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;

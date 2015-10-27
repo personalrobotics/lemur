@@ -7,44 +7,9 @@
 namespace ompl_multiset
 {
 
-// a lightweight scopedstate
-struct StateCon
-{
-   const ompl::base::StateSpace * space;
-   ompl::base::State * state;
-   StateCon(ompl::base::StateSpace * space):
-      space(space), state(space->allocState()) {}
-   ~StateCon() { space->freeState(this->state); }
-};
-typedef boost::shared_ptr<StateCon> StateConPtr;
-
-inline void stringify_to_x(const std::string & in, ompl_multiset::StateConPtr & statecon)
-{
-   printf("stringify_to_x(in,statecon) not yet implemented!\n");
-   abort();
-}
-inline void stringify_from_x(std::string & repr, const ompl_multiset::StateConPtr & in)
-{
-   if (!in.get())
-   {
-      repr = "no_state";
-      return;
-   }
-   unsigned int dim = in->space->getDimension();
-   ompl::base::RealVectorStateSpace::StateType * state
-      = in->state->as<ompl::base::RealVectorStateSpace::StateType>();
-   repr.clear();
-   for (unsigned int ui=0; ui<dim; ui++)
-   {
-      if (ui)
-         repr += " ";
-      std::string component_repr;
-      pr_bgl::stringify_from_x(component_repr, (double)state->values[ui]);
-      repr += component_repr;
-   }
-}
-
 // for now, this does HARD BATCHING with SUBGRAPH COSTS
+// the core roadmap states are owned by the core roadmap
+// the overlay roots and edges own their states (except anchors)
 class E8Roadmap : public ompl::base::Planner
 {
 public:
@@ -54,7 +19,7 @@ public:
    struct VProps
    {
       // from roadmap
-      boost::shared_ptr<StateCon> state;
+      ompl::base::State * state;
       int batch;
       bool is_shadow;
       // collision status (index or pointer?)
@@ -69,7 +34,7 @@ public:
       // for lazysp; for current subset only!
       double w_lazy;
       // interior points, in bisection order
-      std::vector< boost::shared_ptr<StateCon> > edge_states;
+      std::vector< ompl::base::State * > edge_states;
       std::vector< size_t > edge_tags;
       //size_t tag; // mega tag?
    };
@@ -89,7 +54,7 @@ public:
    
    // types of property maps to bundled properties
    // these are needed by roadmap
-   typedef boost::property_map<Graph, boost::shared_ptr<StateCon> VProps::*>::type VPStateMap;
+   typedef boost::property_map<Graph, ompl::base::State * VProps::*>::type VPStateMap;
    typedef boost::property_map<Graph, int VProps::*>::type VPBatchMap;
    typedef boost::property_map<Graph, bool VProps::*>::type VPIsShadowMap;
    typedef boost::property_map<Graph, std::size_t EProps::*>::type EPIndexMap;
@@ -116,7 +81,7 @@ public:
    {
       Vertex core_vertex;
       // like VProps
-      boost::shared_ptr<StateCon> state;
+      ompl::base::State * state;
       int batch;
       bool is_shadow;
       size_t tag;
@@ -129,7 +94,7 @@ public:
       int batch;
       double w_lazy;
       bool is_evaled;
-      std::vector< boost::shared_ptr<StateCon> > edge_states;
+      std::vector< ompl::base::State * > edge_states;
       std::vector< size_t > edge_tags;
       size_t tag; // mega tag?
    };
@@ -188,7 +153,7 @@ public:
       ompl_multiset::EffortModel & effort_model,
       ompl_multiset::TagCache & tag_cache,
       const RoadmapPtr roadmap_gen,
-      unsigned int num_batches);
+      unsigned int num_batches_init);
    
    ~E8Roadmap(void);
    
@@ -206,7 +171,7 @@ public:
    // part 4: private-ish methods
    
    void edge_init_points(ompl::base::State * va_state, ompl::base::State * vb_state,
-      double e_distance, std::vector< boost::shared_ptr<StateCon> > & edge_states);
+      double e_distance, std::vector< ompl::base::State * > & edge_states);
    
    void overlay_apply();
    void overlay_unapply();

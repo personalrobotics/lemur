@@ -30,6 +30,31 @@
 
 #include <gtest/gtest.h>
 
+class CountingRealVectorStateSpace: public ompl::base::RealVectorStateSpace
+{
+public:
+   mutable unsigned int states_allocated;
+   mutable unsigned int states_freed;
+   CountingRealVectorStateSpace(unsigned int dim = 0):
+      ompl::base::RealVectorStateSpace(dim),
+      states_allocated(0), states_freed(0)
+   {
+   }
+   virtual ~CountingRealVectorStateSpace()
+   {
+   }
+   virtual ompl::base::State * allocState() const
+   {
+      states_allocated++;
+      return ompl::base::RealVectorStateSpace::allocState();
+   }
+   virtual void freeState(ompl::base::State * state) const
+   {
+      states_freed++;
+      ompl::base::RealVectorStateSpace::freeState(state);
+   }
+};
+
 bool isvalid(const ompl::base::State * state)
 {
    double * values = state->as<
@@ -65,7 +90,7 @@ TEST(E8SimpleTestCase, E8SimpleTest)
 {
    // state space
    boost::shared_ptr<ompl::base::RealVectorStateSpace> space(
-      new ompl::base::RealVectorStateSpace(2));
+      new CountingRealVectorStateSpace(2));
    space->setBounds(0.0, 1.0);
    space->setLongestValidSegmentFraction(
       0.001 / space->getMaximumExtent());
@@ -116,11 +141,17 @@ TEST(E8SimpleTestCase, E8SimpleTest)
       boost::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
       pdef->getSolutionPath());
    ASSERT_TRUE(path);
-   ASSERT_EQ(path->getStateCount(), 4);
-   ASSERT_EQ(get_path_state(path,0), make_state(space, 0.25, 0.75));
-   ASSERT_EQ(get_path_state(path,1), make_state(space, 0.40625, 14./27.));
-   ASSERT_EQ(get_path_state(path,2), make_state(space, 0.68750, 13./27.));
-   ASSERT_EQ(get_path_state(path,3), make_state(space, 0.75, 0.25));
+   ASSERT_EQ(4, path->getStateCount());
+   ASSERT_EQ(make_state(space, 0.25, 0.75),       get_path_state(path,0));
+   ASSERT_EQ(make_state(space, 0.40625, 14./27.), get_path_state(path,1));
+   ASSERT_EQ(make_state(space, 0.68750, 13./27.), get_path_state(path,2));
+   ASSERT_EQ(make_state(space, 0.75, 0.25),       get_path_state(path,3));
+   
+   pdef.reset();
+   planner.reset();
+   path.reset();
+   ASSERT_EQ(24712, space->as<CountingRealVectorStateSpace>()->states_allocated);
+   ASSERT_EQ(24712, space->as<CountingRealVectorStateSpace>()->states_freed);
 }
 
 int main(int argc, char **argv)

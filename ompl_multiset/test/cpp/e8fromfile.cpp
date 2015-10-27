@@ -24,6 +24,7 @@
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/overlay_manager.h>
 #include <ompl_multiset/util.h>
+#include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/EffortModel.h>

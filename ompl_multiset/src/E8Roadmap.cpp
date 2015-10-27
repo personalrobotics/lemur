@@ -28,6 +28,7 @@
 #include <pr_bgl/lazysp.h>
 #include <pr_bgl/heap_indexed.h>
 
+#include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/EffortModel.h>
@@ -40,7 +41,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       EffortModel & effort_model,
       TagCache & tag_cache,
       const RoadmapPtr roadmap_gen,
-      unsigned int num_batches):
+      unsigned int num_batches_init):
    ompl::base::Planner(si, "E8Roadmap"),
    effort_model(effort_model),
    roadmap_gen(roadmap_gen),
@@ -62,13 +63,14 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    // setup ompl_nn
    ompl_nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::ompl_nn_dist, this, _1, _2));
    
-   printf("E8Roadmap: constructing %u batches ...\n", num_batches);
-   
    // before we start,
    // generate some levels into our core eraph
    // note that new vertices/edges get properties from constructor
-   while (roadmap_gen->get_num_batches_generated() < num_batches)
+   while (roadmap_gen->get_num_batches_generated() < num_batches_init)
    {
+      printf("E8Roadmap: constructing batch [%lu] ...\n",
+         roadmap_gen->get_num_batches_generated());
+      
       //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
       nn.sync();
       roadmap_gen->generate(eig, nn,
@@ -95,8 +97,8 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
       edge_init_points(
-         g[source(*ei,g)].state->state,
-         g[target(*ei,g)].state->state,
+         g[source(*ei,g)].state,
+         g[target(*ei,g)].state,
          g[*ei].distance,
          g[*ei].edge_states);
       g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
@@ -112,6 +114,26 @@ ompl_multiset::E8Roadmap::E8Roadmap(
 
 ompl_multiset::E8Roadmap::~E8Roadmap()
 {
+   overlay_unapply();
+   
+   // core roadmap
+   VertexIter vi, vi_end;
+   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      space->freeState(g[*vi].state);
+   EdgeIter ei, ei_end;
+   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
+      for (unsigned int ui=0; ui<g[*ei].edge_states.size(); ui++)
+         space->freeState(g[*ei].edge_states[ui]);
+   
+   // overlay roadmap
+   OverVertexIter ovi, ovi_end;
+   for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ++ovi)
+      if (og[*ovi].state)
+         space->freeState(og[*ovi].state);
+   OverEdgeIter oei, oei_end;
+   for (boost::tie(oei,oei_end)=edges(og); oei!=oei_end; ++oei)
+      for (unsigned int ui=0; ui<og[*oei].edge_states.size(); ui++)
+         space->freeState(og[*oei].edge_states[ui]);
 }
 
 void ompl_multiset::E8Roadmap::setProblemDefinition(
@@ -139,6 +161,8 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
    
    overlay_unapply();
    
+   // delete any states in overlay graph
+   
    // clear overlay graph
    og.clear();
    
@@ -147,10 +171,11 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
    ov_singlegoal = add_vertex(og);
    og[ov_singlestart].core_vertex = boost::graph_traits<Graph>::null_vertex();
    og[ov_singlegoal].core_vertex = boost::graph_traits<Graph>::null_vertex();
-   // leave state null!
+   og[ov_singlestart].state = 0;
    og[ov_singlestart].batch = 0;
    og[ov_singlestart].is_shadow = false;
    og[ov_singlestart].tag = 0;
+   og[ov_singlegoal].state = 0;
    og[ov_singlegoal].batch = 0;
    og[ov_singlegoal].is_shadow = false;
    og[ov_singlegoal].tag = 0;
@@ -164,8 +189,8 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       ov_start = add_vertex(og);
       og[ov_start].core_vertex = boost::graph_traits<Graph>::null_vertex();
       // set state
-      og[ov_start].state.reset(new StateCon(space.get()));
-      space->copyState(og[ov_start].state->state, pdef->getStartState(istart));
+      og[ov_start].state = space->allocState();
+      space->copyState(og[ov_start].state, pdef->getStartState(istart));
       // regular vertex properties
       og[ov_start].batch = 0;
       og[ov_start].is_shadow = false;
@@ -189,8 +214,8 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          ov_goal = add_vertex(og);
          og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
          // set state
-         og[ov_goal].state.reset(new StateCon(space.get()));
-         space->copyState(og[ov_goal].state->state, goal_state->getState());
+         og[ov_goal].state = space->allocState();
+         space->copyState(og[ov_goal].state, goal_state->getState());
          // regular vertex properties
          og[ov_goal].batch = 0;
          og[ov_goal].is_shadow = false;
@@ -211,8 +236,8 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
             ov_goal = add_vertex(og);
             og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
             // set state
-            og[ov_goal].state.reset(new StateCon(space.get()));
-            space->copyState(og[ov_goal].state->state, goal_states->getState(igoal));
+            og[ov_goal].state = space->allocState();
+            space->copyState(og[ov_goal].state, goal_states->getState(igoal));
             // regular vertex properties
             og[ov_goal].batch = 0;
             og[ov_goal].is_shadow = false;
@@ -239,8 +264,8 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          double root_radius = roadmap_gen->root_radius(g[*vi].batch);
          
          double dist = space->distance(
-            og[*it].state->state,
-            g[*vi].state->state);
+            og[*it].state,
+            g[*vi].state);
          if (root_radius < dist)
             continue;
          
@@ -249,6 +274,7 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          // add new anchor overlay vertex
          OverVertex v_anchor = add_vertex(og);
          og[v_anchor].core_vertex = *vi;
+         og[v_anchor].state = 0;
          // no need to set core properties (e.g. state) on anchors,
          // since this is just an anchor, wont be copied
 
@@ -260,7 +286,7 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          og[e].batch = g[*vi].batch;
          // w_lazy??
          // interior points, in bisection order
-         edge_init_points(og[*it].state->state, g[*vi].state->state,
+         edge_init_points(og[*it].state, g[*vi].state,
             dist, og[e].edge_states);
          og[e].edge_tags.resize(og[e].edge_states.size(), 0);
          //og[e].tag = 0;
@@ -378,6 +404,7 @@ ompl_multiset::E8Roadmap::solve(
       
       tag_cache.load_begin();
       
+      // initialize NEW vertices
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {
@@ -395,8 +422,8 @@ ompl_multiset::E8Roadmap::solve(
          if (g[*ei].index < num_edges_before)
             continue;
          edge_init_points(
-            g[source(*ei,g)].state->state,
-            g[target(*ei,g)].state->state,
+            g[source(*ei,g)].state,
+            g[target(*ei,g)].state,
             g[*ei].distance,
             g[*ei].edge_states);
          g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
@@ -432,8 +459,8 @@ ompl_multiset::E8Roadmap::solve(
                continue;
             
             double dist = space->distance(
-               og[*it].state->state,
-               g[*vi].state->state);
+               og[*it].state,
+               g[*vi].state);
             if (root_radius < dist)
                continue;
             
@@ -453,7 +480,7 @@ ompl_multiset::E8Roadmap::solve(
             og[e].batch = g[*vi].batch;
             // w_lazy??
             // interior points, in bisection order
-            edge_init_points(og[*it].state->state, g[*vi].state->state,
+            edge_init_points(og[*it].state, g[*vi].state,
                dist, og[e].edge_states);
             og[e].edge_tags.resize(og[e].edge_states.size(), 0);
             //og[e].tag = 0;
@@ -471,7 +498,7 @@ ompl_multiset::E8Roadmap::solve(
       //path->append(g[og[ov_start].core_vertex].state->state);
       epath.pop_back(); // last edge targets singlegoal
       for (std::vector<Edge>::iterator it=epath.begin(); it!=epath.end(); it++)
-         path->append(g[target(*it,g)].state->state);
+         path->append(g[target(*it,g)].state);
       pdef_->addSolutionPath(ompl::base::PathPtr(path));
       return ompl::base::PlannerStatus::EXACT_SOLUTION;
    }
@@ -490,7 +517,7 @@ void ompl_multiset::E8Roadmap::solve_all()
    VertexIter vi, vi_end;
    for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       while (!effort_model.is_evaled(g[*vi].tag))
-         effort_model.eval_partial(g[*vi].tag, g[*vi].state->state);
+         effort_model.eval_partial(g[*vi].tag, g[*vi].state);
    
    printf("solve_all() evaluating edges ...\n");
    unsigned int count = 0;
@@ -501,8 +528,8 @@ void ompl_multiset::E8Roadmap::solve_all()
       for (unsigned ui=0; ui<g[*ei].edge_tags.size(); ui++)
       {
          while (!effort_model.is_evaled(g[*ei].edge_tags[ui]))
-            effort_model.eval_partial(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]->state);
-         if (effort_model.x_hat(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]->state)
+            effort_model.eval_partial(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]);
+         if (effort_model.x_hat(g[*ei].edge_tags[ui], g[*ei].edge_states[ui])
             == std::numeric_limits<double>::infinity())
             break;
       }
@@ -517,7 +544,9 @@ void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
    // dump graph
    // write it out to file
    boost::dynamic_properties props;
-   props.property("state", pr_bgl::make_string_map(get(&VProps::state,g)));
+   props.property("state", ompl_multiset::make_rvstate_map_string_adaptor(
+      get(&VProps::state,g),
+      space->as<ompl::base::RealVectorStateSpace>()));
    props.property("batch", pr_bgl::make_string_map(get(&VProps::batch,g)));
    props.property("batch", pr_bgl::make_string_map(get(&EProps::batch,g)));
    props.property("is_shadow", pr_bgl::make_string_map(get(&VProps::is_shadow,g)));
@@ -628,20 +657,20 @@ void ompl_multiset::E8Roadmap::overlay_unapply()
 
 void ompl_multiset::E8Roadmap::edge_init_points(
    ompl::base::State * va_state, ompl::base::State * vb_state,
-   double e_distance, std::vector< boost::shared_ptr<StateCon> > & edge_states)
+   double e_distance, std::vector< ompl::base::State * > & edge_states)
 {
    // now many interior points do we need?
    unsigned int n = floor(e_distance/(2.0*check_radius));
    // allocate states
    edge_states.resize(n);
    for (unsigned int ui=0; ui<n; ui++)
-      edge_states[ui].reset(new StateCon(space.get()));
+      edge_states[ui] = space->allocState();
    // fill with interpolated states in bisection order
    const std::vector< std::pair<int,int> > & order = bisect_perm.get(n);
    for (unsigned int ui=0; ui<n; ui++)
       space->interpolate(va_state, vb_state,
          1.0*(1+order[ui].first)/(n+1),
-         edge_states[ui]->state);
+         edge_states[ui]);
 }
 
 void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
@@ -649,30 +678,30 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
    Vertex va = source(e,g);
    Vertex vb = target(e,g);
    // special case for singleroot edges
-   if (!g[va].state.get())
+   if (!g[va].state)
    {
-      if (effort_model.x_hat(g[vb].tag, g[vb].state->state) == std::numeric_limits<double>::infinity())
+      if (effort_model.x_hat(g[vb].tag, g[vb].state) == std::numeric_limits<double>::infinity())
          g[e].w_lazy = std::numeric_limits<double>::infinity();
       else
-         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state->state);
+         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
       return;
    }
-   if (!g[vb].state.get())
+   if (!g[vb].state)
    {
-      if (effort_model.x_hat(g[va].tag, g[va].state->state) == std::numeric_limits<double>::infinity())
+      if (effort_model.x_hat(g[va].tag, g[va].state) == std::numeric_limits<double>::infinity())
          g[e].w_lazy = std::numeric_limits<double>::infinity();
       else
-         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state->state);
+         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
       return;
    }
    // ok, its a non-singleroot edge
    unsigned int ui;
    for (ui=0; ui<g[e].edge_tags.size(); ui++)
-      if (effort_model.x_hat(g[e].edge_tags[ui], g[e].edge_states[ui]->state) == std::numeric_limits<double>::infinity())
+      if (effort_model.x_hat(g[e].edge_tags[ui], g[e].edge_states[ui]) == std::numeric_limits<double>::infinity())
          break;
    if (ui<g[e].edge_states.size()
-      || effort_model.x_hat(g[va].tag, g[va].state->state) == std::numeric_limits<double>::infinity()
-      || effort_model.x_hat(g[vb].tag, g[vb].state->state) == std::numeric_limits<double>::infinity())
+      || effort_model.x_hat(g[va].tag, g[va].state) == std::numeric_limits<double>::infinity()
+      || effort_model.x_hat(g[vb].tag, g[vb].state) == std::numeric_limits<double>::infinity())
    {
       g[e].w_lazy = std::numeric_limits<double>::infinity();
    }
@@ -683,10 +712,10 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
       g[e].w_lazy += coeff_batch * g[e].distance * g[e].batch;
       // interior states
       for (ui=0; ui<g[e].edge_tags.size(); ui++)
-         g[e].w_lazy += coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]->state);
+         g[e].w_lazy += coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]);
       // half bounary vertices
-      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state->state);
-      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state->state);
+      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
+      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
    }
 }
 
@@ -710,13 +739,13 @@ double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
    {
       if (!effort_model.is_evaled(g[va].tag))
       {
-         bool success = effort_model.eval_partial(g[va].tag, g[va].state->state);
+         bool success = effort_model.eval_partial(g[va].tag, g[va].state);
          if (!success)
             break;
       }
       if (!effort_model.is_evaled(g[vb].tag))
       {
-         bool success = effort_model.eval_partial(g[vb].tag, g[vb].state->state);
+         bool success = effort_model.eval_partial(g[vb].tag, g[vb].state);
          if (!success)
             break;
       }
@@ -724,7 +753,7 @@ double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
       {
          if (!effort_model.is_evaled(g[e].edge_tags[ui]))
          {
-            bool success = effort_model.eval_partial(g[e].edge_tags[ui], g[e].edge_states[ui]->state);
+            bool success = effort_model.eval_partial(g[e].edge_tags[ui], g[e].edge_states[ui]);
             if (!success)
                break;
          }
@@ -745,5 +774,5 @@ double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
 
 double ompl_multiset::E8Roadmap::ompl_nn_dist(const Vertex & va, const Vertex & vb)
 {
-   return space->distance(g[va].state->state, g[vb].state->state);
+   return space->distance(g[va].state, g[vb].state);
 }

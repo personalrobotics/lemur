@@ -22,6 +22,7 @@
 #include <pr_bgl/edge_indexed_graph.h>
 
 #include <ompl_multiset/util.h>
+#include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/FnString.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/Roadmap.h>
@@ -34,19 +35,9 @@
 #include <ompl_multiset/RoadmapRGGDensConst.h>
 #include <ompl_multiset/RoadmapID.h>
 
-struct StateContainer
-{
-   const ompl::base::StateSpace * space;
-   ompl::base::State * state;
-   StateContainer(ompl::base::StateSpace * space):
-      space(space), state(space->allocState()) {}
-   ~StateContainer() { space->freeState(this->state); }
-};
-typedef boost::shared_ptr<StateContainer> StateContainerPtr;
-
 struct VertexProperties
 {
-   StateContainerPtr state;
+   ompl::base::State * state;
    int batch;
    bool is_shadow;
 };
@@ -71,7 +62,7 @@ typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
 typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
 typedef boost::vector_property_map<Edge> EdgeVectorMap;
 
-typedef boost::property_map<Graph, StateContainerPtr VertexProperties::*>::type StateMap;
+typedef boost::property_map<Graph, ompl::base::State * VertexProperties::*>::type StateMap;
 typedef boost::property_map<Graph, int VertexProperties::*>::type VertexBatchMap;
 typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeBatchMap;
 typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
@@ -81,29 +72,6 @@ typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
 typedef ompl_multiset::NNLinear<Graph,StateMap> NN;
 typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,NN> Roadmap;
 typedef boost::shared_ptr<Roadmap> RoadmapPtr;
-
-
-inline void stringify_from_x(std::string & repr, const StateContainerPtr & in)
-{
-   unsigned int dim = in->space->getDimension();
-   ompl::base::RealVectorStateSpace::StateType * state
-      = in->state->as<ompl::base::RealVectorStateSpace::StateType>();
-   repr.clear();
-   for (unsigned int ui=0; ui<dim; ui++)
-   {
-      if (ui)
-         repr += " ";
-      std::string component_repr;
-      pr_bgl::stringify_from_x(component_repr, state->values[ui]);
-      repr += component_repr;
-   }
-}
-
-inline void stringify_to_x(const std::string & in, StateContainerPtr & repr)
-{
-   repr.reset();
-   //repr = atof(in.c_str());
-}
 
 
 int main(int argc, char **argv)
@@ -166,7 +134,9 @@ int main(int argc, char **argv)
    
    // write it out to file
    boost::dynamic_properties props;
-   props.property("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
+   props.property("state", ompl_multiset::make_rvstate_map_string_adaptor(
+      get(&VertexProperties::state,g),
+      space->as<ompl::base::RealVectorStateSpace>()));
    props.property("batch", pr_bgl::make_string_map(get(&VertexProperties::batch,g)));
    props.property("batch", pr_bgl::make_string_map(get(&EdgeProperties::batch,g)));
    props.property("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));

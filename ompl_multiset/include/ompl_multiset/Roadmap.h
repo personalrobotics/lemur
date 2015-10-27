@@ -35,8 +35,8 @@ public:
          if (v_other == v_new)
             continue;
          double dist = this->space->distance(
-            get(state_map, v_new)->state,
-            get(state_map, v_other)->state);
+            get(state_map, v_new),
+            get(state_map, v_other));
          if (radius < dist)
             continue;
          vs_near.push_back(std::make_pair(v_other,dist));

@@ -27,7 +27,6 @@ class RoadmapHalton : public RoadmapSpec
    typedef boost::graph_traits<Graph> GraphTypes;
    typedef typename GraphTypes::vertex_descriptor Vertex;
    typedef typename GraphTypes::edge_descriptor Edge;
-   typedef typename boost::property_traits<VState>::value_type::element_type StateCon;
    
 public:
    // input parameters
@@ -85,8 +84,8 @@ public:
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         get(state_map, v_new).reset(new StateCon(this->space.get()));
-         ompl::base::State * v_state = get(state_map, v_new)->state;
+         put(state_map, v_new, this->space->allocState());
+         ompl::base::State * v_state = get(state_map, v_new);
          double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
          for (unsigned int ui=0; ui<dim; ui++)
             values[ui] = bounds.low[ui] + (bounds.high[ui] - bounds.low[ui])

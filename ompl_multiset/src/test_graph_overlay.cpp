@@ -20,24 +20,14 @@
 #include <pr_bgl/edge_indexed_graph.h>
 
 #include <ompl_multiset/util.h>
+#include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapHalton.h>
 
-
-struct StateContainer
-{
-   const ompl::base::StateSpace * space;
-   ompl::base::State * state;
-   StateContainer(ompl::base::StateSpace * space):
-      space(space), state(space->allocState()) {}
-   ~StateContainer() { space->freeState(this->state); }
-};
-typedef boost::shared_ptr<StateContainer> StateContainerPtr;
-
 struct VertexProperties
 {
-   StateContainerPtr state;
+   ompl::base::State * state;
    int subgraph;
    bool is_shadow;
 };
@@ -64,7 +54,7 @@ typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
 typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
 typedef boost::vector_property_map<Edge> EdgeVectorMap;
 
-typedef boost::property_map<Graph, StateContainerPtr VertexProperties::*>::type StateMap;
+typedef boost::property_map<Graph, ompl::base::State * VertexProperties::*>::type StateMap;
 typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
 typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
 typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
@@ -98,30 +88,6 @@ typedef ompl_multiset::NNLinear<EdgeIndexedGraph,StateMap> NN;
 typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,NN> Roadmap;
 typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
-
-inline void stringify_from_x(std::string & repr, const StateContainerPtr & in)
-{
-   unsigned int dim = in->space->getDimension();
-   ompl::base::RealVectorStateSpace::StateType * state
-      = in->state->as<ompl::base::RealVectorStateSpace::StateType>();
-   repr.clear();
-   for (unsigned int ui=0; ui<dim; ui++)
-   {
-      if (ui)
-         repr += " ";
-      std::string component_repr;
-      pr_bgl::stringify_from_x(component_repr, state->values[ui]);
-      repr += component_repr;
-   }
-}
-
-inline void stringify_to_x(const std::string & in, StateContainerPtr & repr)
-{
-   repr.reset();
-   //repr = atof(in.c_str());
-}
-
-
 int main(int argc, char **argv)
 {
    printf("starting test-graph-overlay\n");
@@ -150,7 +116,9 @@ int main(int argc, char **argv)
    {
       // write it out to file
       boost::dynamic_properties props;
-      props.property("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
+      props.property("state", ompl_multiset::make_rvstate_map_string_adaptor(
+         get(&VertexProperties::state,g),
+         space->as<ompl::base::RealVectorStateSpace>()));
       props.property("subgraph", pr_bgl::make_string_map(get(&VertexProperties::subgraph,g)));
       props.property("subgraph", pr_bgl::make_string_map(get(&EdgeProperties::subgraph,g)));
       props.property("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));
@@ -185,8 +153,8 @@ int main(int argc, char **argv)
       OverVertex v_root = add_vertex(og);
       og[v_root].core_vertex = boost::graph_traits<Graph>::null_vertex();
       // set state
-      og[v_root].core_properties.state.reset(new StateContainer(space.get()));
-      ompl::base::State * v_state = og[v_root].core_properties.state->state;
+      og[v_root].core_properties.state = space->allocState();
+      ompl::base::State * v_state = og[v_root].core_properties.state;
       double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
       values[0] = 0.2;
       values[1] = 0.2;
@@ -194,14 +162,14 @@ int main(int argc, char **argv)
       og[v_root].core_properties.is_shadow = false;
       
       // find closest core vertex
-      Vertex v_closest;
+      Vertex v_closest = boost::graph_traits<Graph>::null_vertex();
       double dist_closest = HUGE_VAL;
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {
          double dist = space->distance(
-            og[v_root].core_properties.state->state,
-            g[*vi].state->state);
+            og[v_root].core_properties.state,
+            g[*vi].state);
          if (dist < dist_closest)
          {
             dist_closest = dist;
@@ -245,7 +213,9 @@ int main(int argc, char **argv)
    {
       // write it out to file
       boost::dynamic_properties props;
-      props.property("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
+      props.property("state", ompl_multiset::make_rvstate_map_string_adaptor(
+         get(&VertexProperties::state,g),
+         space->as<ompl::base::RealVectorStateSpace>()));
       props.property("subgraph", pr_bgl::make_string_map(get(&VertexProperties::subgraph,g)));
       props.property("subgraph", pr_bgl::make_string_map(get(&EdgeProperties::subgraph,g)));
       props.property("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));
@@ -263,7 +233,9 @@ int main(int argc, char **argv)
    {
       // write it out to file
       boost::dynamic_properties props;
-      props.property("state", pr_bgl::make_string_map(get(&VertexProperties::state,g)));
+      props.property("state", ompl_multiset::make_rvstate_map_string_adaptor(
+         get(&VertexProperties::state,g),
+         space->as<ompl::base::RealVectorStateSpace>()));
       props.property("subgraph", pr_bgl::make_string_map(get(&VertexProperties::subgraph,g)));
       props.property("subgraph", pr_bgl::make_string_map(get(&EdgeProperties::subgraph,g)));
       props.property("is_shadow", pr_bgl::make_string_map(get(&VertexProperties::is_shadow,g)));

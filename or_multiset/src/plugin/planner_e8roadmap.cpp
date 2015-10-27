@@ -28,6 +28,7 @@
 #include <pr_bgl/heap_indexed.h>
 
 #include <ompl_multiset/util.h>
+#include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/EffortModel.h>
 #include <ompl_multiset/SimpleEffortModel.h>
 #include <ompl_multiset/FnString.h>
@@ -113,10 +114,11 @@ void ompl_set_roots(ompl::base::ProblemDefinitionPtr ompl_pdef,
 } // anonymous namespace
 
 or_multiset::E8Roadmap::PlannerParameters::PlannerParameters():
-   roadmap_id(""),
+   roadmap_id(""), num_batches_init(1),
    coeff_distance(1.), coeff_checkcost(0.), coeff_batch(0.)
 {
    _vXMLParameters.push_back("roadmap_id");
+   _vXMLParameters.push_back("num_batches_init");
    _vXMLParameters.push_back("coeff_distance");
    _vXMLParameters.push_back("coeff_checkcost");
    _vXMLParameters.push_back("coeff_batch");
@@ -130,6 +132,7 @@ or_multiset::E8Roadmap::PlannerParameters::serialize(std::ostream& sout, int opt
    if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
       return false;
    sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
+   sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
    sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
    sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
    sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
@@ -150,6 +153,7 @@ or_multiset::E8Roadmap::PlannerParameters::startElement(
    if (base != PE_Pass) return base;
    // can we handle it?
    if (name == "roadmap_id"
+      || name == "num_batches_init"
       || name == "coeff_distance"
       || name == "coeff_checkcost"
       || name == "coeff_batch"
@@ -171,6 +175,8 @@ or_multiset::E8Roadmap::PlannerParameters::endElement(const std::string & name)
    {
       if (el_deserializing == "roadmap_id")
          roadmap_id = _ss.str();
+      if (el_deserializing == "num_batches_init")
+         _ss >> num_batches_init;
       if (el_deserializing == "coeff_distance")
          _ss >> coeff_distance;
       if (el_deserializing == "coeff_checkcost")
@@ -216,7 +222,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    PlannerParametersConstPtr inparams = boost::dynamic_pointer_cast<PlannerParameters const>(inparams_base);
    if (!inparams)
    {
-      RAVELOG_WARN("Warning, MultiSetPRM planner passed an unknown PlannerParameters type! Attempting to serialize ...\n");
+      RAVELOG_WARN("Warning, E8Roadmap planner passed an unknown PlannerParameters type! Attempting to serialize ...\n");
       std::stringstream inparams_ser;
       inparams_ser << *inparams_base;
       return this->InitPlan(inrobot, inparams_ser);
@@ -253,7 +259,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
       {
          throw OpenRAVE::openrave_exception("failure to create roadmap!");
       }
-      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, *tag_cache, roadmapgen, 1));
+      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, *tag_cache, roadmapgen, params->num_batches_init));
    }
    
    // check consistency
