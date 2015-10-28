@@ -469,8 +469,7 @@ ompl_multiset::E8Roadmap::solve(
             // add new anchor overlay vertex
             OverVertex v_anchor = add_vertex(og);
             og[v_anchor].core_vertex = *vi;
-            // no need to set core properties (e.g. state) on anchors,
-            // since this is just an anchor, wont be copied
+            og[v_anchor].state = 0;
 
             // add overlay edge from root to anchor
             OverEdge e = add_edge(*it, v_anchor, og).first;
@@ -574,7 +573,7 @@ void ompl_multiset::E8Roadmap::cache_load_all()
 
 void ompl_multiset::E8Roadmap::cache_save_all()
 {
-   overlay_manager.unapply();
+   overlay_unapply();
    
    tag_cache.save_begin();
    
@@ -588,7 +587,7 @@ void ompl_multiset::E8Roadmap::cache_save_all()
    
    tag_cache.save_end();
    
-   overlay_manager.apply();
+   overlay_apply();
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()
