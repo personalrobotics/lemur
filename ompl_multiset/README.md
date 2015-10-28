@@ -3,6 +3,19 @@
 
 Core planner implementation for the [Open Motion Planning Library (OMPL)][ompl].  Uses [Boost Graph][bgl] for the implementation.  Uses helpers for Boost Graph from the `pr_bgl` package.
 
+Planners
+--------
+
+The primary planner is the `E8Roadmap`, a derived class of `ompl::base::Planner`.  It takes the following arguments:
+
+* `const ompl::base::SpaceInformationPtr & si`
+* `ompl_multiset::EffortModel & effort_model`,
+* `ompl_multiset::TagCache & tag_cache`,
+* `const RoadmapPtr roadmap_gen`,
+* `unsigned int num_batches_init`
+
+The roadmap input is an instance of a roadmap type which subclasses `ompl_multiset::Roadmap`.  Some of the classes implemented are described in the [Roadmaps](#roadmaps) section below.
+
 Roadmaps
 --------
 
