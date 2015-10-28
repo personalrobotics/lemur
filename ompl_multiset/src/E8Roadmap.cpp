@@ -379,7 +379,7 @@ ompl_multiset::E8Roadmap::solve(
       if (success)
          break;
       
-      if (iter == 10)
+      if (iter == 20)
          break;
       
       if (roadmap_gen->max_batches && roadmap_gen->get_num_batches_generated() == roadmap_gen->max_batches)
