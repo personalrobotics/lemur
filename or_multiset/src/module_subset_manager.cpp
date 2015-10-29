@@ -7,7 +7,7 @@
 #include <cstdarg>
 #include <openrave/openrave.h>
 #include <or_multiset/inter_link_checks.h>
-#include "module_subset_manager.h"
+#include <or_multiset/module_subset_manager.h>
 
 namespace {
 

@@ -32,15 +32,15 @@ link_libraries(
 add_definitions("-Wall -Werror")
 add_definitions("-fno-strict-aliasing")
 
-add_library(${PROJECT_NAME} src/inter_link_checks.cpp)
+add_library(${PROJECT_NAME}
+   src/inter_link_checks.cpp
+   src/module_subset_manager.cpp
+   src/planner_multiset_prm.cpp
+   src/planner_e8roadmap.cpp
+   src/planner_e8roadmapselfcc.cpp)
 
 # openrave bindings
-add_library(${PROJECT_NAME}_orplugin MODULE
-   src/plugin/module_subset_manager.cpp
-   src/plugin/planner_multiset_prm.cpp
-   src/plugin/planner_e8roadmap.cpp
-   src/plugin/planner_e8roadmapselfcc.cpp
-   src/plugin/plugin.cpp)
+add_library(${PROJECT_NAME}_orplugin MODULE src/plugin.cpp)
 target_link_libraries(${PROJECT_NAME}_orplugin ${PROJECT_NAME})
 set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES
    COMPILE_FLAGS "${OpenRAVE_CXX_FLAGS} -Wno-unknown-pragmas"

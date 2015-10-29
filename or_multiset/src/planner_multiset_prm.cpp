@@ -25,8 +25,8 @@
 
 #include <or_multiset/inter_link_checks.h>
 
-#include "module_subset_manager.h"
-#include "planner_multiset_prm.h"
+#include <or_multiset/module_subset_manager.h>
+#include <or_multiset/planner_multiset_prm.h>
 
 namespace {
 

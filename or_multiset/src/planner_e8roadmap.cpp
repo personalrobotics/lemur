@@ -45,8 +45,8 @@
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/E8Roadmap.h>
 
-#include "or_checker.h"
-#include "planner_e8roadmap.h"
+#include <or_multiset/or_checker.h>
+#include <or_multiset/planner_e8roadmap.h>
 
 
 namespace {

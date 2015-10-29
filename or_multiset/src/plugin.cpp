@@ -36,11 +36,11 @@
 
 #include <or_multiset/inter_link_checks.h>
 
-#include "module_subset_manager.h"
-#include "or_checker.h"
-#include "planner_multiset_prm.h"
-#include "planner_e8roadmap.h"
-#include "planner_e8roadmapselfcc.h"
+#include <or_multiset/module_subset_manager.h>
+#include <or_multiset/or_checker.h>
+#include <or_multiset/planner_multiset_prm.h>
+#include <or_multiset/planner_e8roadmap.h>
+#include <or_multiset/planner_e8roadmapselfcc.h>
 
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {

@@ -51,8 +51,8 @@
 #include <openrave/utils.h>
 #include <or_multiset/inter_link_checks.h>
 
-#include "or_checker.h"
-#include "planner_e8roadmapselfcc.h"
+#include <or_multiset/or_checker.h>
+#include <or_multiset/planner_e8roadmapselfcc.h>
 
 
 namespace {
