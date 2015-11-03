@@ -136,6 +136,17 @@ std::string roadmap_header(const Roadmap * roadmap)
          ompl_multiset::util::double_to_text(x->radius_firstbatch).c_str());
       return header;
    }
+   if (const RoadmapHaltonOffDens<Roadmap> * x
+      = dynamic_cast<const RoadmapHaltonOffDens<Roadmap>*>(roadmap))
+   {
+      std::string header;
+      header = "roadmap_type: HaltonOffDens\n";
+      header += ompl_multiset::util::sf("n_perbatch: %u\n", x->n_perbatch);
+      header += ompl_multiset::util::sf("radius_firstbatch: %s\n",
+         ompl_multiset::util::double_to_text(x->radius_firstbatch).c_str());
+      header += ompl_multiset::util::sf("seed: %u\n", x->seed);
+      return header;
+   }
    if (const RoadmapRGG<Roadmap> * x
       = dynamic_cast<const RoadmapRGG<Roadmap>*>(roadmap))
    {
