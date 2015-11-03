@@ -368,9 +368,9 @@ void or_multiset::E8RoadmapSelfCC::TagCache::load_edge(size_t e_index, std::vect
       }
       switch (s[i])
       {
-      case 'U': return;
-      case 'V': e_tags[i] = tag_self_valid; return;
-      case 'I': e_tags[i] = tag_self_invalid; return;
+      case 'U': continue;
+      case 'V': e_tags[i] = tag_self_valid; continue;
+      case 'I': e_tags[i] = tag_self_invalid; continue;
       default:
          printf("unknown char: %c\n", s[i]);
       }
