@@ -16,6 +16,7 @@ public:
    {
    public:
       std::string roadmap_id;
+      unsigned int num_batches_init;
       double coeff_distance;
       double coeff_checkcost;
       double coeff_batch;

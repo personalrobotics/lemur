@@ -203,10 +203,11 @@ public:
 } // anonymous namespace
 
 or_multiset::E8RoadmapSelfCC::PlannerParameters::PlannerParameters():
-   roadmap_id(""),
+   roadmap_id(""), num_batches_init(1),
    coeff_distance(1.), coeff_checkcost(0.), coeff_batch(0.)
 {
    _vXMLParameters.push_back("roadmap_id");
+   _vXMLParameters.push_back("num_batches_init");
    _vXMLParameters.push_back("coeff_distance");
    _vXMLParameters.push_back("coeff_checkcost");
    _vXMLParameters.push_back("coeff_batch");
@@ -220,6 +221,7 @@ or_multiset::E8RoadmapSelfCC::PlannerParameters::serialize(std::ostream& sout, i
    if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
       return false;
    sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
+   sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
    sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
    sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
    sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
@@ -240,6 +242,7 @@ or_multiset::E8RoadmapSelfCC::PlannerParameters::startElement(
    if (base != PE_Pass) return base;
    // can we handle it?
    if (name == "roadmap_id"
+      || name == "num_batches_init"
       || name == "coeff_distance"
       || name == "coeff_checkcost"
       || name == "coeff_batch"
@@ -261,6 +264,8 @@ or_multiset::E8RoadmapSelfCC::PlannerParameters::endElement(const std::string & 
    {
       if (el_deserializing == "roadmap_id")
          roadmap_id = _ss.str();
+      if (el_deserializing == "num_batches_init")
+         _ss >> num_batches_init;
       if (el_deserializing == "coeff_distance")
          _ss >> coeff_distance;
       if (el_deserializing == "coeff_checkcost")
@@ -676,7 +681,7 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    // set up planner
    ompl_planner.reset(new ompl_multiset::E8Roadmap(
       ompl::base::SpaceInformationPtr(new ompl::base::SpaceInformation(ompl_space)),
-      *fem, *tag_cache, roadmapgen, 1));
+      *fem, *tag_cache, roadmapgen, inparams->num_batches_init));
    
    // planner params
    ompl_planner->coeff_checkcost = inparams->coeff_checkcost;
