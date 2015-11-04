@@ -92,6 +92,7 @@ public:
    
    OpenRAVE::PlannerStatus PlanPath(OpenRAVE::TrajectoryBasePtr);
    
+   bool GetSelfHeader(std::ostream & sout, std::istream & sin) const;
    bool GetSelfHash(std::ostream & sout, std::istream & sin) const;
    bool CacheCalculateSave(std::ostream & sout, std::istream & sin);
    bool GetTimes(std::ostream & sout, std::istream & sin) const;

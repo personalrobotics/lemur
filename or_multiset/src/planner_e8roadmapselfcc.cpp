@@ -129,32 +129,61 @@ inline std::string hashable_double(const double & in)
    return res;
 }
 
+// does not print first path tx;
+// instead, prints tx_first if it's passed
 void ilc_link_path_hash(std::ostream & sout,
+   const OpenRAVE::Transform * tx_first,
    const std::vector<or_multiset::TxAjoint> & link_path)
 {
+   if (tx_first)
+   {
+      sout << " tx";
+      sout << " " << hashable_double(tx_first->trans.x);
+      sout << " " << hashable_double(tx_first->trans.y);
+      sout << " " << hashable_double(tx_first->trans.z);
+      std::string quat1
+         = hashable_double(tx_first->rot.y)
+         + " " + hashable_double(tx_first->rot.z)
+         + " " + hashable_double(tx_first->rot.w)
+         + " " + hashable_double(tx_first->rot.x);
+      std::string quat2
+         = hashable_double(-tx_first->rot.y)
+         + " " + hashable_double(-tx_first->rot.z)
+         + " " + hashable_double(-tx_first->rot.w)
+         + " " + hashable_double(-tx_first->rot.x);
+      if (quat1 < quat2)
+         sout << " " + quat1;
+      else
+         sout << " " + quat2;
+   }
    for (unsigned int j=0; j<link_path.size(); j++)
    {
-      OpenRAVE::Transform tx = link_path[j].tx;
-      sout << hashable_double(tx.trans.x);
-      sout << " " << hashable_double(tx.trans.y);
-      sout << " " << hashable_double(tx.trans.z);
-      std::string quat1
-         = hashable_double(tx.rot.y)
-         + " " + hashable_double(tx.rot.z)
-         + " " + hashable_double(tx.rot.w)
-         + " " + hashable_double(tx.rot.x);
-      std::string quat2
-         = hashable_double(-tx.rot.y)
-         + " " + hashable_double(-tx.rot.z)
-         + " " + hashable_double(-tx.rot.w)
-         + " " + hashable_double(-tx.rot.x);
-      if (quat1 < quat2)
-         sout << quat1;
-      else
-         sout << quat2;
+      if (j)
+      {
+         OpenRAVE::Transform tx = link_path[j].tx;
+         sout << " tx";
+         sout << " " << hashable_double(tx.trans.x);
+         sout << " " << hashable_double(tx.trans.y);
+         sout << " " << hashable_double(tx.trans.z);
+         std::string quat1
+            = hashable_double(tx.rot.y)
+            + " " + hashable_double(tx.rot.z)
+            + " " + hashable_double(tx.rot.w)
+            + " " + hashable_double(tx.rot.x);
+         std::string quat2
+            = hashable_double(-tx.rot.y)
+            + " " + hashable_double(-tx.rot.z)
+            + " " + hashable_double(-tx.rot.w)
+            + " " + hashable_double(-tx.rot.x);
+         if (quat1 < quat2)
+            sout << " " + quat1;
+         else
+            sout << " " + quat2;
+      }
       OpenRAVE::KinBody::JointPtr joint = link_path[j].ajoint;
       if (joint)
       {
+         sout << " j";
          const OpenRAVE::KinBody::JointInfo & info = joint->GetInfo();
          sout << " " << info._type;
          sout << " " << hashable_double(info._vanchor.x);
@@ -454,6 +483,9 @@ or_multiset::E8RoadmapSelfCC::E8RoadmapSelfCC(OpenRAVE::EnvironmentBasePtr env):
    OpenRAVE::PlannerBase(env), env(env)
 {
    __description = "E8 roadmap planner";
+   RegisterCommand("GetSelfHeader",
+      boost::bind(&or_multiset::E8RoadmapSelfCC::GetSelfHeader,this,_1,_2),
+      "get self header");
    RegisterCommand("GetSelfHash",
       boost::bind(&or_multiset::E8RoadmapSelfCC::GetSelfHash,this,_1,_2),
       "get self hash");
@@ -581,32 +613,44 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
          ilcs_self[i].link2->GetCollisionData().serialize(ss2, 0);
          std::string link2_hash = OpenRAVE::utils::GetMD5HashString(ss2.str());
          // do consistent ordering
-         if (link1_hash <= link2_hash)
+         std::string ilc_link1_link2;
+         std::string ilc_link2_link1;
          {
+            // order: link1 link2
+            OpenRAVE::Transform tx_b_wrt_a = ilcs_self[i].link2_path[0].tx;
             std::stringstream sspath;
-            ilc_link_path_hash(sspath, ilcs_self[i].link1_path);
-            sspath << " ";
-            ilc_link_path_hash(sspath, ilcs_self[i].link2_path);
+            sspath << "linka_path";
+            ilc_link_path_hash(sspath, 0, ilcs_self[i].link1_path);
+            sspath << " linkb_path";
+            ilc_link_path_hash(sspath, &tx_b_wrt_a, ilcs_self[i].link2_path);
             std::string sspath_str = sspath.str();
             //printf("  sspath: |%s| hash: |%s|\n",
             //   sspath_str.c_str(),OpenRAVE::utils::GetMD5HashString(sspath_str).c_str());
             //printf("    chars:"); for (unsigned int j=0; j<sspath_str.length(); j++) printf(" %d", sspath_str[j]); printf("\n");
-            ilc_lines.insert(link1_hash + " " + link2_hash + " "
-               + OpenRAVE::utils::GetMD5HashString(sspath_str));
+            ilc_link1_link2 = link1_hash + " " + link2_hash + " "
+               + OpenRAVE::utils::GetMD5HashString(sspath_str);
+            //   + sspath_str;
          }
+         {
+            // order: link2 link1
+            OpenRAVE::Transform tx_b_wrt_a = ilcs_self[i].link2_path[0].tx.inverse();
+            std::stringstream sspath;
+            sspath << "linka_path";
+            ilc_link_path_hash(sspath, 0, ilcs_self[i].link2_path);
+            sspath << " linkb_path";
+            ilc_link_path_hash(sspath, &tx_b_wrt_a, ilcs_self[i].link1_path);
+            std::string sspath_str = sspath.str();
+            //printf("  sspath: |%s| hash: |%s|\n",
+            //   sspath_str.c_str(),OpenRAVE::utils::GetMD5HashString(sspath_str).c_str());
+            //printf("    chars:"); for (unsigned int j=0; j<sspath_str.length(); j++) printf(" %d", sspath_str[j]); printf("\n");
+            ilc_link2_link1 = link2_hash + " " + link1_hash + " "
+               + OpenRAVE::utils::GetMD5HashString(sspath_str);
+            //   + sspath_str;
+         }
+         if (ilc_link1_link2 <= ilc_link2_link1)
+            ilc_lines.insert(ilc_link1_link2);
          else
-         {
-            std::stringstream sspath;
-            ilc_link_path_hash(sspath, ilcs_self[i].link2_path);
-            sspath << " ";
-            ilc_link_path_hash(sspath, ilcs_self[i].link1_path);
-            std::string sspath_str = sspath.str();
-            //printf("  sspath: |%s| hash: |%s|\n",
-            //   sspath_str.c_str(),OpenRAVE::utils::GetMD5HashString(sspath_str).c_str());
-            //printf("    chars:"); for (unsigned int j=0; j<sspath_str.length(); j++) printf(" %d", sspath_str[j]); printf("\n");
-            ilc_lines.insert(link2_hash + " " + link1_hash + " "
-               + OpenRAVE::utils::GetMD5HashString(sspath_str));
-         }
+            ilc_lines.insert(ilc_link2_link1);
       }
       for (std::set<std::string>::iterator it=ilc_lines.begin(); it!=ilc_lines.end(); it++)
       {
@@ -816,6 +860,12 @@ or_multiset::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       return OpenRAVE::PS_InterruptedWithSolution;
    else
       return OpenRAVE::PS_HasSolution;
+}
+
+bool or_multiset::E8RoadmapSelfCC::GetSelfHeader(std::ostream & sout, std::istream & sin) const
+{
+   sout << tag_cache->selffile_header;
+   return true;
 }
 
 bool or_multiset::E8RoadmapSelfCC::GetSelfHash(std::ostream & sout, std::istream & sin) const
