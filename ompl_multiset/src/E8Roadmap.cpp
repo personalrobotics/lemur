@@ -21,6 +21,7 @@
 // TEMP for stringify
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
+#include <pr_bgl/compose_property_map.hpp>
 #include <pr_bgl/graph_io.h>
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/edge_indexed_graph.h>
@@ -39,7 +40,7 @@
 ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       EffortModel & effort_model,
-      TagCache & tag_cache,
+      TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
       const RoadmapPtr roadmap_gen,
       unsigned int num_batches_init):
    ompl::base::Planner(si, "E8Roadmap"),
@@ -58,10 +59,14 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    nn(g, get(&VProps::state,g), space),
    coeff_checkcost(0.),
    coeff_distance(1.),
-   coeff_batch(0.)
+   coeff_batch(0.),
+   m_vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
+   m_eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tags,g), eig.edge_vector_map))
 {
    // setup ompl_nn
    ompl_nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::ompl_nn_dist, this, _1, _2));
+   
+   tag_cache.load_begin();
    
    // before we start,
    // generate some levels into our core eraph
@@ -71,6 +76,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       printf("E8Roadmap: constructing batch [%lu] ...\n",
          roadmap_gen->get_num_batches_generated());
       
+      size_t v_from = num_vertices(eig);
+      size_t e_from = num_edges(eig);
+      
       //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
       nn.sync();
       roadmap_gen->generate(eig, nn,
@@ -79,32 +87,30 @@ ompl_multiset::E8Roadmap::E8Roadmap(
          get(&VProps::batch, g),
          get(&EProps::batch, g),
          get(&VProps::is_shadow, g));
-   }
-   printf("E8Roadmap: initializing %lu edges ...\n", num_edges(g));
-   
-   // initialize stuff
-   VertexIter vi, vi_end;
-   EdgeIter ei, ei_end;
-   
-   tag_cache.load_begin();
-   
-   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-   {
-      g[*vi].tag = 0;
-      tag_cache.load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
-   }
-   
-   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
-   {
-      edge_init_points(
-         g[source(*ei,g)].state,
-         g[target(*ei,g)].state,
-         g[*ei].distance,
-         g[*ei].edge_states);
-      g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
-      //g[*ei].tag = 0;
       
-      tag_cache.load_edge(g[*ei].index, g[*ei].edge_tags);
+      size_t v_to = num_vertices(eig);
+      size_t e_to = num_edges(eig);
+      m_subgraph_sizes.push_back(std::make_pair(v_to,e_to));
+      
+      // initialize new vertices/edges
+      for (size_t vidx=v_from; vidx<v_to; vidx++)
+         put(m_vidx_tag_map, vidx, 0);
+      for (size_t eidx=e_from; eidx<e_to; eidx++)
+      {
+         Edge e = get(eig.edge_vector_map,eidx);
+         edge_init_points(
+            g[source(e,g)].state,
+            g[target(e,g)].state,
+            g[e].distance,
+            g[e].edge_states);
+         g[e].edge_tags.resize(g[e].edge_states.size(), 0);
+      }
+      
+      printf("E8Roadmap: loading from cache ...\n");
+      
+      // load new batch from cache
+      tag_cache.load_vertices(m_vidx_tag_map, v_from, v_to);
+      tag_cache.load_edges(m_eidx_tags_map, e_from, e_to);
    }
    
    tag_cache.load_end();
@@ -389,8 +395,8 @@ ompl_multiset::E8Roadmap::solve(
       
       overlay_unapply();
       
-      size_t num_vertices_before = num_vertices(g);
-      size_t num_edges_before = num_edges(g);
+      size_t v_from = num_vertices(eig);
+      size_t e_from = num_edges(eig);
       
       // add a batch!
       //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
@@ -402,36 +408,36 @@ ompl_multiset::E8Roadmap::solve(
          get(&EProps::batch, g),
          get(&VProps::is_shadow, g));
       
+      size_t v_to = num_vertices(eig);
+      size_t e_to = num_edges(eig);
+      m_subgraph_sizes.push_back(std::make_pair(v_to,e_to));
+      
       tag_cache.load_begin();
       
-      // initialize NEW vertices
-      VertexIter vi, vi_end;
-      for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      // initialize new vertices/edges
+      for (size_t vidx=v_from; vidx<v_to; vidx++)
+         put(m_vidx_tag_map, vidx, 0);
+      for (size_t eidx=e_from; eidx<e_to; eidx++)
       {
-         size_t v_index = get(get(boost::vertex_index,g),*vi);
-         if (v_index < num_vertices_before)
-            continue;
-         g[*vi].tag = 0;
-         tag_cache.load_vertex(v_index, g[*vi].tag);
+         Edge e = get(eig.edge_vector_map,eidx);
+         edge_init_points(
+            g[source(e,g)].state,
+            g[target(e,g)].state,
+            g[e].distance,
+            g[e].edge_states);
+         g[e].edge_tags.resize(g[e].edge_states.size(), 0);
       }
       
-      // initialize NEW edges
-      EdgeIter ei, ei_end;
-      for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
+      printf("E8Roadmap: loading from cache ...\n");
+      
+      // load new batch from cache
+      tag_cache.load_vertices(m_vidx_tag_map, v_from, v_to);
+      tag_cache.load_edges(m_eidx_tags_map, e_from, e_to);
+      
+      for (size_t eidx=e_from; eidx<e_to; eidx++)
       {
-         if (g[*ei].index < num_edges_before)
-            continue;
-         edge_init_points(
-            g[source(*ei,g)].state,
-            g[target(*ei,g)].state,
-            g[*ei].distance,
-            g[*ei].edge_states);
-         g[*ei].edge_tags.resize(g[*ei].edge_states.size(), 0);
-         //g[*ei].tag = 0;
-         
-         tag_cache.load_edge(g[*ei].index, g[*ei].edge_tags);
-         
-         calculate_w_lazy(*ei);
+         Edge e = get(eig.edge_vector_map,eidx);
+         calculate_w_lazy(e);
       }
       
       tag_cache.load_end();
@@ -557,33 +563,25 @@ void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
       props);
 }
 
-void ompl_multiset::E8Roadmap::cache_load_all()
-{
-   VertexIter vi, vi_end;
-   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-      tag_cache.load_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
-   
-   EdgeIter ei, ei_end;
-   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
-   {
-      tag_cache.load_edge(g[*ei].index, g[*ei].edge_tags);
-      calculate_w_lazy(*ei);
-   }
-}
-
 void ompl_multiset::E8Roadmap::cache_save_all()
 {
    overlay_unapply();
    
    tag_cache.save_begin();
    
-   VertexIter vi, vi_end;
-   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-      tag_cache.save_vertex(get(get(boost::vertex_index,g),*vi), g[*vi].tag);
-   
-   EdgeIter ei, ei_end;
-   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
-      tag_cache.save_edge(g[*ei].index, g[*ei].edge_tags);
+   for (size_t ibatch=0; ibatch<m_subgraph_sizes.size(); ibatch++)
+   {
+      if (ibatch == 0)
+      {
+         tag_cache.save_vertices(m_vidx_tag_map, 0, m_subgraph_sizes[ibatch].first);
+         tag_cache.save_edges(m_eidx_tags_map, 0, m_subgraph_sizes[ibatch].second);
+      }
+      else
+      {
+         tag_cache.save_vertices(m_vidx_tag_map, m_subgraph_sizes[ibatch-1].first, m_subgraph_sizes[ibatch].first);
+         tag_cache.save_edges(m_eidx_tags_map, m_subgraph_sizes[ibatch-1].second, m_subgraph_sizes[ibatch].second);
+      }
+   }
    
    tag_cache.save_end();
    

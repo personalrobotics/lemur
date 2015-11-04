@@ -22,6 +22,7 @@
 #include <ompl/geometric/PathGeometric.h>
 #include <ompl/datastructures/NearestNeighbors.h>
 
+#include <pr_bgl/compose_property_map.hpp>
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>
 #include <pr_bgl/string_map.h>
@@ -250,7 +251,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
       
       // set up planner
       sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
-      tag_cache.reset(new ompl_multiset::DummyTagCache());
+      tag_cache.reset(new ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>());
       try
       {
          roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));

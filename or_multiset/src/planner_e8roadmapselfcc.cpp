@@ -23,6 +23,7 @@
 #include <ompl/geometric/PathGeometric.h>
 #include <ompl/datastructures/NearestNeighbors.h>
 
+#include <pr_bgl/compose_property_map.hpp>
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>
 #include <pr_bgl/string_map.h>
@@ -379,6 +380,24 @@ void or_multiset::E8RoadmapSelfCC::TagCache::load_edge(size_t e_index, std::vect
    return;
 }
 
+void or_multiset::E8RoadmapSelfCC::TagCache::load_vertices(
+   ompl_multiset::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
+{
+   for (size_t vidx=v_from; vidx<v_to; vidx++)
+   {
+      load_vertex(vidx, v_tag_map[vidx]);
+   }
+}
+
+void or_multiset::E8RoadmapSelfCC::TagCache::load_edges(
+   ompl_multiset::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
+{
+   for (size_t eidx=e_from; eidx<e_to; eidx++)
+   {
+      load_edge(eidx, e_tags_map[eidx]);
+   }
+}
+
 void or_multiset::E8RoadmapSelfCC::TagCache::save_begin(void)
 {
    std::string selffname = "e8/set-" + selffile_header_md5 + ".txt";
@@ -411,6 +430,24 @@ void or_multiset::E8RoadmapSelfCC::TagCache::save_edge(size_t e_index, std::vect
    for (unsigned int i=0; i<e_tags.size(); i++)
       fprintf(fp, "%c", tag_letters[e_tags[i]]);
    fprintf(fp, "\n");
+}
+
+void or_multiset::E8RoadmapSelfCC::TagCache::save_vertices(
+   ompl_multiset::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
+{
+   for (size_t vidx=v_from; vidx<v_to; vidx++)
+   {
+      save_vertex(vidx, v_tag_map[vidx]);
+   }
+}
+
+void or_multiset::E8RoadmapSelfCC::TagCache::save_edges(
+   ompl_multiset::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
+{
+   for (size_t eidx=e_from; eidx<e_to; eidx++)
+   {
+      save_edge(eidx, e_tags_map[eidx]);
+   }
 }
 
 or_multiset::E8RoadmapSelfCC::E8RoadmapSelfCC(OpenRAVE::EnvironmentBasePtr env):

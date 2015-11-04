@@ -17,6 +17,7 @@
 #include <ompl/base/ProblemDefinition.h>
 #include <ompl/datastructures/NearestNeighbors.h>
 
+#include <pr_bgl/compose_property_map.hpp>
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>
 #include <pr_bgl/string_map.h>

@@ -19,6 +19,7 @@
 #include <ompl/geometric/PathGeometric.h>
 #include <ompl/datastructures/NearestNeighbors.h>
 
+#include <pr_bgl/compose_property_map.hpp>
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/heap_indexed.h>
 #include <pr_bgl/string_map.h>
@@ -104,7 +105,7 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    fem.set_target(si);
    
    // cache
-   ompl_multiset::DummyTagCache tag_cache;
+   ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap> tag_cache;
    
    // planner
    ompl::base::PlannerPtr planner(

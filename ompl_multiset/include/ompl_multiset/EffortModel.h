@@ -22,31 +22,33 @@ public:
    virtual bool is_evaled(size_t tag) = 0;
 };
 
+template <class VTagMap, class ETagsMap>
 class TagCache
 {
 public:
    virtual void load_begin(void) = 0;
-   virtual void load_vertex(size_t v_index, size_t & v_tag) = 0;
-   virtual void load_edge(size_t e_index, std::vector< size_t > & e_tags) = 0;
+   virtual void load_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
+   virtual void load_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
    virtual void load_end(void) = 0;
    
    virtual void save_begin(void) = 0;
-   virtual void save_vertex(size_t v_index, size_t & v_tag) = 0;
-   virtual void save_edge(size_t e_index, std::vector< size_t > & e_tags) = 0;
+   virtual void save_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
+   virtual void save_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
    virtual void save_end(void) = 0;
 };
 
-class DummyTagCache : public TagCache
+template <class VTagMap, class ETagsMap>
+class DummyTagCache : public TagCache<VTagMap,ETagsMap>
 {
 public:
    void load_begin(void) {}
-   void load_vertex(size_t v_index, size_t & v_tag) {}
-   void load_edge(size_t e_index, std::vector< size_t > & e_tags) {}
+   void load_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) {}
+   void load_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) {}
    void load_end(void) {}
    
    void save_begin(void) {}
-   void save_vertex(size_t v_index, size_t & v_tag) {}
-   void save_edge(size_t e_index, std::vector< size_t > & e_tags) {}
+   void save_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) {}
+   void save_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) {}
    void save_end(void) {}
 };
 

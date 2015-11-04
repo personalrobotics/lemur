@@ -57,17 +57,23 @@ public:
    typedef boost::property_map<Graph, ompl::base::State * VProps::*>::type VPStateMap;
    typedef boost::property_map<Graph, int VProps::*>::type VPBatchMap;
    typedef boost::property_map<Graph, bool VProps::*>::type VPIsShadowMap;
+   typedef boost::property_map<Graph, size_t VProps::*>::type VPTagMap;
    typedef boost::property_map<Graph, std::size_t EProps::*>::type EPIndexMap;
    typedef boost::property_map<Graph, double EProps::*>::type EPDistanceMap;
    typedef boost::property_map<Graph, int EProps::*>::type EPBatchMap;
    typedef boost::property_map<Graph, double EProps::*>::type EPWlazyMap;
    typedef boost::property_map<Graph, bool EProps::*>::type EPIsEvaledMap;
+   typedef boost::property_map<Graph, std::vector<size_t> EProps::*>::type EPTagsMap;
    
    // for indexing
    typedef pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> EdgeIndexedGraph;
    typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
    typedef boost::property_map<Graph, std::size_t EProps::*>::type EdgeIndexMap;
    typedef EdgeIndexedGraph::EdgeVectorMap EdgeVectorMap;
+   
+   // for tag cache object
+   typedef pr_bgl::compose_property_map<VPTagMap,VertexIndexMap> VIdxTagMap;
+   typedef pr_bgl::compose_property_map<EPTagsMap,EdgeVectorMap> EIdxTagsMap;
    
    // roadmap generator type
    //typedef ompl_multiset::NNOmplBatched<Graph,VPStateMap> NN;
@@ -115,6 +121,7 @@ public:
    ompl_multiset::EffortModel & effort_model;
 
    const RoadmapPtr roadmap_gen;
+   std::vector< std::pair<size_t,size_t> > m_subgraph_sizes; // numverts,numedges (cumulative)
 
    const ompl::base::StateSpacePtr space;
    double check_radius; // this is half the standard resolution
@@ -134,9 +141,7 @@ public:
    
    BisectPerm bisect_perm;
    
-   //unsigned int num_batches;
-   
-   TagCache & tag_cache;
+   TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache;
    
    boost::shared_ptr< ompl::NearestNeighbors<Vertex> > ompl_nn;
    NN nn;
@@ -145,13 +150,17 @@ public:
    double coeff_checkcost;
    double coeff_distance;
    double coeff_batch;
-
+   
+   // property maps
+   VIdxTagMap m_vidx_tag_map;
+   EIdxTagsMap m_eidx_tags_map;
+   
    // part 3: ompl methods
 
    E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       ompl_multiset::EffortModel & effort_model,
-      ompl_multiset::TagCache & tag_cache,
+      ompl_multiset::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
       const RoadmapPtr roadmap_gen,
       unsigned int num_batches_init);
    
@@ -165,7 +174,6 @@ public:
    
    void dump_graph(std::ostream & os_graph);
    
-   void cache_load_all();
    void cache_save_all();
    
    // part 4: private-ish methods
