@@ -15,7 +15,7 @@ class HashesTestcase(unittest.TestCase):
          planner = prpy_multiset.planning_e8roadmapselfcc.E8RoadmapSelfCCPlanner()
          planner.roadmap_id = 'RGG(n=1000 radius=2.0 seed=1)'
          selfhash = planner.GetSelfHash(robot)
-         self.assertEquals('8eee198040256418c9e1613b79cba6ff', selfhash)
+         self.assertEquals('d7db082d667f76549d13d04c4b9b4603', selfhash)
       finally:
          env.Destroy()
 
