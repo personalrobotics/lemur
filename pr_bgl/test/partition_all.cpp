@@ -1,4 +1,4 @@
-/* File: test_coupling.cpp
+/* File: partition_all.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -12,10 +12,12 @@
 #include <boost/type_traits/is_base_and_derived.hpp>
 #include <boost/type_traits/is_same.hpp>
 
-#include <pr_bgl/coupling.h>
+#include <pr_bgl/partition_all.h>
+
+#include <gtest/gtest.h>
 
 // single vertex
-int test1()
+TEST(PartitionAllTestCase, SingleVertexTest)
 {
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -43,7 +45,7 @@ int test1()
    std::map<Vertex, double> cs_xs;
    std::map<Vertex, double> cs_ty;
    
-   pr_bgl::coupling(g, 1.0,
+   pr_bgl::partition_all(g, 1.0,
       boost::make_assoc_property_map(weights),
       boost::make_assoc_property_map(coupling_map),
       boost::make_assoc_property_map(cs_xs),
@@ -62,11 +64,11 @@ int test1()
       }
    }
    
-   return 0;
+   ASSERT_EQ(1.0, coupling_map[std::make_pair(v,v)]);
 }
 
 // single directed edge
-int test2()
+TEST(PartitionAllTestCase, SingleDirectedEdgeTest)
 {
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -102,7 +104,7 @@ int test2()
    std::map<Vertex, double> cs_xs;
    std::map<Vertex, double> cs_ty;
    
-   pr_bgl::coupling(g, 1.0,
+   pr_bgl::partition_all(g, 1.0,
       boost::make_assoc_property_map(weights),
       boost::make_assoc_property_map(coupling_map),
       boost::make_assoc_property_map(cs_xs),
@@ -122,11 +124,14 @@ int test2()
       }
    }
    
-   return 0;
+   ASSERT_EQ(1.0, coupling_map[std::make_pair(v1,v1)]);
+   ASSERT_EQ(exp(-1.0), coupling_map[std::make_pair(v1,v2)]);
+   ASSERT_EQ(0.0, coupling_map[std::make_pair(v2,v1)]);
+   ASSERT_EQ(1.0, coupling_map[std::make_pair(v2,v2)]);
 }
 
 // double directed edges
-int test3()
+TEST(PartitionAllTestCase, DoubleDirectedEdgesTest)
 {
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -164,7 +169,7 @@ int test3()
    std::map<Vertex, double> cs_xs;
    std::map<Vertex, double> cs_ty;
    
-   pr_bgl::coupling(g, 1.0,
+   pr_bgl::partition_all(g, 1.0,
       boost::make_assoc_property_map(weights),
       boost::make_assoc_property_map(coupling_map),
       boost::make_assoc_property_map(cs_xs),
@@ -184,11 +189,15 @@ int test3()
       }
    }
    
-   return 0;
+   double e = exp(1.0);
+   ASSERT_EQ(1.+1./(e*e-1.), coupling_map[std::make_pair(v1,v1)]);
+   ASSERT_EQ(e/(e*e-1.), coupling_map[std::make_pair(v1,v2)]);
+   ASSERT_EQ(e/(e*e-1.), coupling_map[std::make_pair(v2,v1)]);
+   ASSERT_EQ(1.+1./(e*e-1.), coupling_map[std::make_pair(v2,v2)]);
 }
 
 // single undirected edge
-int test4()
+TEST(PartitionAllTestCase, SingleUndirectedEdgeTest)
 {
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -224,7 +233,7 @@ int test4()
    std::map<Vertex, double> cs_xs;
    std::map<Vertex, double> cs_ty;
    
-   pr_bgl::coupling(g, 1.0,
+   pr_bgl::partition_all(g, 1.0,
       boost::make_assoc_property_map(weights),
       boost::make_assoc_property_map(coupling_map),
       boost::make_assoc_property_map(cs_xs),
@@ -244,17 +253,15 @@ int test4()
       }
    }
    
-   return 0;
+   double e = exp(1.0);
+   ASSERT_EQ(1.+1./(e*e-1.), coupling_map[std::make_pair(v1,v1)]);
+   ASSERT_EQ(e/(e*e-1.), coupling_map[std::make_pair(v1,v2)]);
+   ASSERT_EQ(e/(e*e-1.), coupling_map[std::make_pair(v2,v1)]);
+   ASSERT_EQ(1.+1./(e*e-1.), coupling_map[std::make_pair(v2,v2)]);
 }
 
-int main()
+int main(int argc, char **argv)
 {
-   printf("starting test_coupling!\n");
-   
-   test1();
-   test2();
-   test3();
-   test4();
-   
-   return 0;
+   testing::InitGoogleTest(&argc, argv);
+   return RUN_ALL_TESTS();
 }

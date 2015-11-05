@@ -1,4 +1,4 @@
-/* File: coupling.h
+/* File: partition_all.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -20,7 +20,7 @@ namespace pr_bgl
 {
 
 template <class Graph, class CouplingMap, class TempMap>
-void coupling_update_directed_edge(
+void partition_all_update_directed_edge(
    const Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_a,
    typename boost::graph_traits<Graph>::vertex_descriptor v_b,
@@ -72,7 +72,7 @@ void coupling_update_directed_edge(
 }
 
 template <class Graph, class CouplingMap, class TempMap>
-void coupling_update_edge(
+void partition_all_update_edge(
    const Graph & g,
    typename boost::graph_traits<Graph>::edge_descriptor edge,
    double weight_frac,
@@ -92,7 +92,7 @@ void coupling_update_edge(
    Vertex v_t = boost::target(edge, g);
    
    // add forward edge s->t
-   coupling_update_directed_edge(g,
+   partition_all_update_directed_edge(g,
       v_s,
       v_t,
       weight_frac,
@@ -102,7 +102,7 @@ void coupling_update_edge(
    // add backwards edge t->s
    if (is_undirected)
    {
-      coupling_update_directed_edge(g,
+      partition_all_update_directed_edge(g,
          v_t,
          v_s,
          weight_frac,
@@ -112,7 +112,7 @@ void coupling_update_edge(
 }
 
 template <class Graph, class CouplingMap>
-void coupling_init(
+void partition_all_init(
    const Graph & g,
    CouplingMap coupling_map)
 {
@@ -135,7 +135,7 @@ void coupling_init(
 
 // initializes the coupling_map, and goes over all edges
 template <class Graph, class WeightMap, class CouplingMap, class TempMap>
-void coupling(
+void partition_all(
    const Graph & g,
    double len_ref,
    WeightMap weight_map,
@@ -144,12 +144,12 @@ void coupling(
 {
    typedef typename boost::graph_traits<Graph>::edge_iterator EdgeIter;
    
-   coupling_init(g, coupling_map);
+   partition_all_init(g, coupling_map);
    
    std::pair<EdgeIter,EdgeIter> ep=boost::edges(g);
    for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
    {
-      coupling_update_edge(
+      partition_all_update_edge(
          g,
          *ei,
          boost::get(weight_map,*ei) / len_ref,
@@ -159,7 +159,7 @@ void coupling(
 }
 
 template <class Graph, class CouplingMap>
-double coupling_without_edge(
+double partition_all_without_edge(
    const Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_x,
    typename boost::graph_traits<Graph>::vertex_descriptor v_y,

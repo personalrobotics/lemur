@@ -14,6 +14,10 @@ include_directories(
 
 #set(CMAKE_BUILD_TYPE Release)
 
-foreach(testname coupling heap incbi sebc)
-   add_executable(test_${testname} src/test_${testname}.cpp)
-endforeach()
+add_executable(test_incbi src/test_incbi.cpp)
+
+if (CATKIN_ENABLE_TESTING)
+   catkin_add_gtest(test_heap_indexed test/heap_indexed.cpp)
+   catkin_add_gtest(test_partition_all test/partition_all.cpp)
+   catkin_add_gtest(test_partition_simple test/partition_simple.cpp)
+endif ()

@@ -24,7 +24,7 @@ struct partition_simple_el
 // DistanceMap: vertices to distances
 // ScoreMap: edges to scores
 template <class Graph, class WeightMap, class DistanceMap, class ScoreMap, class IsUsedMap>
-void partition_simple(
+double partition_simple(
    const Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
@@ -119,9 +119,7 @@ void partition_simple(
       stack.push_back(partition_simple_el<Graph>(v_next, len, out_edges(v_next, g)));
    }
    
-   for (std::pair<EdgeIter,EdgeIter> ep=edges(g); ep.first!=ep.second; ep.first++)
-      put(score_map, *ep.first,
-         get(score_map, *ep.first) / score_total);
+   return score_total;
 }
 
 } // namespace pr_bgl

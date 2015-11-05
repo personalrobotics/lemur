@@ -89,23 +89,17 @@ Test coverage: No.
 Other Graph Algorithms
 ----------------------
 
-### `coupling.h`
+### `partition_all.h`
 
-The `coupling` function calculates the edge-weight partition function over all paths between every pair of vertices on a graph, via a recursive formulation which is linear in the number of edges in the graph.  
+The `partition_all` function calculates the edge-weight partition function over all paths between every pair of vertices on a graph, via a recursive formulation which is linear in the number of edges in the graph.  
 
-Test coverage: Yes (not yet converted to `gtest`).
+Test coverage: Yes.
 
 ### `partition_simple.h`
 
 The `partition_simple` function calculates an approximation to the edge-weight partition function over all simple paths between two given vertices.  The implementation returns the value over all simple paths with total length below a given parameter.
 
-Test coverage: No.
-
-### `soft_edge_bc.h`
-
-The `soft_edge_bc` function calculates a "soft edge betweenness-centrality" measure, similary to a partition function, for an arbitrary cost function `f_importance(path_len)`.
-
-Test coverage: Yes (not yet converted to `gtest`).
+Test coverage: Yes.
 
 Other Data Structures
 ---------------------
@@ -114,7 +108,7 @@ Other Data Structures
 
 The `HeapIndexed` class implements a binary min-heap with index lookups.  Elements are identified with an index value (e.g. [0,num_vertices)).  The heap also maintains a vector backing, wich each element at a particular location.
 
-Test coverage: Yes (not yet converted to `gtest`).
+Test coverage: Yes.
 
 [bgl]: http://boost.org/doc/libs/release/libs/graph/
 [property-map]: http://www.boost.org/doc/libs/1_59_0/libs/property_map/
