@@ -78,7 +78,7 @@ Test coverage: Yes (not yet converted to `gtest`).
 
 The `lazy_shortest_path` function implements the Lazy Shortest Path algorithm for the single-source single-sink shortest path problem.  It takes as an argument an `EvalStrategy` object which determins for the candidate path found at each iteration which edge(s) to select for evaluation.
 
-Test coverage: No.
+Test coverage: Yes.
 
 ### `path_generator.h`
 
