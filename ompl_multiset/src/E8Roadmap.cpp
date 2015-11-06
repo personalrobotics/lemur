@@ -347,7 +347,7 @@ ompl_multiset::E8Roadmap::solve(
       }
       
       printf("running lazy search over %lu vertices and %lu edges...\n",
-         num_vertices(g), num_edges(g));
+         num_vertices(eig), num_edges(eig));
       
       // run lazy search
       if (os_alglog)
@@ -531,7 +531,7 @@ void ompl_multiset::E8Roadmap::solve_all()
    EdgeIter ei, ei_end;
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
-      printf("calculating edge %u/%lu ...\n", count, num_edges(g));
+      printf("calculating edge %u/%lu ...\n", count, num_edges(eig));
       for (unsigned ui=0; ui<g[*ei].edge_tags.size(); ui++)
       {
          while (!effort_model.is_evaled(g[*ei].edge_tags[ui]))
