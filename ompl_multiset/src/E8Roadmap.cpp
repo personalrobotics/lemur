@@ -359,6 +359,7 @@ ompl_multiset::E8Roadmap::solve(
             get(&EProps::w_lazy,g),
             ompl_multiset::IsEvaledMap(*this),
             epath,
+            pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
             //pr_bgl::LazySpEvalFwd(),
             pr_bgl::LazySpEvalAlt(),
             ompl_multiset::make_lazysp_log_visitor(
@@ -375,6 +376,7 @@ ompl_multiset::E8Roadmap::solve(
             get(&EProps::w_lazy,g),
             ompl_multiset::IsEvaledMap(*this),
             epath,
+            pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
             //pr_bgl::LazySpEvalFwd(),
             pr_bgl::LazySpEvalAlt(),
             pr_bgl::lazysp_null_visitor());

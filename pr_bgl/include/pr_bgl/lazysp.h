@@ -20,13 +20,13 @@ namespace pr_bgl
 // (do we construct anything each iteration?)
 template <class Graph,
    class WMap, class WLazyMap, class IsEvaledMap,
-   class EvalStrategy, class LazySPVisitor>
+   class IncSP, class EvalStrategy, class LazySPVisitor>
 bool lazy_shortest_path(Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
    WMap wmap, WLazyMap wlazymap, IsEvaledMap isevaledmap,
    std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & path,
-   EvalStrategy evalstrategy, LazySPVisitor visitor)
+   IncSP incsp, EvalStrategy evalstrategy, LazySPVisitor visitor)
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
@@ -34,53 +34,30 @@ bool lazy_shortest_path(Graph & g,
 
    for (;;)
    {
-      // find the lazy shortest path, for now using dijkstra's
-      // TODO: we should use faster temporary storage for these!
-      std::map<Vertex,Vertex> startpreds;
-      std::map<Vertex,weight_type> startdist;
-      boost::dijkstra_shortest_paths(
-         g,
-         v_start,
-         boost::make_assoc_property_map(startpreds),
-         boost::make_assoc_property_map(startdist),
-         wlazymap,
-         boost::get(boost::vertex_index, g), // implicit vertex index map
-         std::less<weight_type>(), // compare
-         boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
-         std::numeric_limits<weight_type>::max(),
-         weight_type(),
-         boost::make_dijkstra_visitor(boost::null_visitor())
-      );
-      
-      if (startdist[v_goal] == std::numeric_limits<weight_type>::max())
+      std::vector<Edge> incsp_path;
+      weight_type pathlen = incsp.solve(g, v_start, v_goal, wlazymap, incsp_path);
+      if (pathlen == std::numeric_limits<weight_type>::max())
       {
          visitor.no_path();
          return false;
       }
       
-      // get path
+      // compose vpath and eepath, determine if path already evaled
       std::vector<Vertex> vpath;
       std::vector< std::pair<Edge,bool> > eepath;
-      Vertex v_walk = v_goal;
       bool path_evaled = true;
-      for (;;)
+      vpath.push_back(source(incsp_path[0],g));
+      for (unsigned int ui=0; ui<incsp_path.size(); ui++)
       {
-         vpath.push_back(v_walk);
-         if (v_walk == v_start)
-            break;
-         Vertex v_pred = startpreds[v_walk];
-         std::pair<Edge,bool> ret = boost::edge(v_pred, v_walk, g);
-         BOOST_ASSERT(ret.second);
-         bool is_evaled = get(isevaledmap,ret.first);
+         Edge & e = incsp_path[ui];
+         vpath.push_back(target(e,g));
+         bool is_evaled = get(isevaledmap, e);
          if (!is_evaled)
             path_evaled = false;
-         eepath.push_back(std::make_pair(ret.first, is_evaled));
-         v_walk = v_pred;
+         eepath.push_back(std::make_pair(e, is_evaled));
       }
-      std::reverse(vpath.begin(),vpath.end());
-      std::reverse(eepath.begin(),eepath.end());
       
-      visitor.lazy_path(startdist[v_goal], vpath);
+      visitor.lazy_path(pathlen, vpath);
       
       if (path_evaled)
       {
@@ -102,6 +79,7 @@ bool lazy_shortest_path(Graph & g,
          weight_type e_weight = get(wmap,e);
          visitor.edge_evaluate(e, e_weight);
          put(wlazymap, e, e_weight);
+         incsp.update_notify(e);
       }
    }
 }
@@ -267,6 +245,60 @@ public:
          to_evaluate.push_back(*ei);
    }
 };
-         
+
+// solve returns weight_type::max if a non-infinite path is found
+// solve is always called with the same g,v_start,v_goal
+template <class Graph, class WMap>
+class lazysp_incsp_dijkstra
+{
+public:
+   typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
+   typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
+   typedef typename boost::property_traits<WMap>::value_type weight_type;
+   
+   lazysp_incsp_dijkstra() {}
+   
+   weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
+      WMap wmap, std::vector<Edge> & path)
+   {
+      std::map<Vertex,Vertex> startpreds;
+      std::map<Vertex,weight_type> startdist;
+      boost::dijkstra_shortest_paths(
+         g,
+         v_start,
+         boost::make_assoc_property_map(startpreds),
+         boost::make_assoc_property_map(startdist),
+         wmap,
+         get(boost::vertex_index, g), // implicit vertex index map
+         std::less<weight_type>(), // compare
+         boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
+         std::numeric_limits<weight_type>::max(),
+         weight_type(),
+         boost::make_dijkstra_visitor(boost::null_visitor())
+      );
+      
+      if (startdist[v_goal] == std::numeric_limits<weight_type>::max())
+         return std::numeric_limits<weight_type>::max();
+      
+      // get path
+      path.clear();
+      for (Vertex v_walk=v_goal; v_walk!=v_start;)
+      {
+         Vertex v_pred = startpreds[v_walk];
+         std::pair<Edge,bool> ret = edge(v_pred, v_walk, g);
+         BOOST_ASSERT(ret.second);
+         path.push_back(ret.first);
+         v_walk = v_pred;
+      }
+      std::reverse(path.begin(),path.end());
+      
+      return startdist[v_goal];
+   }
+   
+   void update_notify(Edge e)
+   {
+   }
+};    
+
 
 } // namespace pr_bgl
