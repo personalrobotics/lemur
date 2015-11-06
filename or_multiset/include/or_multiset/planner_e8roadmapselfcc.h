@@ -47,14 +47,10 @@ public:
       // methods
       TagCache();
       void load_begin(void);
-      void load_vertex(size_t v_index, size_t & v_tag);
-      void load_edge(size_t e_index, std::vector< size_t > & e_tags);
       void load_vertices(ompl_multiset::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to);
       void load_edges(ompl_multiset::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to);
       void load_end(void);
       void save_begin(void);
-      void save_vertex(size_t v_index, size_t & v_tag);
-      void save_edge(size_t e_index, std::vector< size_t > & e_tags);
       void save_vertices(ompl_multiset::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to);
       void save_edges(ompl_multiset::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to);
       void save_end(void);

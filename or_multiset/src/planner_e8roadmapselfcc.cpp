@@ -349,81 +349,71 @@ void or_multiset::E8RoadmapSelfCC::TagCache::load_end(void)
    fp = 0;
 }
 
-void or_multiset::E8RoadmapSelfCC::TagCache::load_vertex(size_t v_index, size_t & v_tag)
+void or_multiset::E8RoadmapSelfCC::TagCache::load_vertices(
+   ompl_multiset::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
 {
    if (!fp) return;
-   if (v_tag != 0)
+   for (size_t v_index=v_from; v_index<v_to; v_index++)
    {
-      printf("we only know how to read data into tag=0!\n");
-      return;
-   } 
-   size_t v_index_read;
-   char char_read;
-   int n_stored = fscanf(fp, "vprop %lu validity %c\n", &v_index_read, &char_read);
-   if (n_stored != 2 || v_index != v_index_read)
-   {
-      printf("vertex read mismatch from file!\n");
-      return;
-   }
-   switch (char_read)
-   {
-   case 'U': return;
-   case 'V': v_tag = tag_self_valid; return;
-   case 'I': v_tag = tag_self_invalid; return;
-   default:
-      printf("unknown char: %c\n", char_read);
-   }
-}
-
-void or_multiset::E8RoadmapSelfCC::TagCache::load_edge(size_t e_index, std::vector< size_t > & e_tags)
-{
-   if (!fp) return;
-   char fmt[256];
-   sprintf(fmt, "eprop %%lu validity %%%luc\n", e_tags.size());
-   size_t e_index_read;
-   char * s = (char *) malloc(e_tags.size());
-   int n_stored = fscanf(fp, fmt, &e_index_read, s);
-   if (n_stored != 2 || e_index != e_index_read)
-   {
-      printf("edge read mismatch from file!\n");
-      free(s);
-      return;
-   }
-   for (unsigned int i=0; i<e_tags.size(); i++)
-   {
-      if (e_tags[i] != 0)
+      if (v_tag_map[v_index] != 0)
       {
          printf("we only know how to read data into tag=0!\n");
          continue;
       }
-      switch (s[i])
+      size_t v_index_read;
+      char char_read;
+      int n_stored = fscanf(fp, "vprop %lu validity %c\n", &v_index_read, &char_read);
+      if (n_stored != 2 || v_index != v_index_read)
       {
-      case 'U': continue;
-      case 'V': e_tags[i] = tag_self_valid; continue;
-      case 'I': e_tags[i] = tag_self_invalid; continue;
-      default:
-         printf("unknown char: %c\n", s[i]);
+         printf("vertex read mismatch from file!\n");
+         continue;
       }
-   }
-   free(s);
-   return;
-}
-
-void or_multiset::E8RoadmapSelfCC::TagCache::load_vertices(
-   ompl_multiset::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
-{
-   for (size_t vidx=v_from; vidx<v_to; vidx++)
-   {
-      load_vertex(vidx, v_tag_map[vidx]);
+      switch (char_read)
+      {
+      case 'U': break;
+      case 'V': v_tag_map[v_index] = tag_self_valid; break;
+      case 'I': v_tag_map[v_index] = tag_self_invalid; break;
+      default:
+         printf("unknown char: %c\n", char_read);
+      }
    }
 }
 
 void or_multiset::E8RoadmapSelfCC::TagCache::load_edges(
    ompl_multiset::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
 {
-   for (size_t eidx=e_from; eidx<e_to; eidx++)
+   if (!fp) return;
+   for (size_t e_index=e_from; e_index<e_to; e_index++)
    {
-      load_edge(eidx, e_tags_map[eidx]);
+      std::vector<size_t> & e_tags = e_tags_map[e_index];
+      char fmt[256];
+      sprintf(fmt, "eprop %%lu validity %%%luc\n", e_tags.size());
+      size_t e_index_read;
+      char * s = (char *) malloc(e_tags.size());
+      int n_stored = fscanf(fp, fmt, &e_index_read, s);
+      if (n_stored != 2 || e_index != e_index_read)
+      {
+         printf("edge read mismatch from file!\n");
+         free(s);
+         continue;
+      }
+      for (unsigned int i=0; i<e_tags.size(); i++)
+      {
+         if (e_tags[i] != 0)
+         {
+            printf("we only know how to read data into tag=0!\n");
+            continue;
+         }
+         switch (s[i])
+         {
+         case 'U': break;
+         case 'V': e_tags[i] = tag_self_valid; break;
+         case 'I': e_tags[i] = tag_self_invalid; break;
+         default:
+            printf("unknown char: %c\n", s[i]);
+         }
+      }
+      free(s);
    }
 }
 
@@ -446,36 +436,28 @@ void or_multiset::E8RoadmapSelfCC::TagCache::save_end(void)
    fp = 0;
 }
 
-void or_multiset::E8RoadmapSelfCC::TagCache::save_vertex(size_t v_index, size_t & v_tag)
-{
-   if (!fp) return;
-   fprintf(fp, "vprop %lu validity %c\n", v_index, tag_letters[v_tag]);
-}
-
-void or_multiset::E8RoadmapSelfCC::TagCache::save_edge(size_t e_index, std::vector< size_t > & e_tags)
-{
-   if (!fp) return;
-   fprintf(fp, "eprop %lu validity ", e_index);
-   for (unsigned int i=0; i<e_tags.size(); i++)
-      fprintf(fp, "%c", tag_letters[e_tags[i]]);
-   fprintf(fp, "\n");
-}
-
 void or_multiset::E8RoadmapSelfCC::TagCache::save_vertices(
    ompl_multiset::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
 {
-   for (size_t vidx=v_from; vidx<v_to; vidx++)
+   if (!fp) return;
+   for (size_t v_index=v_from; v_index<v_to; v_index++)
    {
-      save_vertex(vidx, v_tag_map[vidx]);
+      size_t & v_tag = v_tag_map[v_index];
+      fprintf(fp, "vprop %lu validity %c\n", v_index, tag_letters[v_tag]);
    }
 }
 
 void or_multiset::E8RoadmapSelfCC::TagCache::save_edges(
    ompl_multiset::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
 {
-   for (size_t eidx=e_from; eidx<e_to; eidx++)
+   if (!fp) return;
+   for (size_t e_index=e_from; e_index<e_to; e_index++)
    {
-      save_edge(eidx, e_tags_map[eidx]);
+      std::vector< size_t > & e_tags = e_tags_map[e_index];
+      fprintf(fp, "eprop %lu validity ", e_index);
+      for (unsigned int i=0; i<e_tags.size(); i++)
+         fprintf(fp, "%c", tag_letters[e_tags[i]]);
+      fprintf(fp, "\n");
    }
 }
 
@@ -900,7 +882,7 @@ bool or_multiset::E8RoadmapSelfCC::GetTimes(std::ostream & sout, std::istream & 
    for (std::map<std::string, ompl_multiset::Family::Subset>::iterator
       it=family->subsets.begin(); it!=family->subsets.end(); it++)
    {
-      sout << " n_checks " << it->first;
+      sout << " n_checks_" << it->first;
       sout << " " << boost::dynamic_pointer_cast<IlcChecker>(it->second.si->getStateValidityChecker())->num_checks;
    }
    return true;
