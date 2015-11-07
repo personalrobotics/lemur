@@ -325,6 +325,25 @@ public:
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
    typedef typename boost::property_traits<WMap>::value_type weight_type;
    
+   class throw_visitor_exception: public std::exception {};
+   class throw_visitor
+   {
+   public:
+      Vertex v_throw;
+      throw_visitor(Vertex v_throw): v_throw(v_throw) {}
+      inline void initialize_vertex(Vertex u, const Graph & g) {}
+      inline void examine_vertex(Vertex u, const Graph & g)
+      {
+         if (u == v_throw)
+            throw throw_visitor_exception();
+      }
+      inline void examine_edge(Edge e, const Graph & g) {}
+      inline void discover_vertex(Vertex e, const Graph & g) {}
+      inline void edge_relaxed(Edge e, const Graph & g) {}
+      inline void edge_not_relaxed(Edge e, const Graph & g) {}
+      inline void finish_vertex(Vertex u, const Graph & g) {}
+   };
+   
    lazysp_incsp_dijkstra() {}
    
    weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
@@ -332,20 +351,27 @@ public:
    {
       std::map<Vertex,Vertex> startpreds;
       std::map<Vertex,weight_type> startdist;
-      boost::dijkstra_shortest_paths(
-         g,
-         v_start,
-         boost::make_assoc_property_map(startpreds),
-         boost::make_assoc_property_map(startdist),
-         wmap,
-         get(boost::vertex_index, g), // implicit vertex index map
-         std::less<weight_type>(), // compare
-         boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
-         std::numeric_limits<weight_type>::max(),
-         weight_type(),
-         boost::make_dijkstra_visitor(boost::null_visitor())
-      );
-      
+      try
+      {
+         boost::dijkstra_shortest_paths(
+            g,
+            v_start,
+            boost::make_assoc_property_map(startpreds),
+            boost::make_assoc_property_map(startdist),
+            wmap,
+            get(boost::vertex_index, g), // implicit vertex index map
+            std::less<weight_type>(), // compare
+            boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
+            std::numeric_limits<weight_type>::max(),
+            weight_type(),
+            throw_visitor(v_goal)
+            //boost::make_dijkstra_visitor(boost::null_visitor())
+         );
+      }
+      catch (const throw_visitor_exception & ex)
+      {
+      }
+         
       if (startdist[v_goal] == std::numeric_limits<weight_type>::max())
          return std::numeric_limits<weight_type>::max();
       
