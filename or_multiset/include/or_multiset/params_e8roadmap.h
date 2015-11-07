@@ -17,13 +17,14 @@ public:
    double coeff_checkcost;
    double coeff_batch;
    bool do_timing;
+   std::string search_type;
    std::string alglog;
    std::string graph;
    
    E8RoadmapParameters():
       roadmap_id(""), num_batches_init(1),
       coeff_distance(1.), coeff_checkcost(0.), coeff_batch(0.),
-      do_timing(false)
+      do_timing(false), search_type("astar")
    {
       _vXMLParameters.push_back("roadmap_id");
       _vXMLParameters.push_back("num_batches_init");
@@ -31,6 +32,7 @@ public:
       _vXMLParameters.push_back("coeff_checkcost");
       _vXMLParameters.push_back("coeff_batch");
       _vXMLParameters.push_back("do_timing");
+      _vXMLParameters.push_back("search_type");
       _vXMLParameters.push_back("alglog");
       _vXMLParameters.push_back("graph");
    }
@@ -48,6 +50,7 @@ private:
       sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
       sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
       sout << "<do_timing>" << do_timing << "</do_timing>";
+      sout << "<search_type>" << search_type << "</search_type>";
       sout << "<alglog>" << alglog << "</alglog>";
       sout << "<graph>" << graph << "</graph>";
       return !!sout;
@@ -69,6 +72,7 @@ private:
          || name == "coeff_checkcost"
          || name == "coeff_batch"
          || name == "do_timing"
+         || name == "search_type"
          || name == "alglog"
          || name == "graph")
       {
@@ -101,6 +105,8 @@ private:
             _ss >> std::boolalpha >> do_timing;
             _ss.copyfmt(state);
          }
+         if (el_deserializing == "search_type")
+            search_type = _ss.str();
          if (el_deserializing == "alglog")
             alglog = _ss.str();
          if (el_deserializing == "graph")

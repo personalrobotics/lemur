@@ -672,6 +672,7 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    ompl_planner->setCoeffDistance(inparams->coeff_distance);
    ompl_planner->setCoeffBatch(inparams->coeff_batch);
    ompl_planner->setDoTiming(inparams->do_timing);
+   ompl_planner->setSearchType(inparams->search_type);
    
    // problem definition
    ompl_pdef.reset(new ompl::base::ProblemDefinition(family->subsets.find("targ")->second.si));

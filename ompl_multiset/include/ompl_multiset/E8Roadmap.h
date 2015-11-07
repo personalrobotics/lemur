@@ -153,6 +153,12 @@ private:
    
    bool _do_timing;
    
+   enum
+   {
+      SEARCH_TYPE_DIJKSTRAS,
+      SEARCH_TYPE_ASTAR
+   } _search_type;
+   
 public:
    std::ostream * os_alglog;
    
@@ -183,6 +189,9 @@ public:
    
    void setDoTiming(bool do_timing);
    double getDoTiming() const;
+   
+   void setSearchType(std::string search_type);
+   std::string getSearchType() const;
    
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
    

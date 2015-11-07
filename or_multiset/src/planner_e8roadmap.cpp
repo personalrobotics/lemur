@@ -198,6 +198,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    ompl_planner->setCoeffDistance(params->coeff_distance);
    ompl_planner->setCoeffBatch(params->coeff_batch);
    ompl_planner->setDoTiming(params->do_timing);
+   ompl_planner->setSearchType(params->search_type);
    sem->has_changed_called = false; // force reeval of wlazy
    
    // problem definition
