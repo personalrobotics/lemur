@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include <boost/chrono.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
@@ -48,7 +49,6 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    roadmap_gen(roadmap_gen),
    space(si_->getStateSpace()),
    check_radius(0.5*space->getLongestValidSegmentLength()),
-   os_alglog(0),
    eig(g, get(&EProps::index,g)),
    overlay_manager(eig,og,
       get(&OverVProps::core_vertex, og),
@@ -57,12 +57,27 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    ompl_nn(new ompl::NearestNeighborsGNAT<Vertex>),
    //nn(g, get(&VProps::state,g), space, ompl_nn.get()),
    nn(g, get(&VProps::state,g), space),
-   coeff_checkcost(0.),
-   coeff_distance(1.),
-   coeff_batch(0.),
+   _coeff_checkcost(0.),
+   _coeff_distance(1.),
+   _coeff_batch(0.),
+   _do_timing(false),
+   os_alglog(0),
    m_vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
    m_eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tags,g), eig.edge_vector_map))
 {
+   Planner::declareParam<double>("coeff_distance", this,
+      &ompl_multiset::E8Roadmap::setCoeffDistance,
+      &ompl_multiset::E8Roadmap::getCoeffDistance, "0.:1.:10000.");
+   Planner::declareParam<double>("coeff_checkcost", this,
+      &ompl_multiset::E8Roadmap::setCoeffCheckcost,
+      &ompl_multiset::E8Roadmap::getCoeffCheckcost, "0.:1.:10000.");
+   Planner::declareParam<double>("coeff_batch", this,
+      &ompl_multiset::E8Roadmap::setCoeffBatch,
+      &ompl_multiset::E8Roadmap::getCoeffBatch, "0.:1.:10000.");
+   Planner::declareParam<bool>("do_timing", this,
+      &ompl_multiset::E8Roadmap::setDoTiming,
+      &ompl_multiset::E8Roadmap::getDoTiming);
+   
    // setup ompl_nn
    ompl_nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::ompl_nn_dist, this, _1, _2));
    
@@ -140,6 +155,46 @@ ompl_multiset::E8Roadmap::~E8Roadmap()
    for (boost::tie(oei,oei_end)=edges(og); oei!=oei_end; ++oei)
       for (unsigned int ui=0; ui<og[*oei].edge_states.size(); ui++)
          space->freeState(og[*oei].edge_states[ui]);
+}
+
+void ompl_multiset::E8Roadmap::setCoeffCheckcost(double coeff_checkcost)
+{
+   _coeff_checkcost = coeff_checkcost;
+}
+
+double ompl_multiset::E8Roadmap::getCoeffCheckcost() const
+{
+   return _coeff_checkcost;
+}
+
+void ompl_multiset::E8Roadmap::setCoeffDistance(double coeff_distance)
+{
+   _coeff_distance = coeff_distance;
+}
+
+double ompl_multiset::E8Roadmap::getCoeffDistance() const
+{
+   return _coeff_distance;
+}
+
+void ompl_multiset::E8Roadmap::setCoeffBatch(double coeff_batch)
+{
+   _coeff_batch = coeff_batch;
+}
+
+double ompl_multiset::E8Roadmap::getCoeffBatch() const
+{
+   return _coeff_batch;
+}
+
+void ompl_multiset::E8Roadmap::setDoTiming(bool do_timing)
+{
+   _do_timing = do_timing;
+}
+
+double ompl_multiset::E8Roadmap::getDoTiming() const
+{
+   return _do_timing;
 }
 
 void ompl_multiset::E8Roadmap::setProblemDefinition(
@@ -306,6 +361,13 @@ ompl::base::PlannerStatus
 ompl_multiset::E8Roadmap::solve(
    const ompl::base::PlannerTerminationCondition & ptc)
 {
+   
+   boost::chrono::high_resolution_clock::duration dur_search;
+   boost::chrono::high_resolution_clock::duration dur_eval;
+   boost::chrono::high_resolution_clock::time_point time_total_begin;
+   if (_do_timing)
+      time_total_begin = boost::chrono::high_resolution_clock::now();
+   
    // ok, do some sweet sweet lazy search!
    
    if (out_degree(ov_singlestart,og) == 0)
@@ -350,36 +412,76 @@ ompl_multiset::E8Roadmap::solve(
          num_vertices(eig), num_edges(eig));
       
       // run lazy search
-      if (os_alglog)
+      if (_do_timing)
       {
-         success = pr_bgl::lazy_shortest_path(g,
-            og[ov_singlestart].core_vertex,
-            og[ov_singlegoal].core_vertex,
-            ompl_multiset::WMap(*this),
-            get(&EProps::w_lazy,g),
-            ompl_multiset::IsEvaledMap(*this),
-            epath,
-            pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-            //pr_bgl::LazySpEvalFwd(),
-            pr_bgl::LazySpEvalAlt(),
-            ompl_multiset::make_lazysp_log_visitor(
-               get(boost::vertex_index, g),
-               get(&EProps::index, g),
-               *os_alglog));
+         if (os_alglog)
+         {
+            success = pr_bgl::lazy_shortest_path(g,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               ompl_multiset::WMap(*this),
+               get(&EProps::w_lazy,g),
+               ompl_multiset::IsEvaledMap(*this),
+               epath,
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               //pr_bgl::LazySpEvalFwd(),
+               pr_bgl::LazySpEvalAlt(),
+               pr_bgl::make_lazysp_null_visitor_pair(
+                  ompl_multiset::make_lazysp_log_visitor(
+                     get(boost::vertex_index, g),
+                     get(&EProps::index, g),
+                     *os_alglog),
+                  LazySPTimingVisitor(dur_search, dur_eval))
+               );
+         }
+         else
+         {
+            success = pr_bgl::lazy_shortest_path(g,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               ompl_multiset::WMap(*this),
+               get(&EProps::w_lazy,g),
+               ompl_multiset::IsEvaledMap(*this),
+               epath,
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               //pr_bgl::LazySpEvalFwd(),
+               pr_bgl::LazySpEvalAlt(),
+               LazySPTimingVisitor(dur_search, dur_eval));
+         }
       }
-      else
+      else // no timing
       {
-         success = pr_bgl::lazy_shortest_path(g,
-            og[ov_singlestart].core_vertex,
-            og[ov_singlegoal].core_vertex,
-            ompl_multiset::WMap(*this),
-            get(&EProps::w_lazy,g),
-            ompl_multiset::IsEvaledMap(*this),
-            epath,
-            pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-            //pr_bgl::LazySpEvalFwd(),
-            pr_bgl::LazySpEvalAlt(),
-            pr_bgl::lazysp_null_visitor());
+         if (os_alglog)
+         {
+            success = pr_bgl::lazy_shortest_path(g,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               ompl_multiset::WMap(*this),
+               get(&EProps::w_lazy,g),
+               ompl_multiset::IsEvaledMap(*this),
+               epath,
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               //pr_bgl::LazySpEvalFwd(),
+               pr_bgl::LazySpEvalAlt(),
+               ompl_multiset::make_lazysp_log_visitor(
+                  get(boost::vertex_index, g),
+                  get(&EProps::index, g),
+                  *os_alglog));
+         }
+         else
+         {
+            success = pr_bgl::lazy_shortest_path(g,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               ompl_multiset::WMap(*this),
+               get(&EProps::w_lazy,g),
+               ompl_multiset::IsEvaledMap(*this),
+               epath,
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               //pr_bgl::LazySpEvalFwd(),
+               pr_bgl::LazySpEvalAlt(),
+               pr_bgl::lazysp_null_visitor());
+         }
       }
       
       iter++;
@@ -497,6 +599,18 @@ ompl_multiset::E8Roadmap::solve(
       overlay_apply();
    }
    
+   if (_do_timing)
+   {
+      printf("search duration: %f\n",
+         boost::chrono::duration<double>(dur_search).count());
+      printf("eval duration: %f\n",
+         boost::chrono::duration<double>(dur_eval).count());
+   
+      boost::chrono::duration<double> dur_total_s =
+         boost::chrono::high_resolution_clock::now() - time_total_begin;
+      printf("total duration: %f\n", dur_total_s.count());
+   }
+
    if (success)
    {
       /* create the path */
@@ -682,7 +796,7 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
       if (effort_model.x_hat(g[vb].tag, g[vb].state) == std::numeric_limits<double>::infinity())
          g[e].w_lazy = std::numeric_limits<double>::infinity();
       else
-         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
+         g[e].w_lazy = 0.5 * _coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
       return;
    }
    if (!g[vb].state)
@@ -690,7 +804,7 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
       if (effort_model.x_hat(g[va].tag, g[va].state) == std::numeric_limits<double>::infinity())
          g[e].w_lazy = std::numeric_limits<double>::infinity();
       else
-         g[e].w_lazy = 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
+         g[e].w_lazy = 0.5 * _coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
       return;
    }
    // ok, its a non-singleroot edge
@@ -707,14 +821,14 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
    else
    {
       g[e].w_lazy = 0.0;
-      g[e].w_lazy += coeff_distance * g[e].distance;
-      g[e].w_lazy += coeff_batch * g[e].distance * g[e].batch;
+      g[e].w_lazy += _coeff_distance * g[e].distance;
+      g[e].w_lazy += _coeff_batch * g[e].distance * g[e].batch;
       // interior states
       for (ui=0; ui<g[e].edge_tags.size(); ui++)
-         g[e].w_lazy += coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]);
+         g[e].w_lazy += _coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]);
       // half bounary vertices
-      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
-      g[e].w_lazy += 0.5 * coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
+      g[e].w_lazy += 0.5 * _coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
+      g[e].w_lazy += 0.5 * _coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
    }
 }
 
@@ -729,7 +843,7 @@ bool ompl_multiset::E8Roadmap::isevaledmap_get(const Edge & e)
 
 double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
 {
-   // check all points!   
+   // check all points!
    Vertex va = source(e, g);
    Vertex vb = target(e, g);
    

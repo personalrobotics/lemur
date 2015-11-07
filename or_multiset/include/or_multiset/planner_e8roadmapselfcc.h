@@ -11,28 +11,6 @@ class E8RoadmapSelfCC : public OpenRAVE::PlannerBase
 {
 public:
    
-   // <startstate> and <goalstate> can be specified multiple times
-   class PlannerParameters : public OpenRAVE::PlannerBase::PlannerParameters
-   {
-   public:
-      std::string roadmap_id;
-      unsigned int num_batches_init;
-      double coeff_distance;
-      double coeff_checkcost;
-      double coeff_batch;
-      std::string alglog;
-      std::string graph;
-      PlannerParameters();
-   private:
-      std::string el_deserializing;
-      bool serialize(std::ostream& sout, int options) const;
-      OpenRAVE::BaseXMLReader::ProcessElement startElement(
-         const std::string & name, const OpenRAVE::AttributesList & atts);
-      bool endElement(const std::string & name);
-   };
-   typedef boost::shared_ptr<PlannerParameters> PlannerParametersPtr;
-   typedef boost::shared_ptr<PlannerParameters const> PlannerParametersConstPtr;
-   
    class TagCache : public ompl_multiset::TagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>
    {
    public:
@@ -59,7 +37,7 @@ public:
    const OpenRAVE::EnvironmentBasePtr env;
    
    // all of this set by InitPlan
-   PlannerParametersConstPtr params_ptr;
+   E8RoadmapParametersConstPtr params_ptr;
    std::string alglog;
    std::string graph;
    OpenRAVE::RobotBasePtr robot;

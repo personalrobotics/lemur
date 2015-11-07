@@ -10,31 +10,9 @@ namespace or_multiset
 class E8Roadmap : public OpenRAVE::PlannerBase
 {
 public:
-   
-   // <startstate> and <goalstate> can be specified multiple times
-   class PlannerParameters : public OpenRAVE::PlannerBase::PlannerParameters
-   {
-   public:
-      std::string roadmap_id;
-      unsigned int num_batches_init;
-      double coeff_distance;
-      double coeff_checkcost;
-      double coeff_batch;
-      std::string alglog;
-      std::string graph;
-      PlannerParameters();
-   private:
-      std::string el_deserializing;
-      bool serialize(std::ostream& sout, int options) const;
-      OpenRAVE::BaseXMLReader::ProcessElement startElement(
-         const std::string & name, const OpenRAVE::AttributesList & atts);
-      bool endElement(const std::string & name);
-   };
-   typedef boost::shared_ptr<PlannerParameters> PlannerParametersPtr;
-   typedef boost::shared_ptr<PlannerParameters const> PlannerParametersConstPtr;
 
    const OpenRAVE::EnvironmentBasePtr env;
-   PlannerParametersConstPtr params;
+   E8RoadmapParametersConstPtr params;
    OpenRAVE::RobotBasePtr robot;
    std::vector<int> robot_adofs;
    ompl::base::StateSpacePtr ompl_space;

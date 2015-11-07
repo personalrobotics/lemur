@@ -13,7 +13,6 @@ namespace ompl_multiset
 class E8Roadmap : public ompl::base::Planner
 {
 public:
-
    // part 1: typedefs
    
    struct VProps
@@ -116,6 +115,7 @@ public:
    typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
    typedef boost::graph_traits<OverGraph>::edge_iterator OverEdgeIter;
 
+private:
    // part 2: members
 
    ompl_multiset::EffortModel & effort_model;
@@ -125,8 +125,8 @@ public:
 
    const ompl::base::StateSpacePtr space;
    double check_radius; // this is half the standard resolution
-   std::ostream * os_alglog;
 
+private:
    Graph g;
    pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> eig;
    OverGraph og;
@@ -147,9 +147,14 @@ public:
    NN nn;
    
    // parameters
-   double coeff_checkcost;
-   double coeff_distance;
-   double coeff_batch;
+   double _coeff_checkcost;
+   double _coeff_distance;
+   double _coeff_batch;
+   
+   bool _do_timing;
+   
+public:
+   std::ostream * os_alglog;
    
    // property maps
    VIdxTagMap m_vidx_tag_map;
@@ -157,6 +162,7 @@ public:
    
    // part 3: ompl methods
 
+public:
    E8Roadmap(
       const ompl::base::SpaceInformationPtr & si,
       ompl_multiset::EffortModel & effort_model,
@@ -165,6 +171,18 @@ public:
       unsigned int num_batches_init);
    
    ~E8Roadmap(void);
+   
+   void setCoeffCheckcost(double coeff_checkcost);
+   double getCoeffCheckcost() const;
+   
+   void setCoeffDistance(double coeff_distance);
+   double getCoeffDistance() const;
+   
+   void setCoeffBatch(double coeff_batch);
+   double getCoeffBatch() const;
+   
+   void setDoTiming(bool do_timing);
+   double getDoTiming() const;
    
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
    

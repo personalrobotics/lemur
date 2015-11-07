@@ -8,7 +8,7 @@ namespace ompl_multiset
 {
 
 template <class VertexIndexMap, class EdgeIndexMap>
-class LazySPLogVisitor
+class LazySPLogVisitor : public pr_bgl::lazysp_null_visitor
 {
 public:
    
@@ -26,7 +26,7 @@ public:
    }
    
    template <class Vertex>
-   void lazy_path(double length, std::vector<Vertex> & vpath)
+   inline void lazy_path(double length, std::vector<Vertex> & vpath)
    {
       stream << "lazy_path_length " << length << std::endl;
       stream << "lazy_path";
@@ -35,23 +35,24 @@ public:
       stream << std::endl;
    }
 
-   void no_path()
+   inline void no_path()
    {
       stream << "no_path" << std::endl;
    }
 
-   void path_found()
+   inline void path_found()
    {
       stream << "path_found" << std::endl;
    }
    
    template <class Edge>
-   void edge_evaluate(Edge & e, double e_weight)
+   inline void edge_evaluate(Edge & e, double e_weight)
    {
       stream << "eval_edge " << get(edge_index_map,e)
          << " " << e_weight << std::endl;
    }
 };
+
 template <class VertexIndexMap, class EdgeIndexMap>
 LazySPLogVisitor<VertexIndexMap,EdgeIndexMap>
 make_lazysp_log_visitor(
@@ -60,5 +61,40 @@ make_lazysp_log_visitor(
    return LazySPLogVisitor<VertexIndexMap,EdgeIndexMap>(
       vertex_index_map, edge_index_map, stream);
 }
+
+
+
+
+class LazySPTimingVisitor : public pr_bgl::lazysp_null_visitor
+{
+public:
+   boost::chrono::high_resolution_clock::duration & dur_search;
+   boost::chrono::high_resolution_clock::duration & dur_eval;
+   boost::chrono::high_resolution_clock::time_point time_begin;
+   LazySPTimingVisitor(
+      boost::chrono::high_resolution_clock::duration & dur_search,
+      boost::chrono::high_resolution_clock::duration & dur_eval):
+      dur_search(dur_search), dur_eval(dur_eval)
+   {
+   }
+   inline void search_begin()
+   {
+      time_begin = boost::chrono::high_resolution_clock::now();
+   }
+   inline void search_end()
+   {
+      dur_search += boost::chrono::high_resolution_clock::now() - time_begin;
+   }
+   inline void eval_begin()
+   {
+      time_begin = boost::chrono::high_resolution_clock::now();
+   }
+   inline void eval_end()
+   {
+      dur_eval += boost::chrono::high_resolution_clock::now() - time_begin;
+   }
+};
+
+
 
 } // namespace ompl_multiset

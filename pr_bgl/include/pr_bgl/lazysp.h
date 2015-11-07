@@ -35,7 +35,11 @@ bool lazy_shortest_path(Graph & g,
    for (;;)
    {
       std::vector<Edge> incsp_path;
+      
+      visitor.search_begin();
       weight_type pathlen = incsp.solve(g, v_start, v_goal, wlazymap, incsp_path);
+      visitor.search_end();
+      
       if (pathlen == std::numeric_limits<weight_type>::max())
       {
          visitor.no_path();
@@ -73,6 +77,7 @@ bool lazy_shortest_path(Graph & g,
       BOOST_ASSERT(to_evaluate.size());
 
       // perform the evaluations
+      visitor.eval_begin();
       for (unsigned int ui=0; ui<to_evaluate.size(); ui++)
       {
          Edge & e = to_evaluate[ui];
@@ -81,6 +86,7 @@ bool lazy_shortest_path(Graph & g,
          put(wlazymap, e, e_weight);
          incsp.update_notify(e);
       }
+      visitor.eval_end();
    }
 }
 
@@ -91,23 +97,86 @@ public:
    lazysp_null_visitor() {}
    
    template <class Vertex>
-   void lazy_path(double length, std::vector<Vertex> & vpath)
+   inline void lazy_path(double length, std::vector<Vertex> & vpath) {}
+
+   inline void search_begin() {}
+   inline void search_end() {}
+   
+   inline void eval_begin() {}
+   inline void eval_end() {}
+
+   inline void no_path() {}
+   inline void path_found() {}
+   
+   template <class Edge>
+   inline void edge_evaluate(Edge & e, double e_weight) {}
+};
+
+template <class A, class B>
+class lazysp_null_visitor_pair
+{
+public:
+   A visA;
+   B visB;
+   lazysp_null_visitor_pair(A visA, B visB): visA(visA), visB(visB) {}
+   
+   template <class Vertex>
+   inline void lazy_path(double length, std::vector<Vertex> & vpath)
    {
+      visA.lazy_path(length, vpath);
+      visB.lazy_path(length, vpath);
    }
 
-   void no_path()
+   inline void search_begin()
    {
+      visA.search_begin();
+      visB.search_begin();
+   }
+   
+   inline void search_end()
+   {
+      visA.search_end();
+      visB.search_end();
+   }
+   
+   inline void eval_begin()
+   {
+      visA.eval_begin();
+      visB.eval_begin();
+   }
+   
+   inline void eval_end()
+   {
+      visA.eval_end();
+      visB.eval_end();
    }
 
-   void path_found()
+   inline void no_path()
    {
+      visA.no_path();
+      visB.no_path();
+   }
+   
+   inline void path_found()
+   {
+      visA.path_found();
+      visB.path_found();
    }
    
    template <class Edge>
-   void edge_evaluate(Edge & e, double e_weight)
+   inline void edge_evaluate(Edge & e, double e_weight)
    {
+      visA.edge_evaluate(e, e_weight);
+      visB.edge_evaluate(e, e_weight);
    }
 };
+
+template <class A, class B>
+lazysp_null_visitor_pair<A,B> make_lazysp_null_visitor_pair(A visA, B visB)
+{
+   return lazysp_null_visitor_pair<A,B>(visA, visB);
+}
+
 
 class LazySpEvalFwd
 {

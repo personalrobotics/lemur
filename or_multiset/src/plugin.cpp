@@ -40,6 +40,7 @@
 #include <or_multiset/module_subset_manager.h>
 #include <or_multiset/or_checker.h>
 #include <or_multiset/planner_multiset_prm.h>
+#include <or_multiset/params_e8roadmap.h>
 #include <or_multiset/planner_e8roadmap.h>
 #include <or_multiset/planner_e8roadmapselfcc.h>
 

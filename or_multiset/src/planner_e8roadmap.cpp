@@ -47,6 +47,7 @@
 #include <ompl_multiset/E8Roadmap.h>
 
 #include <or_multiset/or_checker.h>
+#include <or_multiset/params_e8roadmap.h>
 #include <or_multiset/planner_e8roadmap.h>
 
 
@@ -114,86 +115,6 @@ void ompl_set_roots(ompl::base::ProblemDefinitionPtr ompl_pdef,
 
 } // anonymous namespace
 
-or_multiset::E8Roadmap::PlannerParameters::PlannerParameters():
-   roadmap_id(""), num_batches_init(1),
-   coeff_distance(1.), coeff_checkcost(0.), coeff_batch(0.)
-{
-   _vXMLParameters.push_back("roadmap_id");
-   _vXMLParameters.push_back("num_batches_init");
-   _vXMLParameters.push_back("coeff_distance");
-   _vXMLParameters.push_back("coeff_checkcost");
-   _vXMLParameters.push_back("coeff_batch");
-   _vXMLParameters.push_back("alglog");
-   _vXMLParameters.push_back("graph");
-}
-
-bool
-or_multiset::E8Roadmap::PlannerParameters::serialize(std::ostream& sout, int options) const
-{
-   if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
-      return false;
-   sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
-   sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
-   sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
-   sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
-   sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
-   sout << "<alglog>" << alglog << "</alglog>";
-   sout << "<graph>" << graph << "</graph>";
-   return !!sout;
-}
-
-OpenRAVE::BaseXMLReader::ProcessElement
-or_multiset::E8Roadmap::PlannerParameters::startElement(
-   const std::string & name, const OpenRAVE::AttributesList & atts)
-{
-   if (el_deserializing.size())
-      return PE_Ignore;
-   // ask base calss
-   enum OpenRAVE::BaseXMLReader::ProcessElement base;
-   base = OpenRAVE::PlannerBase::PlannerParameters::startElement(name,atts);
-   if (base != PE_Pass) return base;
-   // can we handle it?
-   if (name == "roadmap_id"
-      || name == "num_batches_init"
-      || name == "coeff_distance"
-      || name == "coeff_checkcost"
-      || name == "coeff_batch"
-      || name == "alglog"
-      || name == "graph")
-   {
-      el_deserializing = name;
-      return PE_Support;
-   }
-   return PE_Pass;
-}
-
-bool
-or_multiset::E8Roadmap::PlannerParameters::endElement(const std::string & name)
-{
-   if (!el_deserializing.size())
-      return OpenRAVE::PlannerBase::PlannerParameters::endElement(name);
-   if (name == el_deserializing)
-   {
-      if (el_deserializing == "roadmap_id")
-         roadmap_id = _ss.str();
-      if (el_deserializing == "num_batches_init")
-         _ss >> num_batches_init;
-      if (el_deserializing == "coeff_distance")
-         _ss >> coeff_distance;
-      if (el_deserializing == "coeff_checkcost")
-         _ss >> coeff_checkcost;
-      if (el_deserializing == "coeff_batch")
-         _ss >> coeff_batch;
-      if (el_deserializing == "alglog")
-         alglog = _ss.str();
-      if (el_deserializing == "graph")
-         graph = _ss.str();
-   }
-   else
-      RAVELOG_WARN("closing tag doesnt match opening tag!\n");
-   el_deserializing.clear();
-   return false;
-}
 
 or_multiset::E8Roadmap::E8Roadmap(OpenRAVE::EnvironmentBasePtr env):
    OpenRAVE::PlannerBase(env), env(env)
@@ -211,7 +132,7 @@ or_multiset::E8Roadmap::~E8Roadmap()
 bool
 or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & inparams_ser)
 {
-   PlannerParametersPtr inparams(new PlannerParameters());
+   or_multiset::E8RoadmapParametersPtr inparams(new or_multiset::E8RoadmapParameters());
    inparams_ser >> *inparams;
    inparams->Validate();
    return this->InitPlan(robot, inparams);
@@ -220,7 +141,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & in
 bool
 or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase::PlannerParametersConstPtr inparams_base)
 {
-   PlannerParametersConstPtr inparams = boost::dynamic_pointer_cast<PlannerParameters const>(inparams_base);
+   E8RoadmapParametersConstPtr inparams = boost::dynamic_pointer_cast<or_multiset::E8RoadmapParameters const>(inparams_base);
    if (!inparams)
    {
       RAVELOG_WARN("Warning, E8Roadmap planner passed an unknown PlannerParameters type! Attempting to serialize ...\n");
@@ -273,9 +194,10 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    params = inparams;
    
    // planner params
-   ompl_planner->coeff_checkcost = params->coeff_checkcost;
-   ompl_planner->coeff_distance = params->coeff_distance;
-   ompl_planner->coeff_batch = params->coeff_batch;
+   ompl_planner->setCoeffCheckcost(params->coeff_checkcost);
+   ompl_planner->setCoeffDistance(params->coeff_distance);
+   ompl_planner->setCoeffBatch(params->coeff_batch);
+   ompl_planner->setDoTiming(params->do_timing);
    sem->has_changed_called = false; // force reeval of wlazy
    
    // problem definition
