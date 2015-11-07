@@ -110,9 +110,9 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    // planner
    ompl::base::PlannerPtr planner(
       new ompl_multiset::E8Roadmap(si, fem, tag_cache, roadmap_gen, 1));
-   planner->as<ompl_multiset::E8Roadmap>()->coeff_distance = 1.;
-   planner->as<ompl_multiset::E8Roadmap>()->coeff_checkcost = 0.;
-   planner->as<ompl_multiset::E8Roadmap>()->coeff_batch = 0.;
+   planner->as<ompl_multiset::E8Roadmap>()->setCoeffDistance(1.);
+   planner->as<ompl_multiset::E8Roadmap>()->setCoeffCheckcost(0.);
+   planner->as<ompl_multiset::E8Roadmap>()->setCoeffBatch(0.);
    
    // solve
    planner->setProblemDefinition(pdef);
