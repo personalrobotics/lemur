@@ -4,6 +4,7 @@
  * License: BSD
  */
 
+#include <boost/chrono.hpp>
 #include <boost/graph/adjacency_list.hpp>
 
 #include <openrave/openrave.h>

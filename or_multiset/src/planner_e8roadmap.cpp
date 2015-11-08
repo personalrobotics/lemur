@@ -6,6 +6,7 @@
 
 #include <openrave/openrave.h>
 
+#include <boost/chrono.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphml.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
@@ -199,6 +200,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    ompl_planner->setCoeffBatch(params->coeff_batch);
    ompl_planner->setDoTiming(params->do_timing);
    ompl_planner->setSearchType(params->search_type);
+   ompl_planner->setEvalType(params->eval_type);
    sem->has_changed_called = false; // force reeval of wlazy
    
    // problem definition

@@ -6,6 +6,7 @@
 
 #include <fstream>
 
+#include <boost/chrono.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>

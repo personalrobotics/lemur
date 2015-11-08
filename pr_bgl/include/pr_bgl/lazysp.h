@@ -250,7 +250,7 @@ public:
       int i;
       std::vector<int> dists(path.size());
       // forward
-      for (i=0; i<path.size(); i++)
+      for (i=0; i<(int)path.size(); i++)
       {
          int fwd_dist;
          if (path[i].second)
@@ -267,7 +267,7 @@ public:
          int rev_dist;
          if (path[i].second)
             rev_dist = 0;
-         else if (i==path.size()-1)
+         else if (i==(int)path.size()-1)
             rev_dist = 1;
          else
             rev_dist = dists[i+1] + 1;
@@ -277,7 +277,7 @@ public:
       // choose max
       int max = -1;
       int max_i = 0;
-      for (i=0; i<path.size(); i++)
+      for (i=0; i<(int)path.size(); i++)
       {
          if (max < dists[i])
          {

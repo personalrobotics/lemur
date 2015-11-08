@@ -126,7 +126,6 @@ private:
    const ompl::base::StateSpacePtr space;
    double check_radius; // this is half the standard resolution
 
-private:
    Graph g;
    pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> eig;
    OverGraph og;
@@ -159,12 +158,25 @@ private:
       SEARCH_TYPE_ASTAR
    } _search_type;
    
+   enum
+   {
+      EVAL_TYPE_FWD,
+      EVAL_TYPE_REV,
+      EVAL_TYPE_ALT,
+      EVAL_TYPE_BISECT,
+      EVAL_TYPE_FWD_EXPAND
+   } _eval_type;
+   
 public:
    std::ostream * os_alglog;
-   
+
+private:   
    // property maps
    VIdxTagMap m_vidx_tag_map;
    EIdxTagsMap m_eidx_tags_map;
+   
+   boost::chrono::high_resolution_clock::duration _dur_search;
+   boost::chrono::high_resolution_clock::duration _dur_eval;
    
    // part 3: ompl methods
 
@@ -193,7 +205,13 @@ public:
    void setSearchType(std::string search_type);
    std::string getSearchType() const;
    
+   void setEvalType(std::string eval_type);
+   std::string getEvalType() const;
+   
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
+   
+   template <class IncSP, class EvalStrategy>
+   bool do_lazysp(IncSP incsp, EvalStrategy evalstrategy, std::vector<Edge> & epath);
    
    ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
    

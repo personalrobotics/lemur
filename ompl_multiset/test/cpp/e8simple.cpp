@@ -4,6 +4,7 @@
  * License: BSD
  */
 
+#include <boost/chrono.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/graph/adjacency_list.hpp>
 

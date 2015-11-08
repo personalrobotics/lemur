@@ -63,6 +63,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    _coeff_batch(0.),
    _do_timing(false),
    _search_type(SEARCH_TYPE_ASTAR),
+   _eval_type(EVAL_TYPE_ALT),
    os_alglog(0),
    m_vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
    m_eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tags,g), eig.edge_vector_map))
@@ -205,17 +206,12 @@ double ompl_multiset::E8Roadmap::getDoTiming() const
 void ompl_multiset::E8Roadmap::setSearchType(std::string search_type)
 {
    if (search_type == "dijkstras")
-   {
       _search_type = SEARCH_TYPE_DIJKSTRAS;
-      return;
-   }
-   if (search_type == "astar")
-   {
+   else if (search_type == "astar")
       _search_type = SEARCH_TYPE_ASTAR;
-      return;
-   }
-   OMPL_ERROR("%s: Search type parameter must be dijkstras or astar.",
-      getName().c_str());
+   else
+      OMPL_ERROR("%s: Search type parameter must be dijkstras or astar.",
+         getName().c_str());
 }
 
 std::string ompl_multiset::E8Roadmap::getSearchType() const
@@ -224,6 +220,37 @@ std::string ompl_multiset::E8Roadmap::getSearchType() const
    {
    case SEARCH_TYPE_DIJKSTRAS: return "dijkstras";
    case SEARCH_TYPE_ASTAR: return "astar";
+   default:
+      throw std::runtime_error("corrupted _search_type!");
+   }
+}
+
+void ompl_multiset::E8Roadmap::setEvalType(std::string eval_type)
+{
+   if (eval_type == "fwd")
+      _eval_type = EVAL_TYPE_FWD;
+   else if (eval_type == "rev")
+      _eval_type = EVAL_TYPE_REV;
+   else if (eval_type == "alt")
+      _eval_type = EVAL_TYPE_ALT;
+   else if (eval_type == "bisect")
+      _eval_type = EVAL_TYPE_BISECT;
+   else if (eval_type == "fwd_expand")
+      _eval_type = EVAL_TYPE_FWD_EXPAND;
+   else
+      OMPL_ERROR("%s: Eval type parameter must be fwd rev alt bisect or fwd_expand.",
+         getName().c_str());
+}
+
+std::string ompl_multiset::E8Roadmap::getEvalType() const
+{
+   switch (_eval_type)
+   {
+   case EVAL_TYPE_FWD: return "fwd";
+   case EVAL_TYPE_REV: return "rev";
+   case EVAL_TYPE_ALT: return "alt";
+   case EVAL_TYPE_BISECT: return "bisect";
+   case EVAL_TYPE_FWD_EXPAND: return "fwd_expand";
    default:
       throw std::runtime_error("corrupted _search_type!");
    }
@@ -389,16 +416,91 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
    overlay_apply();
 }
 
+template <class IncSP, class EvalStrategy>
+bool ompl_multiset::E8Roadmap::do_lazysp(
+   IncSP incsp, EvalStrategy evalstrategy,
+   std::vector<Edge> & epath)
+{
+   if (_do_timing)
+   {
+      if (os_alglog)
+      {
+         return pr_bgl::lazy_shortest_path(g,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
+            ompl_multiset::WMap(*this),
+            get(&EProps::w_lazy,g),
+            ompl_multiset::IsEvaledMap(*this),
+            epath,
+            incsp,
+            evalstrategy,
+            pr_bgl::make_lazysp_null_visitor_pair(
+               ompl_multiset::make_lazysp_log_visitor(
+                  get(boost::vertex_index, g),
+                  get(&EProps::index, g),
+                  *os_alglog),
+               LazySPTimingVisitor(_dur_search, _dur_eval))
+            );
+      }
+      else
+      {
+         return pr_bgl::lazy_shortest_path(g,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
+            ompl_multiset::WMap(*this),
+            get(&EProps::w_lazy,g),
+            ompl_multiset::IsEvaledMap(*this),
+            epath,
+            incsp,
+            evalstrategy,
+            LazySPTimingVisitor(_dur_search, _dur_eval));
+      }
+   }
+   else // no timing
+   {
+      if (os_alglog)
+      {
+         return pr_bgl::lazy_shortest_path(g,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
+            ompl_multiset::WMap(*this),
+            get(&EProps::w_lazy,g),
+            ompl_multiset::IsEvaledMap(*this),
+            epath,
+            incsp,
+            evalstrategy,
+            ompl_multiset::make_lazysp_log_visitor(
+               get(boost::vertex_index, g),
+               get(&EProps::index, g),
+               *os_alglog));
+      }
+      else
+      {
+         return pr_bgl::lazy_shortest_path(g,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
+            ompl_multiset::WMap(*this),
+            get(&EProps::w_lazy,g),
+            ompl_multiset::IsEvaledMap(*this),
+            epath,
+            incsp,
+            evalstrategy,
+            pr_bgl::lazysp_null_visitor());
+      }
+   }
+}
+
 ompl::base::PlannerStatus
 ompl_multiset::E8Roadmap::solve(
    const ompl::base::PlannerTerminationCondition & ptc)
 {
-   
-   boost::chrono::high_resolution_clock::duration dur_search;
-   boost::chrono::high_resolution_clock::duration dur_eval;
    boost::chrono::high_resolution_clock::time_point time_total_begin;
    if (_do_timing)
+   {
+      _dur_search = boost::chrono::high_resolution_clock::duration();
+      _dur_eval = boost::chrono::high_resolution_clock::duration();
       time_total_begin = boost::chrono::high_resolution_clock::now();
+   }
    
    // ok, do some sweet sweet lazy search!
    
@@ -494,164 +596,91 @@ ompl_multiset::E8Roadmap::solve(
          v_hvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = 0.;
          
          if (_do_timing)
-            dur_search += boost::chrono::high_resolution_clock::now() - time_heur_begin;
+            _dur_search += boost::chrono::high_resolution_clock::now() - time_heur_begin;
          
-         if (_do_timing)
+         switch (_eval_type)
          {
-            if (os_alglog)
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                     boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                     boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                     boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  pr_bgl::make_lazysp_null_visitor_pair(
-                     ompl_multiset::make_lazysp_log_visitor(
-                        get(boost::vertex_index, g),
-                        get(&EProps::index, g),
-                        *os_alglog),
-                     LazySPTimingVisitor(dur_search, dur_eval))
-                  );
-            }
-            else
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                     boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                     boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                     boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  LazySPTimingVisitor(dur_search, dur_eval));
-            }
-         }
-         else // no timing
-         {
-            if (os_alglog)
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                     boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                     boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                     boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  ompl_multiset::make_lazysp_log_visitor(
-                     get(boost::vertex_index, g),
-                     get(&EProps::index, g),
-                     *os_alglog));
-            }
-            else
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                     boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                     boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                     boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  pr_bgl::lazysp_null_visitor());
-            }
+         case EVAL_TYPE_FWD:
+            success = do_lazysp(
+               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+               pr_bgl::LazySpEvalFwd(),
+               epath);
+            break;
+         case EVAL_TYPE_REV:
+            success = do_lazysp(
+               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+               pr_bgl::LazySpEvalRev(),
+               epath);
+            break;
+         case EVAL_TYPE_ALT:
+            success = do_lazysp(
+               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+               pr_bgl::LazySpEvalAlt(),
+               epath);
+            break;
+         case EVAL_TYPE_BISECT:
+            success = do_lazysp(
+               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+               pr_bgl::LazySpEvalBisect(),
+               epath);
+            break;
+         case EVAL_TYPE_FWD_EXPAND:
+            success = do_lazysp(
+               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+               pr_bgl::LazySpEvalFwdExpand(),
+               epath);
+            break;
          }
       }
       else // _search_type == SEARCH_TYPE_DIJKSTRAS
       {
-         if (_do_timing)
+         switch (_eval_type)
          {
-            if (os_alglog)
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  pr_bgl::make_lazysp_null_visitor_pair(
-                     ompl_multiset::make_lazysp_log_visitor(
-                        get(boost::vertex_index, g),
-                        get(&EProps::index, g),
-                        *os_alglog),
-                     LazySPTimingVisitor(dur_search, dur_eval))
-                  );
-            }
-            else
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  LazySPTimingVisitor(dur_search, dur_eval));
-            }
-         }
-         else // no timing
-         {
-            if (os_alglog)
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  ompl_multiset::make_lazysp_log_visitor(
-                     get(boost::vertex_index, g),
-                     get(&EProps::index, g),
-                     *os_alglog));
-            }
-            else
-            {
-               success = pr_bgl::lazy_shortest_path(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  ompl_multiset::WMap(*this),
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  epath,
-                  pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-                  //pr_bgl::LazySpEvalFwd(),
-                  pr_bgl::LazySpEvalAlt(),
-                  pr_bgl::lazysp_null_visitor());
-            }
+         case EVAL_TYPE_FWD:
+            success = do_lazysp(
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               pr_bgl::LazySpEvalFwd(),
+               epath);
+            break;
+         case EVAL_TYPE_REV:
+            success = do_lazysp(
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               pr_bgl::LazySpEvalRev(),
+               epath);
+            break;
+         case EVAL_TYPE_ALT:
+            success = do_lazysp(
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               pr_bgl::LazySpEvalAlt(),
+               epath);
+            break;
+         case EVAL_TYPE_BISECT:
+            success = do_lazysp(
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               pr_bgl::LazySpEvalBisect(),
+               epath);
+            break;
+         case EVAL_TYPE_FWD_EXPAND:
+            success = do_lazysp(
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               pr_bgl::LazySpEvalFwdExpand(),
+               epath);
+            break;
          }
       }
       
@@ -773,9 +802,9 @@ ompl_multiset::E8Roadmap::solve(
    if (_do_timing)
    {
       printf("search duration: %f\n",
-         boost::chrono::duration<double>(dur_search).count());
+         boost::chrono::duration<double>(_dur_search).count());
       printf("eval duration: %f\n",
-         boost::chrono::duration<double>(dur_eval).count());
+         boost::chrono::duration<double>(_dur_eval).count());
    
       boost::chrono::duration<double> dur_total_s =
          boost::chrono::high_resolution_clock::now() - time_total_begin;

@@ -6,6 +6,7 @@
 
 #include <openrave/openrave.h>
 
+#include <boost/chrono.hpp>
 #include <boost/filesystem.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphml.hpp>
@@ -673,6 +674,7 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    ompl_planner->setCoeffBatch(inparams->coeff_batch);
    ompl_planner->setDoTiming(inparams->do_timing);
    ompl_planner->setSearchType(inparams->search_type);
+   ompl_planner->setEvalType(inparams->eval_type);
    
    // problem definition
    ompl_pdef.reset(new ompl::base::ProblemDefinition(family->subsets.find("targ")->second.si));
