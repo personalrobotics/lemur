@@ -514,6 +514,26 @@ ompl_multiset::E8Roadmap::solve(
    
    int iter = 0;
    
+   if (os_alglog)
+   {
+      
+      for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
+      {
+         OverVertex vover = overlay_manager.applied_vertices[ui];
+         Vertex vcore = og[vover].core_vertex;
+         if (!g[vcore].state)
+            *os_alglog << "singleroot-vertex applied-" << ui << std::endl;
+      }
+      
+      for (unsigned int ui=0; ui<overlay_manager.applied_edges.size(); ui++)
+      {
+         OverEdge eover = overlay_manager.applied_edges[ui];
+         Edge ecore = og[eover].core_edge;
+         if (!g[source(ecore,g)].state || !g[target(ecore,g)].state)
+            *os_alglog << "singleroot-edge applied-" << ui << std::endl;
+      }
+   }
+   
    // run batches of lazy search
    while (!success)
    {
@@ -1035,6 +1055,12 @@ void ompl_multiset::E8Roadmap::calculate_w_lazy(const Edge & e)
 bool ompl_multiset::E8Roadmap::isevaledmap_get(const Edge & e)
 {
    // this directly calls the family effort model (distance not needed!)
+   Vertex va = source(e, g);
+   if (g[va].state && !effort_model.is_evaled(g[va].tag))
+      return false;
+   Vertex vb = target(e, g);
+   if (g[vb].state && !effort_model.is_evaled(g[vb].tag))
+      return false;
    for (unsigned int ui=0; ui<g[e].edge_tags.size(); ui++)
       if (!effort_model.is_evaled(g[e].edge_tags[ui]))
          return false;
@@ -1046,17 +1072,17 @@ double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
    // check all points!
    Vertex va = source(e, g);
    Vertex vb = target(e, g);
-   
+
    // check endpoints first
    do
    {
-      if (!effort_model.is_evaled(g[va].tag))
+      if (g[va].state && !effort_model.is_evaled(g[va].tag))
       {
          bool success = effort_model.eval_partial(g[va].tag, g[va].state);
          if (!success)
             break;
       }
-      if (!effort_model.is_evaled(g[vb].tag))
+      if (g[vb].state && !effort_model.is_evaled(g[vb].tag))
       {
          bool success = effort_model.eval_partial(g[vb].tag, g[vb].state);
          if (!success)
