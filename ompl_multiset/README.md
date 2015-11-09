@@ -16,6 +16,40 @@ The primary planner is the `E8Roadmap`, a derived class of `ompl::base::Planner`
 
 The roadmap input is an instance of a roadmap type which subclasses `ompl_multiset::Roadmap`.  Some of the classes implemented are described in the [Roadmaps](#roadmaps) section below.
 
+### Parameters
+
+In addition to the construction arguments above, `E8Roadmap` takes the following parameters:
+
+#### Optimization coefficients
+
+* `coeff_distance` (double)
+* `coeff_checkcost` (double)
+* `coeff_batch` (double)
+
+These parameters specify the weights on the objective function optimized by the planner at each iteration.
+
+#### Search type: `search_type` (string)
+
+This parameter specifies which algorithm is used for the inner search performed by `LazySP`.  Currently supported values include:
+
+* `dijkstras` (rooted at start)
+* `astar` (rooted at start)
+
+#### Evaluation selector type: `eval_type` (string)
+
+This parameter specifies which edge selector is used to select edges for evaluation at each iteration.  Currently supported values include:
+
+* `fwd`
+* `rev`
+* `alt`
+* `bisect`
+* `fwd_eval`
+
+#### Timing: `do_timing` (bool)
+
+Set to `true` to have the planner profile and report time spent during search and during edge evaluation.
+
+
 Roadmaps
 --------
 
