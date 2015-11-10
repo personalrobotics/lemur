@@ -195,13 +195,23 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    params = inparams;
    
    // planner params
-   ompl_planner->setCoeffCheckcost(params->coeff_checkcost);
-   ompl_planner->setCoeffDistance(params->coeff_distance);
-   ompl_planner->setCoeffBatch(params->coeff_batch);
-   ompl_planner->setDoTiming(params->do_timing);
-   ompl_planner->setSearchType(params->search_type);
-   ompl_planner->setEvalType(params->eval_type);
-   sem->has_changed_called = false; // force reeval of wlazy
+   if (params->has_coeff_distance)
+      ompl_planner->setCoeffDistance(params->coeff_distance);
+   if (params->has_coeff_checkcost)
+      ompl_planner->setCoeffCheckcost(params->coeff_checkcost);
+   if (params->has_coeff_batch)
+      ompl_planner->setCoeffBatch(params->coeff_batch);
+   if (params->has_do_timing)
+      ompl_planner->setDoTiming(params->do_timing);
+   if (params->has_max_batches)
+      ompl_planner->setMaxBatches(params->max_batches);
+   if (params->has_search_type)
+      ompl_planner->setSearchType(params->search_type);
+   if (params->has_eval_type)
+      ompl_planner->setEvalType(params->eval_type);
+   
+   // force reeval of wlazy
+   sem->has_changed_called = false;
    
    // problem definition
    ompl_pdef.reset(new ompl::base::ProblemDefinition(ompl_si));
@@ -258,7 +268,11 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    if (ompl_status != ompl::base::PlannerStatus::EXACT_SOLUTION) return OpenRAVE::PS_Failed;
    
    // convert result
+   // (if the planner exited with an exact empty solution, then it's done!)
    ompl::base::PathPtr path = this->ompl_planner->getProblemDefinition()->getSolutionPath();
+   if (!path)
+      return OpenRAVE::PS_Failed;
+   
    ompl::geometric::PathGeometric * gpath = dynamic_cast<ompl::geometric::PathGeometric*>(path.get());
    if (!gpath)
       throw OpenRAVE::openrave_exception("ompl path is not geometric for some reason!");

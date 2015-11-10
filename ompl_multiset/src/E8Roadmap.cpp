@@ -62,6 +62,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    _coeff_distance(1.),
    _coeff_batch(0.),
    _do_timing(false),
+   _max_batches(UINT_MAX),
    _search_type(SEARCH_TYPE_ASTAR),
    _eval_type(EVAL_TYPE_ALT),
    os_alglog(0),
@@ -201,6 +202,16 @@ void ompl_multiset::E8Roadmap::setDoTiming(bool do_timing)
 double ompl_multiset::E8Roadmap::getDoTiming() const
 {
    return _do_timing;
+}
+
+void ompl_multiset::E8Roadmap::setMaxBatches(unsigned int max_batches)
+{
+   _max_batches = max_batches;
+}
+
+unsigned int ompl_multiset::E8Roadmap::getMaxBatches() const
+{
+   return _max_batches;
 }
 
 void ompl_multiset::E8Roadmap::setSearchType(std::string search_type)
@@ -535,7 +546,7 @@ ompl_multiset::E8Roadmap::solve(
    }
    
    // run batches of lazy search
-   while (!success)
+   while (!success && ptc() == false)
    {
       //os_alglog << "search_with_subgraphs " << num_subgraphs << std::endl;
       
@@ -709,8 +720,8 @@ ompl_multiset::E8Roadmap::solve(
       if (success)
          break;
       
-      if (iter == 20)
-         break;
+      if (roadmap_gen->get_num_batches_generated() == _max_batches)
+         return ompl::base::PlannerStatus::EXACT_SOLUTION;
       
       if (roadmap_gen->max_batches && roadmap_gen->get_num_batches_generated() == roadmap_gen->max_batches)
          return ompl::base::PlannerStatus::EXACT_SOLUTION;

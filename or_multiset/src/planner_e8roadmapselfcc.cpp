@@ -669,12 +669,20 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
       *fem, *tag_cache, roadmapgen, inparams->num_batches_init));
    
    // planner params
-   ompl_planner->setCoeffCheckcost(inparams->coeff_checkcost);
-   ompl_planner->setCoeffDistance(inparams->coeff_distance);
-   ompl_planner->setCoeffBatch(inparams->coeff_batch);
-   ompl_planner->setDoTiming(inparams->do_timing);
-   ompl_planner->setSearchType(inparams->search_type);
-   ompl_planner->setEvalType(inparams->eval_type);
+   if (inparams->has_coeff_distance)
+      ompl_planner->setCoeffDistance(inparams->coeff_distance);
+   if (inparams->has_coeff_checkcost)
+      ompl_planner->setCoeffCheckcost(inparams->coeff_checkcost);
+   if (inparams->has_coeff_batch)
+      ompl_planner->setCoeffBatch(inparams->coeff_batch);
+   if (inparams->has_do_timing)
+      ompl_planner->setDoTiming(inparams->do_timing);
+   if (inparams->has_max_batches)
+      ompl_planner->setMaxBatches(inparams->max_batches);
+   if (inparams->has_search_type)
+      ompl_planner->setSearchType(inparams->search_type);
+   if (inparams->has_eval_type)
+      ompl_planner->setEvalType(inparams->eval_type);
    
    // problem definition
    ompl_pdef.reset(new ompl::base::ProblemDefinition(family->subsets.find("targ")->second.si));

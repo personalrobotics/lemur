@@ -11,32 +11,57 @@ namespace or_multiset
 class E8RoadmapParameters : public OpenRAVE::PlannerBase::PlannerParameters
 {
 public:
+   // for construction
    std::string roadmap_id;
    unsigned int num_batches_init;
-   double coeff_distance;
-   double coeff_checkcost;
-   double coeff_batch;
-   bool do_timing;
-   std::string search_type;
-   std::string eval_type;
    std::string alglog;
    std::string graph;
    
+   // ompl parameters
+   
+   bool has_coeff_distance;
+   double coeff_distance;
+   
+   bool has_coeff_checkcost;
+   double coeff_checkcost;
+   
+   bool has_coeff_batch;
+   double coeff_batch;
+   
+   bool has_do_timing;
+   bool do_timing;
+   
+   bool has_max_batches;
+   unsigned int max_batches;
+   
+   bool has_search_type;
+   std::string search_type;
+   
+   bool has_eval_type;
+   std::string eval_type;
+   
    E8RoadmapParameters():
       roadmap_id(""), num_batches_init(1),
-      coeff_distance(1.), coeff_checkcost(0.), coeff_batch(0.),
-      do_timing(false), search_type("astar"), eval_type("alt")
+      alglog(""), graph(""),
+      has_coeff_distance(false),
+      has_coeff_checkcost(false),
+      has_coeff_batch(false),
+      has_do_timing(false),
+      has_max_batches(false),
+      has_search_type(false),
+      has_eval_type(false)
    {
       _vXMLParameters.push_back("roadmap_id");
       _vXMLParameters.push_back("num_batches_init");
+      _vXMLParameters.push_back("alglog");
+      _vXMLParameters.push_back("graph");
       _vXMLParameters.push_back("coeff_distance");
       _vXMLParameters.push_back("coeff_checkcost");
       _vXMLParameters.push_back("coeff_batch");
       _vXMLParameters.push_back("do_timing");
+      _vXMLParameters.push_back("max_batches");
       _vXMLParameters.push_back("search_type");
       _vXMLParameters.push_back("eval_type");
-      _vXMLParameters.push_back("alglog");
-      _vXMLParameters.push_back("graph");
    }
    
 private:
@@ -48,14 +73,22 @@ private:
          return false;
       sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
       sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
-      sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
-      sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
-      sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
-      sout << "<do_timing>" << do_timing << "</do_timing>";
-      sout << "<search_type>" << search_type << "</search_type>";
-      sout << "<search_type>" << eval_type << "</search_type>";
       sout << "<alglog>" << alglog << "</alglog>";
       sout << "<graph>" << graph << "</graph>";
+      if (has_coeff_distance)
+         sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
+      if (has_coeff_checkcost)
+         sout << "<coeff_checkcost>" << coeff_checkcost << "</coeff_checkcost>";
+      if (has_coeff_batch)
+         sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
+      if (has_do_timing)
+         sout << "<do_timing>" << do_timing << "</do_timing>";
+      if (has_max_batches)
+         sout << "<max_batches>" << max_batches << "</max_batches>";
+      if (has_search_type)
+         sout << "<search_type>" << search_type << "</search_type>";
+      if (has_eval_type)
+         sout << "<eval_type>" << eval_type << "</eval_type>";
       return !!sout;
    }
    
@@ -71,14 +104,15 @@ private:
       // can we handle it?
       if (name == "roadmap_id"
          || name == "num_batches_init"
+         || name == "alglog"
+         || name == "graph"
          || name == "coeff_distance"
          || name == "coeff_checkcost"
          || name == "coeff_batch"
          || name == "do_timing"
+         || name == "max_batches"
          || name == "search_type"
-         || name == "eval_type"
-         || name == "alglog"
-         || name == "graph")
+         || name == "eval_type")
       {
          el_deserializing = name;
          return PE_Support;
@@ -96,27 +130,49 @@ private:
             roadmap_id = _ss.str();
          if (el_deserializing == "num_batches_init")
             _ss >> num_batches_init;
+         if (el_deserializing == "alglog")
+            alglog = _ss.str();
+         if (el_deserializing == "graph")
+            graph = _ss.str();
          if (el_deserializing == "coeff_distance")
+         {
             _ss >> coeff_distance;
+            has_coeff_distance = true;
+         }
          if (el_deserializing == "coeff_checkcost")
+         {
             _ss >> coeff_checkcost;
+            has_coeff_checkcost = true;
+         }
          if (el_deserializing == "coeff_batch")
+         {
             _ss >> coeff_batch;
+            has_coeff_batch = true;
+         }
          if (el_deserializing == "do_timing")
          {
             std::ios state(0);
             state.copyfmt(_ss);
             _ss >> std::boolalpha >> do_timing;
             _ss.copyfmt(state);
+            has_do_timing = true;
+         }
+         if (el_deserializing == "max_batches")
+         {
+            _ss >> max_batches;
+            has_max_batches = true;
          }
          if (el_deserializing == "search_type")
+         {
             search_type = _ss.str();
+            has_search_type = true;
+         }
          if (el_deserializing == "eval_type")
+         {
             eval_type = _ss.str();
-         if (el_deserializing == "alglog")
-            alglog = _ss.str();
-         if (el_deserializing == "graph")
-            graph = _ss.str();
+            has_eval_type = true;
+         }
+         
       }
       else
          RAVELOG_WARN("closing tag doesnt match opening tag!\n");

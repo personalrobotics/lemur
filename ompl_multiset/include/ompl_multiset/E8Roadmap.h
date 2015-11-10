@@ -152,6 +152,8 @@ private:
    
    bool _do_timing;
    
+   unsigned int _max_batches;
+   
    enum
    {
       SEARCH_TYPE_DIJKSTRAS,
@@ -201,6 +203,9 @@ public:
    
    void setDoTiming(bool do_timing);
    double getDoTiming() const;
+   
+   void setMaxBatches(unsigned int max_batches);
+   unsigned int getMaxBatches() const;
    
    void setSearchType(std::string search_type);
    std::string getSearchType() const;
