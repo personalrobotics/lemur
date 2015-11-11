@@ -30,6 +30,10 @@
 #include <pr_bgl/overlay_manager.h>
 #include <pr_bgl/lazysp.h>
 #include <pr_bgl/heap_indexed.h>
+#include <pr_bgl/pair_index_map.h>
+#include <pr_bgl/partition_all.h>
+#include <pr_bgl/lazysp_partition_all.h>
+#include <pr_bgl/lazysp_sp_indicator_probability.h>
 
 #include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/BisectPerm.h>
@@ -248,6 +252,10 @@ void ompl_multiset::E8Roadmap::setEvalType(std::string eval_type)
       _eval_type = EVAL_TYPE_BISECT;
    else if (eval_type == "fwd_expand")
       _eval_type = EVAL_TYPE_FWD_EXPAND;
+   else if (eval_type == "partition_all")
+      _eval_type = EVAL_TYPE_PARTITION_ALL;
+   else if (eval_type == "sp_indicator_probability")
+      _eval_type = EVAL_TYPE_SP_INDICATOR_PROBABILITY;
    else
       OMPL_ERROR("%s: Eval type parameter must be fwd rev alt bisect or fwd_expand.",
          getName().c_str());
@@ -262,6 +270,8 @@ std::string ompl_multiset::E8Roadmap::getEvalType() const
    case EVAL_TYPE_ALT: return "alt";
    case EVAL_TYPE_BISECT: return "bisect";
    case EVAL_TYPE_FWD_EXPAND: return "fwd_expand";
+   case EVAL_TYPE_PARTITION_ALL: return "partition_all";
+   case EVAL_TYPE_SP_INDICATOR_PROBABILITY: return "sp_indicator_probability";
    default:
       throw std::runtime_error("corrupted _search_type!");
    }
@@ -676,6 +686,34 @@ ompl_multiset::E8Roadmap::solve(
                pr_bgl::LazySpEvalFwdExpand(),
                epath);
             break;
+         case EVAL_TYPE_PARTITION_ALL:
+            success = do_lazysp(
+               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+               pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
+                  get(&EProps::w_lazy,g),
+                  1.0, // len_ref
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex),
+               epath);
+            break;
+         case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
+            success = do_lazysp(
+               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+               pr_bgl::lazysp_sp_indicator_probability<Graph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
+                  get(&EProps::w_lazy,g),
+                  ompl_multiset::IsEvaledMap(*this),
+                  100, // nsamps
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex,
+                  0), // seed
+               epath);
+            break;
          }
       }
       else // _search_type == SEARCH_TYPE_DIJKSTRAS
@@ -710,6 +748,28 @@ ompl_multiset::E8Roadmap::solve(
             success = do_lazysp(
                pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
                pr_bgl::LazySpEvalFwdExpand(),
+               epath);
+            break;
+         case EVAL_TYPE_PARTITION_ALL:
+            success = do_lazysp(
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
+                  get(&EProps::w_lazy,g),
+                  1.0, // len_ref
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex),
+               epath);
+            break;
+         case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
+            success = do_lazysp(
+               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
+               pr_bgl::lazysp_sp_indicator_probability<Graph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
+                  get(&EProps::w_lazy,g),
+                  ompl_multiset::IsEvaledMap(*this),
+                  100, // nsamps
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex,
+                  0), // seed
                epath);
             break;
          }

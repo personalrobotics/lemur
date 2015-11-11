@@ -61,7 +61,6 @@ public:
    typedef boost::property_map<Graph, double EProps::*>::type EPDistanceMap;
    typedef boost::property_map<Graph, int EProps::*>::type EPBatchMap;
    typedef boost::property_map<Graph, double EProps::*>::type EPWlazyMap;
-   typedef boost::property_map<Graph, bool EProps::*>::type EPIsEvaledMap;
    typedef boost::property_map<Graph, std::vector<size_t> EProps::*>::type EPTagsMap;
    
    // for indexing
@@ -166,7 +165,9 @@ private:
       EVAL_TYPE_REV,
       EVAL_TYPE_ALT,
       EVAL_TYPE_BISECT,
-      EVAL_TYPE_FWD_EXPAND
+      EVAL_TYPE_FWD_EXPAND,
+      EVAL_TYPE_PARTITION_ALL,
+      EVAL_TYPE_SP_INDICATOR_PROBABILITY
    } _eval_type;
    
 public:
