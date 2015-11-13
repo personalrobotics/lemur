@@ -61,7 +61,7 @@ bool lazy_shortest_path(Graph & g,
          eepath.push_back(std::make_pair(e, is_evaled));
       }
       
-      visitor.lazy_path(pathlen, vpath);
+      visitor.lazy_path(pathlen, vpath, eepath);
       
       if (path_evaled)
       {
@@ -96,8 +96,12 @@ public:
    
    lazysp_null_visitor() {}
    
-   template <class Vertex>
-   inline void lazy_path(double length, std::vector<Vertex> & vpath) {}
+   template <class Vertex, class Edge>
+   inline void lazy_path(double length,
+      std::vector<Vertex> & vpath,
+      std::vector< std::pair<Edge,bool> > & eepath)
+   {
+   }
 
    inline void search_begin() {}
    inline void search_end() {}
@@ -120,11 +124,13 @@ public:
    B visB;
    lazysp_null_visitor_pair(A visA, B visB): visA(visA), visB(visB) {}
    
-   template <class Vertex>
-   inline void lazy_path(double length, std::vector<Vertex> & vpath)
+   template <class Vertex, class Edge>
+   inline void lazy_path(double length,
+      std::vector<Vertex> & vpath,
+      std::vector< std::pair<Edge,bool> > & eepath)
    {
-      visA.lazy_path(length, vpath);
-      visB.lazy_path(length, vpath);
+      visA.lazy_path(length, vpath, eepath);
+      visB.lazy_path(length, vpath, eepath);
    }
 
    inline void search_begin()

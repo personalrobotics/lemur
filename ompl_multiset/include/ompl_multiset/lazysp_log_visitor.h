@@ -25,13 +25,26 @@ public:
    {
    }
    
-   template <class Vertex>
-   inline void lazy_path(double length, std::vector<Vertex> & vpath)
+   template <class Vertex, class Edge>
+   inline void lazy_path(double length,
+      std::vector<Vertex> & vpath,
+      std::vector< std::pair<Edge,bool> > & eepath)
    {
       stream << "lazy_path_length " << length << std::endl;
       stream << "lazy_path";
       for (unsigned int ui=0; ui<vpath.size(); ui++)
          stream << " " << get(vertex_index_map,vpath[ui]);
+      stream << std::endl;
+      stream << "lazy_path_edge";
+      for (unsigned int ui=0; ui<eepath.size(); ui++)
+         stream << " " << get(edge_index_map,eepath[ui].first);
+      stream << std::endl;
+      stream << "lazy_path_edge_evaled";
+      for (unsigned int ui=0; ui<eepath.size(); ui++)
+         if (eepath[ui].second)
+            stream << " true";
+         else
+            stream << " false";
       stream << std::endl;
    }
 
