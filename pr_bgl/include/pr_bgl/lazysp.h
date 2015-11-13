@@ -325,7 +325,7 @@ public:
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
    typedef typename boost::property_traits<WMap>::value_type weight_type;
    
-   class throw_visitor_exception: public std::exception {};
+   struct throw_visitor_exception {};
    class throw_visitor
    {
    public:
@@ -405,7 +405,7 @@ public:
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
    typedef typename boost::property_traits<WMap>::value_type weight_type;
    
-   class throw_visitor_exception: public std::exception {};
+   struct throw_visitor_exception {};
    class throw_visitor
    {
    public:

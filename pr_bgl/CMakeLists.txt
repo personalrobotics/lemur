@@ -21,8 +21,14 @@ if (CATKIN_ENABLE_TESTING)
    catkin_add_gtest(test_heap_indexed test/heap_indexed.cpp)
    
    catkin_add_gtest(test_lazysp test/lazysp.cpp)
-   set_target_properties(test_lazysp PROPERTIES COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
+   set_target_properties(test_lazysp PROPERTIES
+      COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
    target_link_libraries(test_lazysp ${Boost_LIBRARIES})
+   
+   catkin_add_gtest(test_lifelong_planning_astar test/lifelong_planning_astar.cpp)
+   set_target_properties(test_lifelong_planning_astar PROPERTIES
+      COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
+   target_link_libraries(test_lifelong_planning_astar ${Boost_LIBRARIES})
    
    catkin_add_gtest(test_partition_all test/partition_all.cpp)
    

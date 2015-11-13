@@ -36,8 +36,8 @@ TEST(HeapIndexedTestCase, HeapIndexedTest)
    h.remove(7);
    h.print();
    
-   ASSERT_EQ(8.0, h.top_key());
-   ASSERT_EQ(6, h.top_idx());
+   ASSERT_EQ(3.0, h.top_key());
+   ASSERT_EQ(4, h.top_idx());
 }
 
 int main(int argc, char **argv)

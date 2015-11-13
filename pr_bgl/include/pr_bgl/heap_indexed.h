@@ -153,11 +153,11 @@ public:
       backing.pop_back();
       locs[idx_last] = loc;
       locs[idx] = 0;
-      // maintain proper heap order
+      // maintain proper heap order (old last item is now in loc)
       if (backing[loc].key < key)
-         up_heap(idx, key, loc);
+         up_heap(idx_last, backing[loc].key, loc);
       if (backing[loc].key > key)
-         down_heap(idx, key, loc);
+         down_heap(idx_last, backing[loc].key, loc);
    }
    
    // assumes non-empty
