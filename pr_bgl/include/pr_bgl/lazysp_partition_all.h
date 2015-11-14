@@ -13,13 +13,21 @@ class lazysp_partition_all
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
+   typedef typename boost::graph_traits<Graph>::edge_iterator EdgeIter;
+   
    WLazyMap w_lazy_map;
    const double len_ref;
    const Vertex v_start;
    const Vertex v_goal;
+   const bool do_fake_roots;
    
-   lazysp_partition_all(WLazyMap w_lazy_map, double len_ref, Vertex v_start, Vertex v_goal):
-      w_lazy_map(w_lazy_map), len_ref(len_ref), v_start(v_start), v_goal(v_goal)
+   lazysp_partition_all(
+      WLazyMap w_lazy_map, double len_ref,
+      Vertex v_start, Vertex v_goal,
+      bool do_fake_roots):
+      w_lazy_map(w_lazy_map), len_ref(len_ref),
+      v_start(v_start), v_goal(v_goal),
+      do_fake_roots(do_fake_roots)
    {
    }
    
@@ -43,9 +51,38 @@ public:
          boost::num_vertices(g)));
       
       // compute coupling from scratch
-      pr_bgl::partition_all(g, len_ref,
-         w_lazy_map,
-         coupling_map, temp1, temp2);
+      pr_bgl::partition_all_init(g, coupling_map);
+      
+      std::pair<EdgeIter,EdgeIter> ep=edges(g);
+      for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
+      {
+         Vertex v_s = boost::source(*ei, g);
+         Vertex v_t = boost::target(*ei, g);
+         double weight_frac = get(w_lazy_map,*ei) / len_ref;
+         
+         if (!do_fake_roots || (v_t != v_start && v_s != v_goal))
+         {
+            // add forward edge s->t
+            partition_all_update_directed_edge(g,
+               v_s,
+               v_t,
+               weight_frac,
+               true, // is_add
+               coupling_map, temp1, temp2);
+         }
+         
+         if (!do_fake_roots || (v_s != v_start && v_t != v_goal))
+         {
+            // add backwards edge t->s
+            partition_all_update_directed_edge(g,
+               v_t,
+               v_s,
+               weight_frac,
+               true, // is_add
+               coupling_map, temp1, temp2);
+         }
+      }
+         
       double coupling_withall = coupling_map[std::make_pair(v_start,v_goal)];
       //printf("start-goal coupling: %.20f\n", coupling_withall);
       
@@ -57,10 +94,16 @@ public:
          if (path[ui].second)
             continue;
          
-         // compute leave-one-out coupling score
-         double coupling_without = pr_bgl::partition_all_without_edge(g, v_start, v_goal,
-            e, get(w_lazy_map,e)/len_ref, coupling_map);
-         double score = 1.0 - coupling_without/coupling_withall;
+         double score;
+         if (do_fake_roots && (ui==0 || ui==path.size()-1))
+            score = 1.0;
+         else
+         {
+            // compute leave-one-out coupling score
+            double coupling_without = pr_bgl::partition_all_without_edge(g, v_start, v_goal,
+               e, get(w_lazy_map,e)/len_ref, coupling_map);
+            score = 1.0 - coupling_without/coupling_withall;
+         }
          
          // is it better?
          if (score_best <= score)
