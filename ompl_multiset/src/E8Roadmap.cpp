@@ -694,9 +694,10 @@ ompl_multiset::E8Roadmap::solve(
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
                pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
                   get(&EProps::w_lazy,g),
-                  1.0, // len_ref
+                  0.1, // len_ref
                   og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex),
+                  og[ov_singlegoal].core_vertex,
+                  true),
                epath);
             break;
          case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
@@ -755,9 +756,10 @@ ompl_multiset::E8Roadmap::solve(
                pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
                pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
                   get(&EProps::w_lazy,g),
-                  1.0, // len_ref
+                  0.1, // len_ref
                   og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex),
+                  og[ov_singlegoal].core_vertex,
+                  true),
                epath);
             break;
          case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
