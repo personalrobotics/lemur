@@ -78,6 +78,21 @@ Test coverage: Yes (not yet converted to `gtest`).
 
 The `lazy_shortest_path` function implements the Lazy Shortest Path algorithm for the single-source single-sink shortest path problem.  It takes as an argument an `EvalStrategy` object which determins for the candidate path found at each iteration which edge(s) to select for evaluation.
 
+Related code:
+
+* `lazysp_partition_all.h` - selector using partition functions
+* `lazysp_sp_indicator_probability.h` - selector using sp indicator probability
+
+Test coverage: Yes.
+
+### `lifelong_planning_astar.h`
+
+Implements the Lifelong Planning A* incremental search algorithm.
+
+    Sven Koenig, Maxim Likhachev, and David Furcy. 2004.
+    Lifelong planning A*. Artif. Intell. 155, 1-2 (May 2004), 93-146.
+    DOI=http://dx.doi.org/10.1016/j.artint.2003.12.001
+
 Test coverage: Yes.
 
 ### `path_generator.h`
