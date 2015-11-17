@@ -109,6 +109,9 @@ public:
       }
       to_evaluate.push_back(e_best);
    }
+   
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
 } // namespace pr_bgl

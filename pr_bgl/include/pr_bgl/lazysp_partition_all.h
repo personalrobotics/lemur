@@ -7,6 +7,7 @@
 namespace pr_bgl
 {
 
+// for now, this assumes g is an undirected graph
 template <class Graph, class WLazyMap>
 class lazysp_partition_all
 {
@@ -15,40 +16,38 @@ public:
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
    typedef typename boost::graph_traits<Graph>::edge_iterator EdgeIter;
    
+   typedef typename boost::property_map<Graph, boost::vertex_index_t>::type VerIndexMap;
+   typedef pr_bgl::PairIndexMap<Vertex,VerIndexMap> VerPairIndexMap;
+   typedef boost::vector_property_map<double,VerIndexMap> VerVector;
+   typedef boost::vector_property_map<double,VerPairIndexMap> VerPairVector;
+   
+   const Graph & g;
    WLazyMap w_lazy_map;
    const double len_ref;
    const Vertex v_start;
    const Vertex v_goal;
    const bool do_fake_roots;
    
+   // coupling temps,outputs
+   VerVector temp1;
+   VerVector temp2;
+   VerPairVector coupling_map;
+   
    lazysp_partition_all(
+      const Graph & g,
       WLazyMap w_lazy_map, double len_ref,
       Vertex v_start, Vertex v_goal,
       bool do_fake_roots):
-      w_lazy_map(w_lazy_map), len_ref(len_ref),
+      g(g), w_lazy_map(w_lazy_map), len_ref(len_ref),
       v_start(v_start), v_goal(v_goal),
-      do_fake_roots(do_fake_roots)
+      do_fake_roots(do_fake_roots),
+      temp1(num_vertices(g),get(boost::vertex_index,g)),
+      temp2(num_vertices(g),get(boost::vertex_index,g)),
+      coupling_map(
+         num_vertices(g)*num_vertices(g),
+         VerPairIndexMap(get(boost::vertex_index,g),num_vertices(g)))
    {
-   }
-   
-   //emplate <class Graph>
-   void get_to_evaluate(
-      const Graph & g,
-      const std::vector< std::pair<Edge,bool> > & path,
-      std::vector<Edge> & to_evaluate)
-   {
-      typedef typename boost::property_map<Graph, boost::vertex_index_t>::type VerIndexMap;
-      
-      // coupling temps,outputs
-      typedef pr_bgl::PairIndexMap<Vertex,VerIndexMap> VerPairIndexMap;
-      typedef boost::vector_property_map<double,VerIndexMap> VerVector;
-      typedef boost::vector_property_map<double,VerPairIndexMap> VerPairVector;
-      VerVector temp1(boost::num_vertices(g),boost::get(boost::vertex_index,g));
-      VerVector temp2(boost::num_vertices(g),boost::get(boost::vertex_index,g));
-      VerPairVector coupling_map(
-         boost::num_vertices(g)*boost::num_vertices(g),
-         VerPairIndexMap(boost::get(boost::vertex_index,g),
-         boost::num_vertices(g)));
+      printf("computing coupling from scratch ...\n");
       
       // compute coupling from scratch
       pr_bgl::partition_all_init(g, coupling_map);
@@ -56,8 +55,8 @@ public:
       std::pair<EdgeIter,EdgeIter> ep=edges(g);
       for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
       {
-         Vertex v_s = boost::source(*ei, g);
-         Vertex v_t = boost::target(*ei, g);
+         Vertex v_s = source(*ei, g);
+         Vertex v_t = target(*ei, g);
          double weight_frac = get(w_lazy_map,*ei) / len_ref;
          
          if (!do_fake_roots || (v_t != v_start && v_s != v_goal))
@@ -82,7 +81,13 @@ public:
                coupling_map, temp1, temp2);
          }
       }
-         
+   }
+
+   void get_to_evaluate(
+      const Graph & g,
+      const std::vector< std::pair<Edge,bool> > & path,
+      std::vector<Edge> & to_evaluate)
+   {
       double coupling_withall = coupling_map[std::make_pair(v_start,v_goal)];
       //printf("start-goal coupling: %.20f\n", coupling_withall);
       
@@ -113,6 +118,27 @@ public:
          }
       }
       to_evaluate.push_back(e_best);
+   }
+   
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old)
+   {
+      printf("accommodating updated edge ...\n");
+      double e_weight_new = get(w_lazy_map, e);
+      if (e_weight_new == e_weight_old)
+         return;
+      
+      // remove in both directions (assume above check skips fake roots)
+      Vertex v_s = source(e, g);
+      Vertex v_t = target(e, g);
+      
+      double weight_frac_old = e_weight_old / len_ref;
+      partition_all_update_directed_edge(g, v_s, v_t, weight_frac_old, false, coupling_map, temp1, temp2);
+      partition_all_update_directed_edge(g, v_t, v_s, weight_frac_old, false, coupling_map, temp1, temp2);
+      
+      double weight_frac = get(w_lazy_map, e) / len_ref;
+      partition_all_update_directed_edge(g, v_s, v_t, weight_frac, true, coupling_map, temp1, temp2);
+      partition_all_update_directed_edge(g, v_t, v_s, weight_frac, true, coupling_map, temp1, temp2);
    }
 };
 

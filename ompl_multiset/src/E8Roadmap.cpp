@@ -693,7 +693,7 @@ ompl_multiset::E8Roadmap::solve(
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
                pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
-                  get(&EProps::w_lazy,g),
+                  g, get(&EProps::w_lazy,g),
                   0.1, // len_ref
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
@@ -755,7 +755,7 @@ ompl_multiset::E8Roadmap::solve(
             success = do_lazysp(
                pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
                pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
-                  get(&EProps::w_lazy,g),
+                  g, get(&EProps::w_lazy,g),
                   0.1, // len_ref
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,

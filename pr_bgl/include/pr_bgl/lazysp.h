@@ -81,10 +81,12 @@ bool lazy_shortest_path(Graph & g,
       for (unsigned int ui=0; ui<to_evaluate.size(); ui++)
       {
          Edge & e = to_evaluate[ui];
+         weight_type e_weight_old = get(wlazymap, e);
          weight_type e_weight = get(wmap,e);
          visitor.edge_evaluate(e, e_weight);
          put(wlazymap, e, e_weight);
          incsp.update_notify(e);
+         evalstrategy.update_notify(e, e_weight_old);
       }
       visitor.eval_end();
    }
@@ -200,6 +202,8 @@ public:
       if (ui<path.size())
          to_evaluate.push_back(path[ui].first);
    }
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
 class LazySpEvalRev
@@ -218,6 +222,8 @@ public:
       if (0<=i)
          to_evaluate.push_back(path[i].first);
    }
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
 class LazySpEvalAlt
@@ -239,6 +245,8 @@ public:
          rev.get_to_evaluate(g, path, to_evaluate);
       do_fwd = !do_fwd;
    }
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
 class LazySpEvalBisect
@@ -298,6 +306,8 @@ public:
       }
       to_evaluate.push_back(path[max_i].first);
    }
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
 class LazySpEvalFwdExpand
@@ -319,6 +329,8 @@ public:
       for (boost::tie(ei,ei_end)=out_edges(source(path[ui].first,g),g); ei!=ei_end; ++ei)
          to_evaluate.push_back(*ei);
    }
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
 // solve returns weight_type::max if a non-infinite path is found
