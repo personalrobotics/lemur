@@ -19,6 +19,8 @@
 namespace pr_bgl
 {
 
+struct partition_all_divergent_exception {};
+
 template <class Graph, class CouplingMap, class TempMap>
 void partition_all_update_directed_edge(
    const Graph & g,
@@ -31,20 +33,21 @@ void partition_all_update_directed_edge(
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::vertex_iterator VertexIter;
-   if (!is_add)
+   double denom;
+   if (is_add)
    {
-      printf("ERROR, INCREMENTAL REMOVE NOT YET IMPLEMENTED!\n");
-      abort();
+      // update denominator
+      denom = exp(weight_frac)
+         - boost::get(coupling_map, std::make_pair(v_b,v_a));
+      if (denom <= 0.0)
+         throw partition_all_divergent_exception();
+      //printf("adding with denom: %f\n", denom);
    }
-   // update denominator
-   double denom = exp(weight_frac)
-      - boost::get(coupling_map, std::make_pair(v_b,v_a));
-   if (denom <= 0.0)
+   else
    {
-      printf("ERROR, SERIES DOES NOT CONVERGE!\n");
-      abort();
+      denom = - exp(weight_frac)
+         - boost::get(coupling_map, std::make_pair(v_b,v_a));
    }
-   //printf("adding with denom: %f\n", denom);
    // temporary storge of old c values
    for (std::pair<VertexIter,VertexIter> vp=boost::vertices(g);
          vp.first!=vp.second; vp.first++)
