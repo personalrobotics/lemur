@@ -694,7 +694,7 @@ ompl_multiset::E8Roadmap::solve(
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
                pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
                   g, get(&EProps::w_lazy,g),
-                  0.1, // len_ref
+                  1.0/3.0, // len_ref
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   true),
@@ -709,7 +709,7 @@ ompl_multiset::E8Roadmap::solve(
                pr_bgl::lazysp_sp_indicator_probability<Graph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
                   get(&EProps::w_lazy,g),
                   ompl_multiset::IsEvaledMap(*this),
-                  100, // nsamps
+                  1000, // nsamps
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   0), // seed
@@ -756,7 +756,7 @@ ompl_multiset::E8Roadmap::solve(
                pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
                pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
                   g, get(&EProps::w_lazy,g),
-                  0.1, // len_ref
+                  1.0/3.0, // len_ref
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   true),
@@ -768,7 +768,7 @@ ompl_multiset::E8Roadmap::solve(
                pr_bgl::lazysp_sp_indicator_probability<Graph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
                   get(&EProps::w_lazy,g),
                   ompl_multiset::IsEvaledMap(*this),
-                  100, // nsamps
+                  1000, // nsamps
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   0), // seed

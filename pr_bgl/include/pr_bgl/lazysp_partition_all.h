@@ -47,7 +47,7 @@ public:
          num_vertices(g)*num_vertices(g),
          VerPairIndexMap(get(boost::vertex_index,g),num_vertices(g)))
    {
-      printf("computing coupling from scratch ...\n");
+      printf("computing partition_all from scratch ...\n");
       
       // compute coupling from scratch
       pr_bgl::partition_all_init(g, coupling_map);
@@ -89,10 +89,11 @@ public:
       std::vector<Edge> & to_evaluate)
    {
       double coupling_withall = coupling_map[std::make_pair(v_start,v_goal)];
-      //printf("start-goal coupling: %.20f\n", coupling_withall);
+      //printf("start-goal coupling: %e\n", coupling_withall);
       
       double score_best = 0.0;
       Edge e_best;
+      bool found_best = false;
       for (unsigned int ui=0; ui<path.size(); ui++)
       {
          Edge e = path[ui].first;
@@ -107,6 +108,7 @@ public:
             // compute leave-one-out coupling score
             double coupling_without = pr_bgl::partition_all_without_edge(g, v_start, v_goal,
                e, get(w_lazy_map,e)/len_ref, coupling_map);
+            //printf("  path[%u] edge coupling without: %e\n", ui, coupling_without);
             score = 1.0 - coupling_without/coupling_withall;
          }
          
@@ -115,15 +117,18 @@ public:
          {
             e_best = e;
             score_best = score;
+            found_best = true;
          }
       }
+      if (!found_best)
+         throw std::runtime_error("no best edge found!");
       to_evaluate.push_back(e_best);
    }
    
    template <class Edge, class WeightType>
    void update_notify(Edge e, WeightType e_weight_old)
    {
-      printf("accommodating updated edge ...\n");
+      //printf("accommodating updated edge ...\n");
       double e_weight_new = get(w_lazy_map, e);
       if (e_weight_new == e_weight_old)
          return;
@@ -133,12 +138,16 @@ public:
       Vertex v_t = target(e, g);
       
       double weight_frac_old = e_weight_old / len_ref;
-      partition_all_update_directed_edge(g, v_s, v_t, weight_frac_old, false, coupling_map, temp1, temp2);
-      partition_all_update_directed_edge(g, v_t, v_s, weight_frac_old, false, coupling_map, temp1, temp2);
+      if (!do_fake_roots || (v_t != v_start && v_s != v_goal))
+         partition_all_update_directed_edge(g, v_s, v_t, weight_frac_old, false, coupling_map, temp1, temp2);
+      if (!do_fake_roots || (v_s != v_start && v_t != v_goal))
+         partition_all_update_directed_edge(g, v_t, v_s, weight_frac_old, false, coupling_map, temp1, temp2);
       
       double weight_frac = get(w_lazy_map, e) / len_ref;
-      partition_all_update_directed_edge(g, v_s, v_t, weight_frac, true, coupling_map, temp1, temp2);
-      partition_all_update_directed_edge(g, v_t, v_s, weight_frac, true, coupling_map, temp1, temp2);
+      if (!do_fake_roots || (v_t != v_start && v_s != v_goal))
+         partition_all_update_directed_edge(g, v_s, v_t, weight_frac, true, coupling_map, temp1, temp2);
+      if (!do_fake_roots || (v_s != v_start && v_t != v_goal))
+         partition_all_update_directed_edge(g, v_t, v_s, weight_frac, true, coupling_map, temp1, temp2);
    }
 };
 
