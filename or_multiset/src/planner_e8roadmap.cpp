@@ -233,6 +233,7 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    printf("planning ...\n");
    
    ompl_checker->num_checks = 0;
+   ompl_checker->dur_checks = boost::chrono::high_resolution_clock::duration();
    
    std::ofstream fp_alglog;
    if (params->alglog == "-")
@@ -288,8 +289,11 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 
 bool or_multiset::E8Roadmap::GetTimes(std::ostream & sout, std::istream & sin) const
 {
-   sout << "checktime " << 0.0;
+   sout << "checktime " << boost::chrono::duration<double>(ompl_checker->dur_checks).count();
    sout << " totaltime " << 0.0;
    sout << " n_checks " << ompl_checker->num_checks;
+   sout << " e8_dur_total " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurTotal();
+   sout << " e8_dur_search " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurSearch();
+   sout << " e8_dur_eval " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurEval();
    return true;
 }

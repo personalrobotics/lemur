@@ -178,6 +178,7 @@ private:
    VIdxTagMap m_vidx_tag_map;
    EIdxTagsMap m_eidx_tags_map;
    
+   boost::chrono::high_resolution_clock::duration _dur_total;
    boost::chrono::high_resolution_clock::duration _dur_search;
    boost::chrono::high_resolution_clock::duration _dur_eval;
    
@@ -226,6 +227,10 @@ public:
    void dump_graph(std::ostream & os_graph);
    
    void cache_save_all();
+   
+   double getDurTotal();
+   double getDurSearch();
+   double getDurEval();
    
    // part 4: private-ish methods
    

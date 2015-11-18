@@ -898,10 +898,9 @@ ompl_multiset::E8Roadmap::solve(
          boost::chrono::duration<double>(_dur_search).count());
       printf("eval duration: %f\n",
          boost::chrono::duration<double>(_dur_eval).count());
-   
-      boost::chrono::duration<double> dur_total_s =
-         boost::chrono::high_resolution_clock::now() - time_total_begin;
-      printf("total duration: %f\n", dur_total_s.count());
+      _dur_total = boost::chrono::high_resolution_clock::now() - time_total_begin;
+      printf("total duration: %f\n",
+         boost::chrono::duration<double>(_dur_total).count());
    }
 
    if (success)
@@ -995,6 +994,21 @@ void ompl_multiset::E8Roadmap::cache_save_all()
    tag_cache.save_end();
    
    overlay_apply();
+}
+
+double ompl_multiset::E8Roadmap::getDurTotal()
+{
+   return boost::chrono::duration<double>(_dur_total).count();
+}
+
+double ompl_multiset::E8Roadmap::getDurSearch()
+{
+   return boost::chrono::duration<double>(_dur_search).count();
+}
+
+double ompl_multiset::E8Roadmap::getDurEval()
+{
+   return boost::chrono::duration<double>(_dur_eval).count();
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()
