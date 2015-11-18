@@ -70,7 +70,7 @@ bool lazy_shortest_path(Graph & g,
             path.push_back(eepath[ui].first);
          return true;
       }
-      
+
       // determine edges to evaluate
       std::vector<Edge> to_evaluate;
       evalstrategy.get_to_evaluate(g, eepath, to_evaluate);
