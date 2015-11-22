@@ -33,6 +33,8 @@ get(const rvstate_map_string_adaptor<StateMap> & adaptor,
 {
    ompl::base::RealVectorStateSpace::StateType * rvstate
       = (ompl::base::RealVectorStateSpace::StateType *)get(adaptor.state_map, k);
+   if (!rvstate)
+      return std::string();
    std::string s;
    for (unsigned int ui=0; ui<adaptor.dim; ui++)
    {
@@ -50,11 +52,18 @@ put(const rvstate_map_string_adaptor<StateMap> & adaptor,
    const typename rvstate_map_string_adaptor<StateMap>::key_type & k,
    const std::string s)
 {
-   std::stringstream ss(s);
-   ompl::base::RealVectorStateSpace::StateType * rvstate
-      = (ompl::base::RealVectorStateSpace::StateType *)adaptor.rvspace->allocState();
-   for (unsigned int ui=0; ui<adaptor.dim; ui++)
-      ss >> rvstate->values[ui];
+   ompl::base::RealVectorStateSpace::StateType * rvstate;
+   if (s.length() == 0)
+   {
+      rvstate = 0;
+   }
+   else
+   {
+      rvstate = (ompl::base::RealVectorStateSpace::StateType *)adaptor.rvspace->allocState();
+      std::stringstream ss(s);
+      for (unsigned int ui=0; ui<adaptor.dim; ui++)
+         ss >> rvstate->values[ui];
+   }
    put(adaptor.state_map, k, rvstate);
 }
 
