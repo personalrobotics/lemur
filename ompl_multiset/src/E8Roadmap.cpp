@@ -62,8 +62,8 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    ompl_nn(new ompl::NearestNeighborsGNAT<Vertex>),
    //nn(g, get(&VProps::state,g), space, ompl_nn.get()),
    nn(g, get(&VProps::state,g), space),
-   _coeff_checkcost(0.),
    _coeff_distance(1.),
+   _coeff_checkcost(0.),
    _coeff_batch(0.),
    _do_timing(false),
    _max_batches(UINT_MAX),
@@ -168,16 +168,6 @@ ompl_multiset::E8Roadmap::~E8Roadmap()
          space->freeState(og[*oei].edge_states[ui]);
 }
 
-void ompl_multiset::E8Roadmap::setCoeffCheckcost(double coeff_checkcost)
-{
-   _coeff_checkcost = coeff_checkcost;
-}
-
-double ompl_multiset::E8Roadmap::getCoeffCheckcost() const
-{
-   return _coeff_checkcost;
-}
-
 void ompl_multiset::E8Roadmap::setCoeffDistance(double coeff_distance)
 {
    _coeff_distance = coeff_distance;
@@ -186,6 +176,16 @@ void ompl_multiset::E8Roadmap::setCoeffDistance(double coeff_distance)
 double ompl_multiset::E8Roadmap::getCoeffDistance() const
 {
    return _coeff_distance;
+}
+
+void ompl_multiset::E8Roadmap::setCoeffCheckcost(double coeff_checkcost)
+{
+   _coeff_checkcost = coeff_checkcost;
+}
+
+double ompl_multiset::E8Roadmap::getCoeffCheckcost() const
+{
+   return _coeff_checkcost;
 }
 
 void ompl_multiset::E8Roadmap::setCoeffBatch(double coeff_batch)

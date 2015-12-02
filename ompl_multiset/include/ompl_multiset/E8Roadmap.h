@@ -145,8 +145,8 @@ private:
    NN nn;
    
    // parameters
-   double _coeff_checkcost;
    double _coeff_distance;
+   double _coeff_checkcost;
    double _coeff_batch;
    
    bool _do_timing;
@@ -194,11 +194,11 @@ public:
    
    ~E8Roadmap(void);
    
-   void setCoeffCheckcost(double coeff_checkcost);
-   double getCoeffCheckcost() const;
-   
    void setCoeffDistance(double coeff_distance);
    double getCoeffDistance() const;
+   
+   void setCoeffCheckcost(double coeff_checkcost);
+   double getCoeffCheckcost() const;
    
    void setCoeffBatch(double coeff_batch);
    double getCoeffBatch() const;
