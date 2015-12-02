@@ -34,6 +34,9 @@ public:
    bool has_max_batches;
    unsigned int max_batches;
    
+   bool has_time_limit;
+   double time_limit;
+   
    bool has_search_type;
    std::string search_type;
    
@@ -48,6 +51,7 @@ public:
       has_coeff_batch(false),
       has_do_timing(false),
       has_max_batches(false),
+      has_time_limit(false),
       has_search_type(false),
       has_eval_type(false)
    {
@@ -60,6 +64,7 @@ public:
       _vXMLParameters.push_back("coeff_batch");
       _vXMLParameters.push_back("do_timing");
       _vXMLParameters.push_back("max_batches");
+      _vXMLParameters.push_back("time_limit");
       _vXMLParameters.push_back("search_type");
       _vXMLParameters.push_back("eval_type");
    }
@@ -85,6 +90,8 @@ private:
          sout << "<do_timing>" << do_timing << "</do_timing>";
       if (has_max_batches)
          sout << "<max_batches>" << max_batches << "</max_batches>";
+      if (has_time_limit)
+         sout << "<time_limit>" << time_limit << "</time_limit>";
       if (has_search_type)
          sout << "<search_type>" << search_type << "</search_type>";
       if (has_eval_type)
@@ -111,6 +118,7 @@ private:
          || name == "coeff_batch"
          || name == "do_timing"
          || name == "max_batches"
+         || name == "time_limit"
          || name == "search_type"
          || name == "eval_type")
       {
@@ -161,6 +169,11 @@ private:
          {
             _ss >> max_batches;
             has_max_batches = true;
+         }
+         if (el_deserializing == "time_limit")
+         {
+            _ss >> time_limit;
+            has_time_limit = true;
          }
          if (el_deserializing == "search_type")
          {

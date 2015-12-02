@@ -247,7 +247,10 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    }
    
    ompl::base::PlannerStatus ompl_status;
-   ompl_status = ompl_planner->solve(ompl::base::timedPlannerTerminationCondition(10.0));
+   ompl::base::PlannerTerminationCondition ptc(ompl::base::plannerNonTerminatingCondition());
+   if (params->has_time_limit)
+      ptc = ompl::base::timedPlannerTerminationCondition(params->time_limit);
+   ompl_status = ompl_planner->solve(ptc);
    printf("planner returned: %s\n", ompl_status.asString().c_str());
    printf("planner performed %lu checks!\n", ompl_checker->num_checks);
    
