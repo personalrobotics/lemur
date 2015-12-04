@@ -186,7 +186,7 @@ private:
 
 public:
    E8Roadmap(
-      const ompl::base::SpaceInformationPtr & si,
+      const ompl::base::StateSpacePtr & space,
       ompl_multiset::EffortModel & effort_model,
       ompl_multiset::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
       const RoadmapPtr roadmap_gen,

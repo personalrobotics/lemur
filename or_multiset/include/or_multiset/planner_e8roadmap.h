@@ -7,6 +7,10 @@
 namespace or_multiset
 {
 
+/* 
+ * This planner is totally stateless -- a new ompl planner
+ * is created on each call to InitPlan()
+ */
 class E8Roadmap : public OpenRAVE::PlannerBase
 {
 public:
@@ -34,7 +38,6 @@ public:
    OpenRAVE::PlannerStatus PlanPath(OpenRAVE::TrajectoryBasePtr);
    
    bool GetTimes(std::ostream & sout, std::istream & sin) const;
-   
 };
 
 } // namespace or_multiset

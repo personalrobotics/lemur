@@ -152,39 +152,42 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    }
    if (!inrobot || !inparams_base)
       throw OpenRAVE::openrave_exception("robot/params objects must be passed!");
-   if (!robot)
-   {
-      // do setup (at most once)
-      params = inparams;
-      robot = inrobot;
-      robot_adofs = inrobot->GetActiveDOFIndices();
-      
-      // set up ompl space
-      ompl_space.reset(new ompl::base::RealVectorStateSpace(robot_adofs.size()));
-      ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
-      ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / ompl_space->getMaximumExtent());
-      ompl_space->setup();
-      
-      // set up si / checker
-      ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
-      ompl_checker.reset(new or_multiset::OrChecker(ompl_si, env, robot, robot_adofs.size()));
-      ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_checker));
-      ompl_si->setup();
-      
-      // set up planner
-      sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
-      tag_cache.reset(new ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>());
-      try
-      {
-         roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));
-      }
-      catch (const std::runtime_error & ex)
-      {
-         throw OpenRAVE::openrave_exception("failure to create roadmap!");
-      }
-      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_si, *sem, *tag_cache, roadmapgen, params->num_batches_init));
-   }
    
+   // do setup (at most once)
+   params = inparams;
+   robot = inrobot;
+   robot_adofs = inrobot->GetActiveDOFIndices();
+   
+   // set up ompl space
+   ompl_space.reset(new ompl::base::RealVectorStateSpace(robot_adofs.size()));
+   ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
+   ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / ompl_space->getMaximumExtent());
+   ompl_space->setup();
+   
+   // set up si / checker
+   ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
+   ompl_checker.reset(new or_multiset::OrChecker(ompl_si, env, robot, robot_adofs.size()));
+   ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_checker));
+   ompl_si->setup();
+   
+   // set up planner
+   sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
+   tag_cache.reset(new ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>());
+   if (!inparams->has_roadmap_id)
+      throw OpenRAVE::openrave_exception("no roadmap_id parameter passed!");
+   try
+   {
+      roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));
+   }
+   catch (const std::runtime_error & ex)
+   {
+      throw OpenRAVE::openrave_exception("failure to create roadmap!");
+   }
+   unsigned int num_batches_init = 1;
+   if (params->has_num_batches_init)
+      num_batches_init = params->num_batches_init;
+   ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *sem, *tag_cache, roadmapgen, num_batches_init));
+
    // check consistency
    if (robot != inrobot)
       throw OpenRAVE::openrave_exception("planner supports only one robot!");
@@ -240,7 +243,7 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    {
       ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &std::cout;
    }
-   else if (params->alglog != "")
+   else if (params->has_alglog)
    {
       fp_alglog.open(params->alglog.c_str());
       ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &fp_alglog;
@@ -261,7 +264,7 @@ or_multiset::E8Roadmap::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    {
       ompl_planner->as<ompl_multiset::E8Roadmap>()->dump_graph(std::cout);
    }
-   else if (params->graph != "")
+   else if (params->has_graph)
    {
       std::ofstream fp_graph;
       fp_graph.open(params->graph.c_str());

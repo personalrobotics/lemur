@@ -12,9 +12,17 @@ class E8RoadmapParameters : public OpenRAVE::PlannerBase::PlannerParameters
 {
 public:
    // for construction
+   
+   bool has_roadmap_id;
    std::string roadmap_id;
+   
+   bool has_num_batches_init;
    unsigned int num_batches_init;
+   
+   bool has_alglog;
    std::string alglog;
+   
+   bool has_graph;
    std::string graph;
    
    // ompl parameters
@@ -44,8 +52,10 @@ public:
    std::string eval_type;
    
    E8RoadmapParameters():
-      roadmap_id(""), num_batches_init(1),
-      alglog(""), graph(""),
+      has_roadmap_id(false),
+      has_num_batches_init(false),
+      has_alglog(false),
+      has_graph(false),
       has_coeff_distance(false),
       has_coeff_checkcost(false),
       has_coeff_batch(false),
@@ -76,10 +86,14 @@ private:
    {
       if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
          return false;
-      sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
-      sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
-      sout << "<alglog>" << alglog << "</alglog>";
-      sout << "<graph>" << graph << "</graph>";
+      if (has_roadmap_id)
+         sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
+      if (has_num_batches_init)
+         sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
+      if (has_alglog)
+         sout << "<alglog>" << alglog << "</alglog>";
+      if (has_graph)
+         sout << "<graph>" << graph << "</graph>";
       if (has_coeff_distance)
          sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
       if (has_coeff_checkcost)
@@ -135,13 +149,25 @@ private:
       if (name == el_deserializing)
       {
          if (el_deserializing == "roadmap_id")
+         {
             roadmap_id = _ss.str();
+            has_roadmap_id = true;
+         }
          if (el_deserializing == "num_batches_init")
+         {
             _ss >> num_batches_init;
+            has_num_batches_init = true;
+         }
          if (el_deserializing == "alglog")
+         {
             alglog = _ss.str();
+            has_alglog = true;
+         }
          if (el_deserializing == "graph")
+         {
             graph = _ss.str();
+            has_graph = true;
+         }
          if (el_deserializing == "coeff_distance")
          {
             _ss >> coeff_distance;

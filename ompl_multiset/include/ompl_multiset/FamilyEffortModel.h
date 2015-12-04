@@ -109,35 +109,34 @@ public:
       for (std::set<Family::Intersection>::const_iterator
            it=family.intersections.begin(); it!=family.intersections.end(); it++)
       {
+         // find variable index of subset
          size_t var_subset;
-         size_t var_superset_a;
-         size_t var_superset_b;
          for (var_subset=0; var_subset<subsets.size(); var_subset++)
             if (subsets[var_subset].first == it->subset)
                break;
-         for (var_superset_a=0; var_superset_a<subsets.size(); var_superset_a++)
-            if (subsets[var_superset_a].first == it->superset_a)
-               break;
-         for (var_superset_b=0; var_superset_b<subsets.size(); var_superset_b++)
-            if (subsets[var_superset_b].first == it->superset_b)
-               break;
-         if (!(var_subset<subsets.size())
-            || !(var_superset_a<subsets.size())
-            || !(var_superset_b<subsets.size()))
+         if (!(var_subset<subsets.size()))
             throw std::runtime_error("intersection references unknown subset!");
-         ConjunctionImplication x1;
-         x1.antecedents.push_back(var_subset);
-         x1.consequent = var_superset_a;
-         conjunction_implications.push_back(x1);
-         ConjunctionImplication x2;
-         x2.antecedents.push_back(var_subset);
-         x2.consequent = var_superset_b;
-         conjunction_implications.push_back(x2);
-         ConjunctionImplication x3;
-         x3.antecedents.push_back(var_superset_a);
-         x3.antecedents.push_back(var_superset_b);
-         x3.consequent = var_subset;
-         conjunction_implications.push_back(x3);
+         // one conimp is sup1 n sup2 n sup3 -> sub
+         ConjunctionImplication conimp_supstosub;
+         // iterate through all supersets
+         for (std::set<std::string>::iterator supit=it->supersets.begin(); supit!=it->supersets.end(); supit++)
+         {
+            size_t var_superset;
+            for (var_superset=0; var_superset<subsets.size(); var_superset++)
+               if (subsets[var_superset].first == *supit)
+                  break;
+            if (!(var_superset<subsets.size()))
+               throw std::runtime_error("intersection references unknown subset!");
+            // one conimp sub -> supX
+            ConjunctionImplication conimp_subtosup;
+            conimp_subtosup.antecedents.push_back(var_subset);
+            conimp_subtosup.consequent = var_superset;
+            conjunction_implications.push_back(conimp_subtosup);
+            // add to supstosub conimp as well
+            conimp_supstosub.antecedents.push_back(var_superset);
+         }
+         conimp_supstosub.consequent = var_subset;
+         conjunction_implications.push_back(conimp_supstosub);
       }
       
       // compute truth table

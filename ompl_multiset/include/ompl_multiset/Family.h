@@ -47,18 +47,24 @@ struct Family
    struct Intersection
    {
       std::string subset;
-      std::string superset_a;
-      std::string superset_b;
+      std::set<std::string> supersets;
       Intersection(std::string subset, std::string superset_a, std::string superset_b):
-         subset(subset), superset_a(superset_a), superset_b(superset_b)
-      {}
+         subset(subset)
+      {
+         supersets.insert(superset_a);
+         supersets.insert(superset_b);
+      }
+      Intersection(std::string subset, std::set<std::string> & supersets):
+         subset(subset), supersets(supersets)
+      {
+      }
       friend bool operator<(const Intersection & l, const Intersection & r)
       {
          if (l.subset < r.subset) return true;
          if (r.subset < l.subset) return false;
-         if (l.superset_a < r.superset_a) return true;
-         if (r.superset_a < l.superset_a) return false;
-         return l.superset_b < r.superset_b;
+         //if (l.superset_a < r.superset_a) return true;
+         //if (r.superset_a < l.superset_a) return false;
+         return l.supersets < r.supersets;
       }
    };
    std::set<Intersection> intersections;

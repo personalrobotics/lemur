@@ -152,6 +152,7 @@ public:
    
    // usage:
    // "TagCurrentSubset robotname tagname true|false"
+   // last arg is whether the subset is considered persistant
    bool TagCurrentSubset(std::ostream & sout, std::istream & sin);
    bool DumpSubsets(std::ostream & sout, std::istream & sin);
    

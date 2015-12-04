@@ -430,8 +430,8 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    
    // do setup
    params_ptr = inparams;
-   alglog = inparams->alglog;
-   graph = inparams->graph;
+   alglog = inparams->has_alglog ? inparams->alglog : "";
+   graph = inparams->has_graph ? inparams->graph : "";
    robot = inrobot;
    robot_adofs = inrobot->GetActiveDOFIndices();
    
@@ -443,6 +443,8 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    
    // roadmap
    tag_cache.reset(new or_multiset::E8RoadmapSelfCC::TagCache());
+   if (!inparams->has_roadmap_id)
+      throw OpenRAVE::openrave_exception("no roadmap_id parameter passed!");
    try
    {
       roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));
@@ -625,6 +627,7 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    // create the family effort model
    fem.reset(new ompl_multiset::FamilyEffortModel(*family));
    fem->set_target(family->subsets.find("targ")->second.si);
+   
    // set up tag cache w.r.t. effort model
    {
       // get the fem var corresponding to the self subset
@@ -664,9 +667,11 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    }
    
    // set up planner
-   ompl_planner.reset(new ompl_multiset::E8Roadmap(
-      ompl::base::SpaceInformationPtr(new ompl::base::SpaceInformation(ompl_space)),
-      *fem, *tag_cache, roadmapgen, inparams->num_batches_init));
+   unsigned int num_batches_init = 1;
+   if (inparams->has_num_batches_init)
+      num_batches_init = inparams->num_batches_init;
+   ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space,
+      *fem, *tag_cache, roadmapgen, num_batches_init));
    
    // planner params
    if (inparams->has_coeff_distance)

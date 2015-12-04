@@ -35,6 +35,7 @@
 #include <pr_bgl/lazysp_partition_all.h>
 #include <pr_bgl/lazysp_sp_indicator_probability.h>
 
+#include <ompl_multiset/aborting_space_information.h>
 #include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/Roadmap.h>
@@ -42,17 +43,17 @@
 #include <ompl_multiset/E8Roadmap.h>
 #include <ompl_multiset/lazysp_log_visitor.h>
 
-
 ompl_multiset::E8Roadmap::E8Roadmap(
-      const ompl::base::SpaceInformationPtr & si,
+      const ompl::base::StateSpacePtr & space,
       EffortModel & effort_model,
       TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
       const RoadmapPtr roadmap_gen,
       unsigned int num_batches_init):
-   ompl::base::Planner(si, "E8Roadmap"),
+   ompl::base::Planner(
+      ompl_multiset::get_aborting_space_information(space), "E8Roadmap"),
    effort_model(effort_model),
    roadmap_gen(roadmap_gen),
-   space(si_->getStateSpace()),
+   space(space),
    check_radius(0.5*space->getLongestValidSegmentLength()),
    eig(g, get(&EProps::index,g)),
    overlay_manager(eig,og,

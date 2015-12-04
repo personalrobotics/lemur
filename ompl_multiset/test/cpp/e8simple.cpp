@@ -127,7 +127,7 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    
    // planner
    ompl::base::PlannerPtr planner(
-      new ompl_multiset::E8Roadmap(si, fem, tag_cache, roadmap_gen, 1));
+      new ompl_multiset::E8Roadmap(space, fem, tag_cache, roadmap_gen, 1));
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffDistance(1.);
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffCheckcost(0.);
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffBatch(0.);
@@ -152,8 +152,8 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    pdef.reset();
    planner.reset();
    path.reset();
-   ASSERT_EQ(24712, space->as<CountingRealVectorStateSpace>()->states_allocated);
-   ASSERT_EQ(24712, space->as<CountingRealVectorStateSpace>()->states_freed);
+   ASSERT_EQ(24713, space->as<CountingRealVectorStateSpace>()->states_allocated);
+   ASSERT_EQ(24713, space->as<CountingRealVectorStateSpace>()->states_freed);
 }
 
 int main(int argc, char **argv)

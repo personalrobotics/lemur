@@ -421,18 +421,23 @@ void or_multiset::ModuleSubsetManager::tag_current_subset(
    boost::shared_ptr<Subset> subset = this->retrieve_subset(space, current_ilcs_vec, persistent);
    if (!subset)
    {
-      RAVELOG_WARN("asked to tag subset which doesnt yet exist, and not asked to make persistent!\n");
+      RAVELOG_WARN("asked to tag subset which doesnt yet exist, and not asked to make persistent! doing nothing ...\n");
       return;
    }
 
    // are we trying to assign a new tag?
    if (new_tag.size())
    {
-      // are we trying to assign to an already tagged subset?
-      if (subset->tag.size() && new_tag != subset->tag)
+      // does this subset already have a tag?
+      if (subset->tag.size())
+      {
+         if (new_tag == subset->tag)
+            return;
+         // are we trying to tag to an already tagged subset?
          throw OpenRAVE::openrave_exception(sf(
             "trying to assign a subset tag %s, but it already has one %s!",
             new_tag.c_str(), subset->tag.c_str()));
+      }
       // make sure this space doesnt already have a subset with this tag
       bool success = this->set_subset_tag(space, subset, new_tag);
       if (!success)
@@ -453,6 +458,7 @@ bool or_multiset::ModuleSubsetManager::GetCurrentReport(
       throw OpenRAVE::openrave_exception("GetCurrentReport robot not found!");
    or_multiset::SubsetReport report;
    this->get_current_report(robot, report);
+   printf("current subset: \"%s\"\n", report.current_subset.c_str());
    return true;
 }
 
