@@ -109,8 +109,7 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap> tag_cache;
    
    // planner
-   ompl::base::PlannerPtr planner(
-      new ompl_multiset::E8Roadmap(space, fem, tag_cache, roadmap_gen, 1));
+   ompl::base::PlannerPtr planner(new ompl_multiset::E8Roadmap(space, fem, tag_cache, roadmap_gen));
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffDistance(1.);
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffCheckcost(0.);
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffBatch(0.);

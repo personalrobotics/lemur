@@ -11,6 +11,7 @@
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/graph/astar_search.hpp>
+#include <boost/graph/filtered_graph.hpp>
 
 #include <ompl/base/Planner.h>
 #include <ompl/base/StateSpace.h>
@@ -47,8 +48,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::StateSpacePtr & space,
       EffortModel & effort_model,
       TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
-      const RoadmapPtr roadmap_gen,
-      unsigned int num_batches_init):
+      const RoadmapPtr roadmap_gen):
    ompl::base::Planner(
       ompl_multiset::get_aborting_space_information(space), "E8Roadmap"),
    effort_model(effort_model),
@@ -67,6 +67,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    _coeff_checkcost(0.),
    _coeff_batch(0.),
    _do_timing(false),
+   _num_batches_init(0),
    _max_batches(UINT_MAX),
    _search_type(SEARCH_TYPE_ASTAR),
    _eval_type(EVAL_TYPE_ALT),
@@ -86,61 +87,21 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    Planner::declareParam<bool>("do_timing", this,
       &ompl_multiset::E8Roadmap::setDoTiming,
       &ompl_multiset::E8Roadmap::getDoTiming);
+   Planner::declareParam<unsigned int>("num_batches_init", this,
+      &ompl_multiset::E8Roadmap::setNumBatchesInit,
+      &ompl_multiset::E8Roadmap::getNumBatchesInit);
+   Planner::declareParam<unsigned int>("max_batches", this,
+      &ompl_multiset::E8Roadmap::setMaxBatches,
+      &ompl_multiset::E8Roadmap::getMaxBatches);
    Planner::declareParam<std::string>("search_type", this,
       &ompl_multiset::E8Roadmap::setSearchType,
       &ompl_multiset::E8Roadmap::getSearchType);
+   Planner::declareParam<std::string>("eval_type", this,
+      &ompl_multiset::E8Roadmap::setEvalType,
+      &ompl_multiset::E8Roadmap::getEvalType);
    
    // setup ompl_nn
    ompl_nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::ompl_nn_dist, this, _1, _2));
-   
-   tag_cache.load_begin();
-   
-   // before we start,
-   // generate some levels into our core eraph
-   // note that new vertices/edges get properties from constructor
-   while (roadmap_gen->get_num_batches_generated() < num_batches_init)
-   {
-      printf("E8Roadmap: constructing batch [%lu] ...\n",
-         roadmap_gen->get_num_batches_generated());
-      
-      size_t v_from = num_vertices(eig);
-      size_t e_from = num_edges(eig);
-      
-      //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
-      nn.sync();
-      roadmap_gen->generate(eig, nn,
-         get(&VProps::state, g),
-         get(&EProps::distance, g),
-         get(&VProps::batch, g),
-         get(&EProps::batch, g),
-         get(&VProps::is_shadow, g));
-      
-      size_t v_to = num_vertices(eig);
-      size_t e_to = num_edges(eig);
-      m_subgraph_sizes.push_back(std::make_pair(v_to,e_to));
-      
-      // initialize new vertices/edges
-      for (size_t vidx=v_from; vidx<v_to; vidx++)
-         put(m_vidx_tag_map, vidx, 0);
-      for (size_t eidx=e_from; eidx<e_to; eidx++)
-      {
-         Edge e = get(eig.edge_vector_map,eidx);
-         edge_init_points(
-            g[source(e,g)].state,
-            g[target(e,g)].state,
-            g[e].distance,
-            g[e].edge_states);
-         g[e].edge_tags.resize(g[e].edge_states.size(), 0);
-      }
-      
-      printf("E8Roadmap: loading from cache ...\n");
-      
-      // load new batch from cache
-      tag_cache.load_vertices(m_vidx_tag_map, v_from, v_to);
-      tag_cache.load_edges(m_eidx_tags_map, e_from, e_to);
-   }
-   
-   tag_cache.load_end();
    
    printf("E8Roadmap: constructor finished.\n");
 }
@@ -207,6 +168,16 @@ void ompl_multiset::E8Roadmap::setDoTiming(bool do_timing)
 double ompl_multiset::E8Roadmap::getDoTiming() const
 {
    return _do_timing;
+}
+
+void ompl_multiset::E8Roadmap::setNumBatchesInit(unsigned int num_batches_init)
+{
+   _num_batches_init = num_batches_init;
+}
+
+unsigned int ompl_multiset::E8Roadmap::getNumBatchesInit() const
+{
+   return _num_batches_init;
 }
 
 void ompl_multiset::E8Roadmap::setMaxBatches(unsigned int max_batches)
@@ -411,8 +382,6 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          if (root_radius < dist)
             continue;
          
-         // root_radius(num_batches_generated)
-         
          // add new anchor overlay vertex
          OverVertex v_anchor = add_vertex(og);
          og[v_anchor].core_vertex = *vi;
@@ -438,8 +407,9 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
    overlay_apply();
 }
 
-template <class IncSP, class EvalStrategy>
-bool ompl_multiset::E8Roadmap::do_lazysp(
+template <class MyGraph, class IncSP, class EvalStrategy>
+bool ompl_multiset::E8Roadmap::do_lazysp_b(
+   MyGraph & g,
    IncSP incsp, EvalStrategy evalstrategy,
    std::vector<Edge> & epath)
 {
@@ -512,6 +482,189 @@ bool ompl_multiset::E8Roadmap::do_lazysp(
    }
 }
 
+template <class MyGraph>
+bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
+{
+   if (_search_type == SEARCH_TYPE_ASTAR) // a* as inner search
+   {
+      boost::chrono::high_resolution_clock::time_point time_heur_begin;
+      if (_do_timing)
+         time_heur_begin = boost::chrono::high_resolution_clock::now();
+      
+      // if we're running a* as inner lazysp alg,
+      // we need storage for:
+      // 1. h-values for all vertices (will be used by each run of the inner search)
+      // 2. color values for each vertex
+      std::vector<double> v_hvalues(num_vertices(eig));
+      std::vector<double> v_fvalues(num_vertices(eig));
+      std::vector<boost::default_color_type> v_colors(num_vertices(eig));
+      
+      printf("computing heuristic values ...\n");
+      // assign distances to singlestart/singlegoal vertices later
+      typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
+      for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      {
+         if (*vi == og[ov_singlestart].core_vertex) continue;
+         if (*vi == og[ov_singlegoal].core_vertex) continue;
+         ompl::base::State * v_state = g[*vi].state;
+         double dist_to_goal = HUGE_VAL;
+         typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
+         for (boost::tie(ei,ei_end)=out_edges(og[ov_singlegoal].core_vertex,g); ei!=ei_end; ei++)
+         {
+            ompl::base::State * vgoal_state = g[target(*ei,g)].state;
+            double dist = space->distance(v_state, vgoal_state);
+            if (dist < dist_to_goal)
+               dist_to_goal = dist;
+         }
+         v_hvalues[get(get(boost::vertex_index,g),*vi)] = _coeff_distance * dist_to_goal;
+      }
+      // singlestart vertex
+      {
+         double h_to_goal = HUGE_VAL;
+         typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
+         for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,g); ei!=ei_end; ei++)
+         {
+            Vertex v_start = target(*ei,g);
+            double h = v_hvalues[get(get(boost::vertex_index,g),v_start)];
+            if (h < h_to_goal)
+               h_to_goal = h;
+         }
+         v_hvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = h_to_goal;
+      }
+      // singlegoal vertex
+      v_hvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = 0.;
+      
+      if (_do_timing)
+         _dur_search += boost::chrono::high_resolution_clock::now() - time_heur_begin;
+      
+      switch (_eval_type)
+      {
+      case EVAL_TYPE_FWD:
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            pr_bgl::LazySpEvalFwd(),
+            epath);
+      case EVAL_TYPE_REV:
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            pr_bgl::LazySpEvalRev(),
+            epath);
+      case EVAL_TYPE_ALT:
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            pr_bgl::LazySpEvalAlt(),
+            epath);
+      case EVAL_TYPE_BISECT:
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            pr_bgl::LazySpEvalBisect(),
+            epath);
+      case EVAL_TYPE_FWD_EXPAND:
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            pr_bgl::LazySpEvalFwdExpand(),
+            epath);
+      case EVAL_TYPE_PARTITION_ALL:
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            pr_bgl::lazysp_partition_all<MyGraph,EPWlazyMap>(
+               g, get(&EProps::w_lazy,g),
+               1.0/3.0, // len_ref
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               true),
+            epath);
+      case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            pr_bgl::lazysp_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
+               get(&EProps::w_lazy,g),
+               ompl_multiset::IsEvaledMap(*this),
+               1000, // nsamps
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               0), // seed
+            epath);
+      }
+   }
+   else // _search_type == SEARCH_TYPE_DIJKSTRAS
+   {
+      switch (_eval_type)
+      {
+      case EVAL_TYPE_FWD:
+         return do_lazysp_b(g,
+            pr_bgl::lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(),
+            pr_bgl::LazySpEvalFwd(),
+            epath);
+      case EVAL_TYPE_REV:
+         return do_lazysp_b(g,
+            pr_bgl::lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(),
+            pr_bgl::LazySpEvalRev(),
+            epath);
+      case EVAL_TYPE_ALT:
+         return do_lazysp_b(g,
+            pr_bgl::lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(),
+            pr_bgl::LazySpEvalAlt(),
+            epath);
+      case EVAL_TYPE_BISECT:
+         return do_lazysp_b(g,
+            pr_bgl::lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(),
+            pr_bgl::LazySpEvalBisect(),
+            epath);
+      case EVAL_TYPE_FWD_EXPAND:
+         return do_lazysp_b(g,
+            pr_bgl::lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(),
+            pr_bgl::LazySpEvalFwdExpand(),
+            epath);
+      case EVAL_TYPE_PARTITION_ALL:
+         return do_lazysp_b(g,
+            pr_bgl::lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(),
+            pr_bgl::lazysp_partition_all<MyGraph,EPWlazyMap>(
+               g, get(&EProps::w_lazy,g),
+               1.0/3.0, // len_ref
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               true),
+            epath);
+      case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
+         return do_lazysp_b(g,
+            pr_bgl::lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(),
+            pr_bgl::lazysp_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
+               get(&EProps::w_lazy,g),
+               ompl_multiset::IsEvaledMap(*this),
+               1000, // nsamps
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               0), // seed
+            epath);
+      }
+   }
+   OMPL_ERROR("switch error.");
+   return false;
+}
+
+
 ompl::base::PlannerStatus
 ompl_multiset::E8Roadmap::solve(
    const ompl::base::PlannerTerminationCondition & ptc)
@@ -534,8 +687,6 @@ ompl_multiset::E8Roadmap::solve(
    bool success = false;
    std::vector<Edge> epath;
    
-   int iter = 0;
-   
    if (os_alglog)
    {
       
@@ -556,341 +707,171 @@ ompl_multiset::E8Roadmap::solve(
       }
    }
    
+   unsigned int num_batches = 0;
+   
    // run batches of lazy search
    while (!success && ptc() == false)
    {
-      //os_alglog << "search_with_subgraphs " << num_subgraphs << std::endl;
+      printf("considering %u batches ...\n", num_batches);
       
-      if (os_alglog)
+      // should we do a search?
+      if (_num_batches_init <= num_batches)
       {
-         *os_alglog << "subgraph " << roadmap_gen->get_num_batches_generated() << std::endl;
-         
-         *os_alglog << "alias reset" << std::endl;
-         
-         for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
+         if (os_alglog)
          {
-            OverVertex vover = overlay_manager.applied_vertices[ui];
-            Vertex vcore = og[vover].core_vertex;
-            *os_alglog << "alias vertex applied-" << ui
-               << " index " << get(get(boost::vertex_index,g),vcore) << std::endl;
-         }
-         
-         for (unsigned int ui=0; ui<overlay_manager.applied_edges.size(); ui++)
-         {
-            OverEdge eover = overlay_manager.applied_edges[ui];
-            Edge ecore = og[eover].core_edge;
-            *os_alglog << "alias edge applied-" << ui
-               << " index " << g[ecore].index << std::endl;
-         }
-      }
-      
-      printf("running lazy search over %lu vertices and %lu edges...\n",
-         num_vertices(eig), num_edges(eig));
-      
-      // run lazy search
-      if (_search_type == SEARCH_TYPE_ASTAR) // a* as inner search
-      {
-         boost::chrono::high_resolution_clock::time_point time_heur_begin;
-         if (_do_timing)
-            time_heur_begin = boost::chrono::high_resolution_clock::now();
-         
-         // if we're running a* as inner lazysp alg,
-         // we need storage for:
-         // 1. h-values for all vertices (will be used by each run of the inner search)
-         // 2. color values for each vertex
-         std::vector<double> v_hvalues(num_vertices(eig));
-         std::vector<double> v_fvalues(num_vertices(eig));
-         std::vector<boost::default_color_type> v_colors(num_vertices(eig));
-         
-         printf("computing heuristic values ...\n");
-         // assign distances to singlestart/singlegoal vertices later
-         VertexIter vi, vi_end;
-         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-         {
-            if (*vi == og[ov_singlestart].core_vertex) continue;
-            if (*vi == og[ov_singlegoal].core_vertex) continue;
-            ompl::base::State * v_state = g[*vi].state;
-            double dist_to_goal = HUGE_VAL;
-            OutEdgeIter ei, ei_end;
-            for (boost::tie(ei,ei_end)=out_edges(og[ov_singlegoal].core_vertex,g); ei!=ei_end; ei++)
+            *os_alglog << "subgraph " << roadmap_gen->get_num_batches_generated() << std::endl;
+            *os_alglog << "alias reset" << std::endl;
+            for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
             {
-               ompl::base::State * vgoal_state = g[target(*ei,g)].state;
-               double dist = space->distance(v_state, vgoal_state);
-               if (dist < dist_to_goal)
-                  dist_to_goal = dist;
+               OverVertex vover = overlay_manager.applied_vertices[ui];
+               Vertex vcore = og[vover].core_vertex;
+               *os_alglog << "alias vertex applied-" << ui
+                  << " index " << get(get(boost::vertex_index,g),vcore) << std::endl;
             }
-            v_hvalues[get(get(boost::vertex_index,g),*vi)] = _coeff_distance * dist_to_goal;
-         }
-         // singlestart vertex
-         {
-            double h_to_goal = HUGE_VAL;
-            OutEdgeIter ei, ei_end;
-            for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,g); ei!=ei_end; ei++)
+            for (unsigned int ui=0; ui<overlay_manager.applied_edges.size(); ui++)
             {
-               Vertex v_start = target(*ei,g);
-               double h = v_hvalues[get(get(boost::vertex_index,g),v_start)];
-               if (h < h_to_goal)
-                  h_to_goal = h;
+               OverEdge eover = overlay_manager.applied_edges[ui];
+               Edge ecore = og[eover].core_edge;
+               *os_alglog << "alias edge applied-" << ui
+                  << " index " << g[ecore].index << std::endl;
             }
-            v_hvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = h_to_goal;
          }
-         // singlegoal vertex
-         v_hvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = 0.;
          
-         if (_do_timing)
-            _dur_search += boost::chrono::high_resolution_clock::now() - time_heur_begin;
+         printf("running lazy search over %lu vertices and %lu edges...\n",
+            num_vertices(eig), num_edges(eig));
          
-         switch (_eval_type)
+         // run lazy search
+         if (num_batches < roadmap_gen->get_num_batches_generated())
          {
-         case EVAL_TYPE_FWD:
-            success = do_lazysp(
-               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalFwd(),
-               epath);
-            break;
-         case EVAL_TYPE_REV:
-            success = do_lazysp(
-               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalRev(),
-               epath);
-            break;
-         case EVAL_TYPE_ALT:
-            success = do_lazysp(
-               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalAlt(),
-               epath);
-            break;
-         case EVAL_TYPE_BISECT:
-            success = do_lazysp(
-               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalBisect(),
-               epath);
-            break;
-         case EVAL_TYPE_FWD_EXPAND:
-            success = do_lazysp(
-               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalFwdExpand(),
-               epath);
-            break;
-         case EVAL_TYPE_PARTITION_ALL:
-            success = do_lazysp(
-               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
-                  g, get(&EProps::w_lazy,g),
-                  1.0/3.0, // len_ref
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  true),
-               epath);
-            break;
-         case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-            success = do_lazysp(
-               pr_bgl::make_lazysp_incsp_astar<Graph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_sp_indicator_probability<Graph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  1000, // nsamps
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  0), // seed
-               epath);
-            break;
+            printf("doing filtered lazy search ...\n");
+            filter_num_batches filter(get(&EProps::batch,g), num_batches);
+            boost::filtered_graph<Graph,filter_num_batches> fg(g, filter);
+            success = do_lazysp_a(fg, epath);
          }
-      }
-      else // _search_type == SEARCH_TYPE_DIJKSTRAS
-      {
-         switch (_eval_type)
+         else
          {
-         case EVAL_TYPE_FWD:
-            success = do_lazysp(
-               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-               pr_bgl::LazySpEvalFwd(),
-               epath);
-            break;
-         case EVAL_TYPE_REV:
-            success = do_lazysp(
-               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-               pr_bgl::LazySpEvalRev(),
-               epath);
-            break;
-         case EVAL_TYPE_ALT:
-            success = do_lazysp(
-               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-               pr_bgl::LazySpEvalAlt(),
-               epath);
-            break;
-         case EVAL_TYPE_BISECT:
-            success = do_lazysp(
-               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-               pr_bgl::LazySpEvalBisect(),
-               epath);
-            break;
-         case EVAL_TYPE_FWD_EXPAND:
-            success = do_lazysp(
-               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-               pr_bgl::LazySpEvalFwdExpand(),
-               epath);
-            break;
-         case EVAL_TYPE_PARTITION_ALL:
-            success = do_lazysp(
-               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-               pr_bgl::lazysp_partition_all<Graph,EPWlazyMap>(
-                  g, get(&EProps::w_lazy,g),
-                  1.0/3.0, // len_ref
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  true),
-               epath);
-            break;
-         case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-            success = do_lazysp(
-               pr_bgl::lazysp_incsp_dijkstra<Graph,EPWlazyMap>(),
-               pr_bgl::lazysp_sp_indicator_probability<Graph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
-                  get(&EProps::w_lazy,g),
-                  ompl_multiset::IsEvaledMap(*this),
-                  1000, // nsamps
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  0), // seed
-               epath);
-            break;
+            success = do_lazysp_a(g, epath);
          }
+         
+         if (success)
+            break;
       }
       
-      iter++;
-      
-      if (success)
-         break;
-      
-      if (roadmap_gen->get_num_batches_generated() == _max_batches)
+      // did we run out of batches?
+      if (_max_batches <= num_batches)
          return ompl::base::PlannerStatus::EXACT_SOLUTION;
       
-      if (roadmap_gen->max_batches && roadmap_gen->get_num_batches_generated() == roadmap_gen->max_batches)
-         return ompl::base::PlannerStatus::EXACT_SOLUTION;
+      // consider the next batch
+      num_batches++;
       
-      printf("densifying to %lu batch ...\n", roadmap_gen->get_num_batches_generated()+1);
-      
-      overlay_unapply();
-      
-      size_t v_from = num_vertices(eig);
-      size_t e_from = num_edges(eig);
-      
-      // add a batch!
-      //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
-      nn.sync();
-      roadmap_gen->generate(eig, nn,
-         get(&VProps::state, g),
-         get(&EProps::distance, g),
-         get(&VProps::batch, g),
-         get(&EProps::batch, g),
-         get(&VProps::is_shadow, g));
-      
-      size_t v_to = num_vertices(eig);
-      size_t e_to = num_edges(eig);
-      m_subgraph_sizes.push_back(std::make_pair(v_to,e_to));
-      
-      tag_cache.load_begin();
-      
-      // initialize new vertices/edges
-      for (size_t vidx=v_from; vidx<v_to; vidx++)
-         put(m_vidx_tag_map, vidx, 0);
-      for (size_t eidx=e_from; eidx<e_to; eidx++)
+      if (roadmap_gen->get_num_batches_generated() < num_batches)
       {
-         Edge e = get(eig.edge_vector_map,eidx);
-         edge_init_points(
-            g[source(e,g)].state,
-            g[target(e,g)].state,
-            g[e].distance,
-            g[e].edge_states);
-         g[e].edge_tags.resize(g[e].edge_states.size(), 0);
-      }
-      
-      printf("E8Roadmap: loading from cache ...\n");
-      
-      // load new batch from cache
-      tag_cache.load_vertices(m_vidx_tag_map, v_from, v_to);
-      tag_cache.load_edges(m_eidx_tags_map, e_from, e_to);
-      
-      for (size_t eidx=e_from; eidx<e_to; eidx++)
-      {
-         Edge e = get(eig.edge_vector_map,eidx);
-         calculate_w_lazy(e);
-      }
-      
-      tag_cache.load_end();
-      
-      // add new edges to roots
-      double root_radius = roadmap_gen->root_radius(roadmap_gen->get_num_batches_generated()-1);
-      
-      // iterate over all roots, connect them to the new batch
-      std::vector<OverVertex> ovs;
-      OverVertexIter ovi, ovi_end;
-      for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ovi++)
-      {
-         if (*ovi == ov_singlestart || *ovi == ov_singlegoal)
-            continue;
-         if (og[*ovi].core_vertex == boost::graph_traits<Graph>::null_vertex())
-            ovs.push_back(*ovi);
-      }
-      for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
-      {
-         VertexIter vi, vi_end;
-         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+         if (roadmap_gen->max_batches && roadmap_gen->max_batches <= roadmap_gen->get_num_batches_generated())
+            return ompl::base::PlannerStatus::EXACT_SOLUTION;
+         
+         std::size_t new_batch = roadmap_gen->get_num_batches_generated();
+         
+         printf("densifying to batch [%lu] ...\n", new_batch);
+         
+         overlay_unapply();
+         
+         size_t v_from = num_vertices(eig);
+         size_t e_from = num_edges(eig);
+         
+         // add a batch!
+         //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
+         nn.sync();
+         roadmap_gen->generate(eig, nn,
+            get(&VProps::state, g),
+            get(&EProps::distance, g),
+            get(&VProps::batch, g),
+            get(&EProps::batch, g),
+            get(&VProps::is_shadow, g));
+         
+         size_t v_to = num_vertices(eig);
+         size_t e_to = num_edges(eig);
+         m_subgraph_sizes.push_back(std::make_pair(v_to,e_to));
+         
+         // initialize new vertices/edges
+         for (size_t vidx=v_from; vidx<v_to; vidx++)
+            put(m_vidx_tag_map, vidx, 0);
+         for (size_t eidx=e_from; eidx<e_to; eidx++)
          {
-            // core vertices in new batch only
-            if (g[*vi].batch != (int)(roadmap_gen->get_num_batches_generated()-1))
+            Edge e = get(eig.edge_vector_map,eidx);
+            edge_init_points(
+               g[source(e,g)].state,
+               g[target(e,g)].state,
+               g[e].distance,
+               g[e].edge_states);
+            g[e].edge_tags.resize(g[e].edge_states.size(), 0);
+         }
+         
+         printf("E8Roadmap: loading from cache ...\n");
+         
+         // load new batch from cache
+         tag_cache.load_begin();
+         tag_cache.load_vertices(m_vidx_tag_map, v_from, v_to);
+         tag_cache.load_edges(m_eidx_tags_map, e_from, e_to);
+         tag_cache.load_end();
+         
+         for (size_t eidx=e_from; eidx<e_to; eidx++)
+         {
+            Edge e = get(eig.edge_vector_map,eidx);
+            calculate_w_lazy(e);
+         }
+         
+         // add new edges to roots
+         double root_radius = roadmap_gen->root_radius(new_batch);
+         
+         // iterate over all roots, connect them to the new batch
+         std::vector<OverVertex> ovs;
+         OverVertexIter ovi, ovi_end;
+         for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ovi++)
+         {
+            if (*ovi == ov_singlestart || *ovi == ov_singlegoal)
                continue;
-            
-            double dist = space->distance(
-               og[*it].state,
-               g[*vi].state);
-            if (root_radius < dist)
-               continue;
-            
-            //printf("adding new root edge ...\n");
-            
-            // add new anchor overlay vertex
-            OverVertex v_anchor = add_vertex(og);
-            og[v_anchor].core_vertex = *vi;
-            og[v_anchor].state = 0;
+            if (og[*ovi].core_vertex == boost::graph_traits<Graph>::null_vertex())
+               ovs.push_back(*ovi);
+         }
+         for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
+         {
+            VertexIter vi, vi_end;
+            for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+            {
+               // core vertices in new batch only
+               if (g[*vi].batch != (int)(new_batch))
+                  continue;
+               
+               double dist = space->distance(
+                  og[*it].state,
+                  g[*vi].state);
+               if (root_radius < dist)
+                  continue;
+               
+               //printf("adding new root edge ...\n");
+               
+               // add new anchor overlay vertex
+               OverVertex v_anchor = add_vertex(og);
+               og[v_anchor].core_vertex = *vi;
+               og[v_anchor].state = 0;
 
-            // add overlay edge from root to anchor
-            OverEdge e = add_edge(*it, v_anchor, og).first;
-            // add edge properties
-            // og[e].core_properties.index -- needs to be set on apply
-            og[e].distance = dist;
-            og[e].batch = g[*vi].batch;
-            // w_lazy??
-            // interior points, in bisection order
-            edge_init_points(og[*it].state, g[*vi].state,
-               dist, og[e].edge_states);
-            og[e].edge_tags.resize(og[e].edge_states.size(), 0);
-            //og[e].tag = 0;
+               // add overlay edge from root to anchor
+               OverEdge e = add_edge(*it, v_anchor, og).first;
+               // add edge properties
+               // og[e].core_properties.index -- needs to be set on apply
+               og[e].distance = dist;
+               og[e].batch = g[*vi].batch;
+               // w_lazy??
+               // interior points, in bisection order
+               edge_init_points(og[*it].state, g[*vi].state,
+                  dist, og[e].edge_states);
+               og[e].edge_tags.resize(og[e].edge_states.size(), 0);
+               //og[e].tag = 0;
+            }
          }
+         
+         overlay_apply();
       }
-      
-      overlay_apply();
    }
    
    if (_do_timing)

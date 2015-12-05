@@ -183,10 +183,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    {
       throw OpenRAVE::openrave_exception("failure to create roadmap!");
    }
-   unsigned int num_batches_init = 1;
-   if (params->has_num_batches_init)
-      num_batches_init = params->num_batches_init;
-   ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *sem, *tag_cache, roadmapgen, num_batches_init));
+   ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *sem, *tag_cache, roadmapgen));
 
    // check consistency
    if (robot != inrobot)
@@ -206,6 +203,8 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
       ompl_planner->setCoeffBatch(params->coeff_batch);
    if (params->has_do_timing)
       ompl_planner->setDoTiming(params->do_timing);
+   if (params->has_num_batches_init)
+      ompl_planner->setNumBatchesInit(params->num_batches_init);
    if (params->has_max_batches)
       ompl_planner->setMaxBatches(params->max_batches);
    if (params->has_search_type)

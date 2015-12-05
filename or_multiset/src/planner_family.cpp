@@ -307,8 +307,7 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
       // punt on tag cache for now
       tag_cache.reset(new ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>());
       
-      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *fem, *tag_cache, roadmapgen,
-         params->has_num_batches_init ? params->num_batches_init : 1));
+      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *fem, *tag_cache, roadmapgen));
       
       plan_initialized = true;
    }
@@ -360,6 +359,8 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
       ompl_planner->setCoeffBatch(params->coeff_batch);
    if (params->has_do_timing)
       ompl_planner->setDoTiming(params->do_timing);
+   if (params->has_num_batches_init)
+      ompl_planner->setNumBatchesInit(params->num_batches_init);
    if (params->has_max_batches)
       ompl_planner->setMaxBatches(params->max_batches);
    if (params->has_search_type)

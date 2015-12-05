@@ -114,6 +114,20 @@ public:
    typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
    typedef boost::graph_traits<OverGraph>::edge_iterator OverEdgeIter;
 
+   struct filter_num_batches
+   {
+      EPBatchMap edge_batch_map;
+      unsigned int num_batches;
+      filter_num_batches() {}
+      filter_num_batches(EPBatchMap edge_batch_map, unsigned int num_batches):
+         edge_batch_map(edge_batch_map), num_batches(num_batches)
+      {}
+      bool operator()(const Edge & e) const
+      {
+         return get(edge_batch_map, e) < (int)num_batches;
+      }
+   };
+
 private:
    // part 2: members
 
@@ -151,6 +165,7 @@ private:
    
    bool _do_timing;
    
+   unsigned int _num_batches_init; // dont do a search on batches below this
    unsigned int _max_batches;
    
    enum
@@ -189,8 +204,7 @@ public:
       const ompl::base::StateSpacePtr & space,
       ompl_multiset::EffortModel & effort_model,
       ompl_multiset::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
-      const RoadmapPtr roadmap_gen,
-      unsigned int num_batches_init);
+      const RoadmapPtr roadmap_gen);
    
    ~E8Roadmap(void);
    
@@ -206,6 +220,9 @@ public:
    void setDoTiming(bool do_timing);
    double getDoTiming() const;
    
+   void setNumBatchesInit(unsigned int max_batches);
+   unsigned int getNumBatchesInit() const;
+   
    void setMaxBatches(unsigned int max_batches);
    unsigned int getMaxBatches() const;
    
@@ -217,8 +234,11 @@ public:
    
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
    
-   template <class IncSP, class EvalStrategy>
-   bool do_lazysp(IncSP incsp, EvalStrategy evalstrategy, std::vector<Edge> & epath);
+   template <class MyGraph, class IncSP, class EvalStrategy>
+   bool do_lazysp_b(MyGraph & graph, IncSP incsp, EvalStrategy evalstrategy, std::vector<Edge> & epath);
+   
+   template <class MyGraph>
+   bool do_lazysp_a(MyGraph & graph, std::vector<Edge> & epath);
    
    ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
    

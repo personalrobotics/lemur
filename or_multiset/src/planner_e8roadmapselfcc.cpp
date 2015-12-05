@@ -667,11 +667,7 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    }
    
    // set up planner
-   unsigned int num_batches_init = 1;
-   if (inparams->has_num_batches_init)
-      num_batches_init = inparams->num_batches_init;
-   ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space,
-      *fem, *tag_cache, roadmapgen, num_batches_init));
+   ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *fem, *tag_cache, roadmapgen));
    
    // planner params
    if (inparams->has_coeff_distance)
@@ -682,6 +678,8 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
       ompl_planner->setCoeffBatch(inparams->coeff_batch);
    if (inparams->has_do_timing)
       ompl_planner->setDoTiming(inparams->do_timing);
+   if (inparams->has_num_batches_init)
+      ompl_planner->setNumBatchesInit(inparams->num_batches_init);
    if (inparams->has_max_batches)
       ompl_planner->setMaxBatches(inparams->max_batches);
    if (inparams->has_search_type)
