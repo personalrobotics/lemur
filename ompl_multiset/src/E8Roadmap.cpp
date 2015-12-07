@@ -44,6 +44,22 @@
 #include <ompl_multiset/E8Roadmap.h>
 #include <ompl_multiset/lazysp_log_visitor.h>
 
+/*
+ * ok, how does the overlay graph relate to the core graph?
+ * 
+ * there are three types of overlay vertices:
+ *  - singleroots (no state, null core_vertex)
+ *  - real vertices (with state) (roots, anchors, etc)
+ *    - with core_vertex: anchors (states owned by core graph)
+ *    - without core_vertex (states owned by overlay)
+ * 
+ * note that a vertex can be both an anchor and a root
+ * (if a root is exactly in the graph); this will have no state
+ * 
+ *  - edges from singlestart/singlegoal to roots have no points and a distance of 0
+ *  - other edges, from roots to core vertices (or other roots) look like regular edges
+ */
+
 ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::StateSpacePtr & space,
       EffortModel & effort_model,
@@ -67,6 +83,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    _coeff_checkcost(0.),
    _coeff_batch(0.),
    _do_timing(false),
+   _persist_roots(false),
    _num_batches_init(0),
    _max_batches(UINT_MAX),
    _search_type(SEARCH_TYPE_ASTAR),
@@ -87,6 +104,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    Planner::declareParam<bool>("do_timing", this,
       &ompl_multiset::E8Roadmap::setDoTiming,
       &ompl_multiset::E8Roadmap::getDoTiming);
+   Planner::declareParam<bool>("persist_roots", this,
+      &ompl_multiset::E8Roadmap::setPersistRoots,
+      &ompl_multiset::E8Roadmap::getPersistRoots);
    Planner::declareParam<unsigned int>("num_batches_init", this,
       &ompl_multiset::E8Roadmap::setNumBatchesInit,
       &ompl_multiset::E8Roadmap::getNumBatchesInit);
@@ -103,12 +123,26 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    // setup ompl_nn
    ompl_nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::ompl_nn_dist, this, _1, _2));
    
+   // construct persistent singleroot/singlegoal overlay vertices
+   ov_singlestart = add_vertex(og);
+   ov_singlegoal = add_vertex(og);
+   og[ov_singlestart].core_vertex = boost::graph_traits<Graph>::null_vertex();
+   og[ov_singlestart].state = 0;
+   og[ov_singlestart].batch = 0;
+   og[ov_singlestart].is_shadow = false;
+   og[ov_singlestart].tag = 0;
+   og[ov_singlegoal].core_vertex = boost::graph_traits<Graph>::null_vertex();
+   og[ov_singlegoal].state = 0;
+   og[ov_singlegoal].batch = 0;
+   og[ov_singlegoal].is_shadow = false;
+   og[ov_singlegoal].tag = 0;
+   
    printf("E8Roadmap: constructor finished.\n");
 }
 
 ompl_multiset::E8Roadmap::~E8Roadmap()
 {
-   overlay_unapply();
+   overlay_unapply(); // just to be sure
    
    // core roadmap
    VertexIter vi, vi_end;
@@ -122,7 +156,7 @@ ompl_multiset::E8Roadmap::~E8Roadmap()
    // overlay roadmap
    OverVertexIter ovi, ovi_end;
    for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ++ovi)
-      if (og[*ovi].state)
+      if (og[*ovi].state && og[*ovi].core_vertex==boost::graph_traits<Graph>::null_vertex())
          space->freeState(og[*ovi].state);
    OverEdgeIter oei, oei_end;
    for (boost::tie(oei,oei_end)=edges(og); oei!=oei_end; ++oei)
@@ -165,9 +199,19 @@ void ompl_multiset::E8Roadmap::setDoTiming(bool do_timing)
    _do_timing = do_timing;
 }
 
-double ompl_multiset::E8Roadmap::getDoTiming() const
+bool ompl_multiset::E8Roadmap::getDoTiming() const
 {
    return _do_timing;
+}
+
+void ompl_multiset::E8Roadmap::setPersistRoots(bool persist_roots)
+{
+   _persist_roots = persist_roots;
+}
+
+bool ompl_multiset::E8Roadmap::getPersistRoots() const
+{
+   return _persist_roots;
 }
 
 void ompl_multiset::E8Roadmap::setNumBatchesInit(unsigned int num_batches_init)
@@ -252,15 +296,179 @@ std::string ompl_multiset::E8Roadmap::getEvalType() const
 void ompl_multiset::E8Roadmap::setProblemDefinition(
    const ompl::base::ProblemDefinitionPtr & pdef)
 {
-   
    // call planner base class implementation
    // this will set my pdef_ and update my pis_
    ompl::base::Planner::setProblemDefinition(pdef);
    
-   ompl::base::SpaceInformationPtr si_new = pdef->getSpaceInformation();
+   // clear overlay graph
+   overlay_unapply(); // just to be sure
+   
+   // remove any virtual edges
+   clear_vertex(ov_singlestart, og);
+   clear_vertex(ov_singlegoal, og);
+   
+   // if asked to, remove all root (and anchor) vertices / edges
+   if (!_persist_roots)
+   {
+      OverVertexIter ovi, ovi_end, ovi_next;
+      boost::tie(ovi,ovi_end) = vertices(og);
+      for (ovi_next=ovi; ovi!=ovi_end; ovi=ovi_next)
+      {
+         ++ovi_next;
+         if (*ovi == ov_singlestart) continue;
+         if (*ovi == ov_singlegoal) continue;
+         clear_vertex(*ovi, og);
+         remove_vertex(*ovi, og);
+      }
+      map_to_overlay.clear();
+   }
+   
+   // collect all root vertices to add (bool = is_goal)
+   std::vector< std::pair<ompl::base::State *, bool> > root_states;
+   
+   // find start states
+   for (unsigned int istart=0; istart<pdef->getStartStateCount(); istart++)
+   {
+      ompl::base::State * state = space->allocState();
+      space->copyState(state, pdef->getStartState(istart));
+      root_states.push_back(std::make_pair(state, false));
+   }
+   
+   // find goal states
+   ompl::base::GoalPtr goal = pdef->getGoal();
+   if (goal)
+   {
+      if (goal->getType() == ompl::base::GOAL_STATE)
+      {
+         ompl::base::State * state = space->allocState();
+         ompl::base::GoalState * goal_state = goal->as<ompl::base::GoalState>();
+         space->copyState(state, goal_state->getState());
+         root_states.push_back(std::make_pair(state, true));
+      }
+      else if (goal->getType() == ompl::base::GOAL_STATES)
+      {
+         ompl::base::GoalStates * goal_states = goal->as<ompl::base::GoalStates>();
+         for (unsigned int igoal=0; igoal<goal_states->getStateCount(); igoal++)
+         {
+            ompl::base::State * state = space->allocState();
+            space->copyState(state, goal_states->getState(igoal));
+            root_states.push_back(std::make_pair(state, true));
+         }
+      }
+      else
+         throw std::runtime_error("unsupported ompl goal type!");
+   }
+   
+   // add all root vertices, singleroot edges, and anchors necessary!
+   for (unsigned int ui=0; ui<root_states.size(); ui++)
+   {
+      // find or create overlay vertex with this state
+      ompl::base::State * state = root_states[ui].first;
+      OverVertex ov_root;
+      do
+      {
+         OverVertexIter ovi, ovi_end;
+         VertexIter vi, vi_end;
+         
+         // does this state already exist in the overlay? (as a root or anchor)
+         for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ovi++)
+            if (og[*ovi].state && space->equalStates(og[*ovi].state, state))
+               break;
+         if (ovi!=ovi_end)
+         {
+            ov_root = *ovi;
+            space->freeState(state);
+            break;
+         }
+      
+         // does this state already exist in the core graph?
+         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; vi++)
+            if (space->equalStates(g[*vi].state, state))
+               break;
+         if (vi != vi_end)
+         {
+            // add new anchor overlay vertex
+            ov_root = add_vertex(og);
+            og[ov_root].core_vertex = *vi;
+            og[ov_root].state = g[*vi].state;
+            // no need to set core properties on anchors,
+            // since this is just an anchor, wont be copied
+            // we set state pointer though so search above will find it
+            map_to_overlay[*vi] = ov_root;
+            space->freeState(state);
+            break;
+         }
+
+         // ok, make a new non-anchor vertex for this root
+         ov_root = add_vertex(og);
+         og[ov_root].core_vertex = boost::graph_traits<Graph>::null_vertex();
+         og[ov_root].state = state;
+         og[ov_root].batch = 0;
+         og[ov_root].is_shadow = false;
+         og[ov_root].tag = 0;
+            
+         // find neighbors in core roadmap as anchors
+         // (to all batch vertices that we've generated so far)
+         // (for now, we skip neighbors in overlay graph -- what radius?)
+         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+         {
+            double root_radius = roadmap_gen->root_radius(g[*vi].batch);
+            double dist = space->distance(state, g[*vi].state);
+            if (root_radius < dist)
+               continue;
+            
+            // get the anchor overlay vertex for this neighbor
+            OverVertex ov_anchor;
+            // does an anchor already exist for this core vertex?
+            std::map<Vertex, OverVertex>::iterator found = map_to_overlay.find(*vi);
+            if (found != map_to_overlay.end())
+            {
+               ov_anchor = found->second;
+            }
+            else
+            {
+               // add new anchor overlay vertex
+               ov_anchor = add_vertex(og);
+               og[ov_anchor].core_vertex = *vi;
+               og[ov_anchor].state = g[*vi].state;
+               // no need to set core properties on anchors,
+               // since this is just an anchor, wont be copied
+               // we set state pointer though so search above will find it
+               map_to_overlay[*vi] = ov_anchor;
+            }
+            
+            // add overlay edge from root to anchor
+            OverEdge oe = add_edge(ov_root, ov_anchor, og).first;
+            // add edge properties
+            og[oe].distance = dist;
+            og[oe].batch = g[*vi].batch;
+            // w_lazy??
+            // interior points, in bisection order
+            edge_init_points(state, g[*vi].state, dist, og[oe].edge_states);
+            og[oe].edge_tags.resize(og[oe].edge_states.size(), 0);
+            //og[e].tag = 0;
+         }
+         
+      }
+      while (0);
+      
+      // connect up to singlestart or singlegoal (if not already)
+      OverVertex ov_singleroot = (root_states[ui].second == false) ? ov_singlestart : ov_singlegoal;
+      if (!edge(ov_singleroot, ov_root, og).second)
+      {
+         OverEdge e = add_edge(ov_singleroot, ov_root, og).first;
+         og[e].distance = 0.0;
+         og[e].batch = 0;
+         // no edge states!
+      }
+   }
+   
+   // ompl::base::SpaceInformationPtr si_new = pdef->getSpaceInformation();
    //if (si_new != family_effort_model.si_target)
    if (effort_model.has_changed())
    {
+      overlay_apply();
+      
       // route target si to family effort model
       // this will re-run reverse dijkstra's on the family graph
       //family_effort_model.set_target(si_new);
@@ -270,141 +478,9 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
       EdgeIter ei, ei_end;
       for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
          calculate_w_lazy(*ei);
+      
+      overlay_unapply();
    }
-   
-   overlay_unapply();
-   
-   // delete any states in overlay graph
-   
-   // clear overlay graph
-   og.clear();
-   
-   // add starts to overlay graph
-   ov_singlestart = add_vertex(og);
-   ov_singlegoal = add_vertex(og);
-   og[ov_singlestart].core_vertex = boost::graph_traits<Graph>::null_vertex();
-   og[ov_singlegoal].core_vertex = boost::graph_traits<Graph>::null_vertex();
-   og[ov_singlestart].state = 0;
-   og[ov_singlestart].batch = 0;
-   og[ov_singlestart].is_shadow = false;
-   og[ov_singlestart].tag = 0;
-   og[ov_singlegoal].state = 0;
-   og[ov_singlegoal].batch = 0;
-   og[ov_singlegoal].is_shadow = false;
-   og[ov_singlegoal].tag = 0;
-   
-   // add all actual start/goal vertices here, for future connection
-   std::vector<OverVertex> ovs;
-   
-   for (unsigned int istart=0; istart<pdef->getStartStateCount(); istart++)
-   {
-      OverVertex ov_start;
-      ov_start = add_vertex(og);
-      og[ov_start].core_vertex = boost::graph_traits<Graph>::null_vertex();
-      // set state
-      og[ov_start].state = space->allocState();
-      space->copyState(og[ov_start].state, pdef->getStartState(istart));
-      // regular vertex properties
-      og[ov_start].batch = 0;
-      og[ov_start].is_shadow = false;
-      og[ov_start].tag = 0;
-      // connecting edge
-      OverEdge e = add_edge(ov_singlestart, ov_start, og).first;
-      og[e].distance = 0.0;
-      og[e].batch = 0;
-      // no edge states!
-      ovs.push_back(ov_start);
-   }
-   
-   // add goal to overlay graph
-   ompl::base::GoalPtr goal = pdef->getGoal();
-   if (goal)
-   {
-      if (goal->getType() == ompl::base::GOAL_STATE)
-      {
-         ompl::base::GoalState * goal_state = goal->as<ompl::base::GoalState>();
-         OverVertex ov_goal;
-         ov_goal = add_vertex(og);
-         og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
-         // set state
-         og[ov_goal].state = space->allocState();
-         space->copyState(og[ov_goal].state, goal_state->getState());
-         // regular vertex properties
-         og[ov_goal].batch = 0;
-         og[ov_goal].is_shadow = false;
-         og[ov_goal].tag = 0;
-         // connecting edge
-         OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
-         og[e].distance = 0.0;
-         og[e].batch = 0;
-         // no edge states!
-         ovs.push_back(ov_goal);
-      }
-      else if (goal->getType() == ompl::base::GOAL_STATES)
-      {
-         ompl::base::GoalStates * goal_states = goal->as<ompl::base::GoalStates>();
-         for (unsigned int igoal=0; igoal<goal_states->getStateCount(); igoal++)
-         {
-            OverVertex ov_goal;
-            ov_goal = add_vertex(og);
-            og[ov_goal].core_vertex = boost::graph_traits<Graph>::null_vertex();
-            // set state
-            og[ov_goal].state = space->allocState();
-            space->copyState(og[ov_goal].state, goal_states->getState(igoal));
-            // regular vertex properties
-            og[ov_goal].batch = 0;
-            og[ov_goal].is_shadow = false;
-            og[ov_goal].tag = 0;
-            // connecting edge
-            OverEdge e = add_edge(ov_singlegoal, ov_goal, og).first;
-            og[e].distance = 0.0;
-            og[e].batch = 0;
-            // no edge states!
-            ovs.push_back(ov_goal);
-         }
-      }
-      else
-         throw std::runtime_error("unsupported ompl goal type!");
-   }
-   
-   // connect to vertices within fixed radius in roadmap
-   // to all batch vertices that we've generated so far
-   for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
-   {
-      VertexIter vi, vi_end;
-      for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-      {
-         double root_radius = roadmap_gen->root_radius(g[*vi].batch);
-         
-         double dist = space->distance(
-            og[*it].state,
-            g[*vi].state);
-         if (root_radius < dist)
-            continue;
-         
-         // add new anchor overlay vertex
-         OverVertex v_anchor = add_vertex(og);
-         og[v_anchor].core_vertex = *vi;
-         og[v_anchor].state = 0;
-         // no need to set core properties (e.g. state) on anchors,
-         // since this is just an anchor, wont be copied
-
-         // add overlay edge from root to anchor
-         OverEdge e = add_edge(*it, v_anchor, og).first;
-         // add edge properties
-         // og[e].core_properties.index -- needs to be set on apply
-         og[e].distance = dist;
-         og[e].batch = g[*vi].batch;
-         // w_lazy??
-         // interior points, in bisection order
-         edge_init_points(og[*it].state, g[*vi].state,
-            dist, og[e].edge_states);
-         og[e].edge_tags.resize(og[e].edge_states.size(), 0);
-         //og[e].tag = 0;
-      }
-   }
-   
-   overlay_apply();
 }
 
 template <class MyGraph, class IncSP, class EvalStrategy>
@@ -499,7 +575,6 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
       std::vector<double> v_fvalues(num_vertices(eig));
       std::vector<boost::default_color_type> v_colors(num_vertices(eig));
       
-      printf("computing heuristic values ...\n");
       // assign distances to singlestart/singlegoal vertices later
       typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
@@ -689,7 +764,7 @@ ompl_multiset::E8Roadmap::solve(
    
    if (os_alglog)
    {
-      
+      overlay_apply();
       for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
       {
          OverVertex vover = overlay_manager.applied_vertices[ui];
@@ -697,7 +772,6 @@ ompl_multiset::E8Roadmap::solve(
          if (!g[vcore].state)
             *os_alglog << "singleroot-vertex applied-" << ui << std::endl;
       }
-      
       for (unsigned int ui=0; ui<overlay_manager.applied_edges.size(); ui++)
       {
          OverEdge eover = overlay_manager.applied_edges[ui];
@@ -705,6 +779,7 @@ ompl_multiset::E8Roadmap::solve(
          if (!g[source(ecore,g)].state || !g[target(ecore,g)].state)
             *os_alglog << "singleroot-edge applied-" << ui << std::endl;
       }
+      overlay_unapply();
    }
    
    unsigned int num_batches = 0;
@@ -717,6 +792,8 @@ ompl_multiset::E8Roadmap::solve(
       // should we do a search?
       if (_num_batches_init <= num_batches)
       {
+         overlay_apply();
+         
          if (os_alglog)
          {
             *os_alglog << "subgraph " << roadmap_gen->get_num_batches_generated() << std::endl;
@@ -753,6 +830,8 @@ ompl_multiset::E8Roadmap::solve(
             success = do_lazysp_a(g, epath);
          }
          
+         overlay_unapply();
+         
          if (success)
             break;
       }
@@ -772,8 +851,6 @@ ompl_multiset::E8Roadmap::solve(
          std::size_t new_batch = roadmap_gen->get_num_batches_generated();
          
          printf("densifying to batch [%lu] ...\n", new_batch);
-         
-         overlay_unapply();
          
          size_t v_from = num_vertices(eig);
          size_t e_from = num_edges(eig);
@@ -820,21 +897,23 @@ ompl_multiset::E8Roadmap::solve(
             calculate_w_lazy(e);
          }
          
-         // add new edges to roots
+         // add new edges to overlay vertices
          double root_radius = roadmap_gen->root_radius(new_batch);
          
-         // iterate over all roots, connect them to the new batch
-         std::vector<OverVertex> ovs;
+         // iterate over all non-anchor non-singleroot overlay vertices
+         // connect them to the new batch
          OverVertexIter ovi, ovi_end;
          for (boost::tie(ovi,ovi_end)=vertices(og); ovi!=ovi_end; ovi++)
          {
+            // skip singleroot vertices
             if (*ovi == ov_singlestart || *ovi == ov_singlegoal)
                continue;
-            if (og[*ovi].core_vertex == boost::graph_traits<Graph>::null_vertex())
-               ovs.push_back(*ovi);
-         }
-         for (std::vector<OverVertex>::iterator it=ovs.begin(); it!=ovs.end(); it++)
-         {
+            
+            // skip anchor vertices (themselves already in core graph!)
+            if (og[*ovi].core_vertex != boost::graph_traits<Graph>::null_vertex())
+               continue;
+
+            // consider all new core vertices
             VertexIter vi, vi_end;
             for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
             {
@@ -842,35 +921,31 @@ ompl_multiset::E8Roadmap::solve(
                if (g[*vi].batch != (int)(new_batch))
                   continue;
                
-               double dist = space->distance(
-                  og[*it].state,
-                  g[*vi].state);
+               double dist = space->distance(og[*ovi].state, g[*vi].state);
                if (root_radius < dist)
                   continue;
                
-               //printf("adding new root edge ...\n");
-               
                // add new anchor overlay vertex
-               OverVertex v_anchor = add_vertex(og);
-               og[v_anchor].core_vertex = *vi;
-               og[v_anchor].state = 0;
-
+               OverVertex ov_anchor = add_vertex(og);
+               og[ov_anchor].core_vertex = *vi;
+               og[ov_anchor].state = g[*vi].state;
+               // no need to set core properties on anchors,
+               // since this is just an anchor, wont be copied
+               // we set state pointer though so search above will find it
+               map_to_overlay[*vi] = ov_anchor;
+            
                // add overlay edge from root to anchor
-               OverEdge e = add_edge(*it, v_anchor, og).first;
+               OverEdge oe = add_edge(*ovi, ov_anchor, og).first;
                // add edge properties
-               // og[e].core_properties.index -- needs to be set on apply
-               og[e].distance = dist;
-               og[e].batch = g[*vi].batch;
+               og[oe].distance = dist;
+               og[oe].batch = g[*vi].batch;
                // w_lazy??
                // interior points, in bisection order
-               edge_init_points(og[*it].state, g[*vi].state,
-                  dist, og[e].edge_states);
-               og[e].edge_tags.resize(og[e].edge_states.size(), 0);
+               edge_init_points(og[*ovi].state, g[*vi].state, dist, og[oe].edge_states);
+               og[oe].edge_tags.resize(og[oe].edge_states.size(), 0);
                //og[e].tag = 0;
             }
          }
-         
-         overlay_apply();
       }
    }
    
@@ -892,8 +967,13 @@ ompl_multiset::E8Roadmap::solve(
          = new ompl::geometric::PathGeometric(si_);
       //path->append(g[og[ov_start].core_vertex].state->state);
       epath.pop_back(); // last edge targets singlegoal
+      
+      // move this into loop so we don't have to reapply!
+      overlay_apply();
       for (std::vector<Edge>::iterator it=epath.begin(); it!=epath.end(); it++)
          path->append(g[target(*it,g)].state);
+      overlay_unapply();
+      
       pdef_->addSolutionPath(ompl::base::PathPtr(path));
       return ompl::base::PlannerStatus::EXACT_SOLUTION;
    }
@@ -903,10 +983,9 @@ ompl_multiset::E8Roadmap::solve(
    }
 }
 
+// solves only core vertices
 void ompl_multiset::E8Roadmap::solve_all()
 {
-   overlay_unapply();
-   
    // evaluate all vertices first
    printf("solve_all() evaluating vertices ...\n");
    VertexIter vi, vi_end;
@@ -930,12 +1009,12 @@ void ompl_multiset::E8Roadmap::solve_all()
       }
       count++;
    }
-   
-   overlay_apply();
 }
 
 void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
 {
+   overlay_apply();
+   
    // dump graph
    // write it out to file
    boost::dynamic_properties props;
@@ -951,12 +1030,13 @@ void ompl_multiset::E8Roadmap::dump_graph(std::ostream & os_graph)
    pr_bgl::write_graphio_properties(os_graph, g,
       get(boost::vertex_index, g), get(&EProps::index, g),
       props);
+   
+   overlay_unapply();
 }
 
+// saves only core vertices
 void ompl_multiset::E8Roadmap::cache_save_all()
 {
-   overlay_unapply();
-   
    tag_cache.save_begin();
    
    for (size_t ibatch=0; ibatch<m_subgraph_sizes.size(); ibatch++)
@@ -974,8 +1054,6 @@ void ompl_multiset::E8Roadmap::cache_save_all()
    }
    
    tag_cache.save_end();
-   
-   overlay_apply();
 }
 
 double ompl_multiset::E8Roadmap::getDurTotal()
@@ -1057,6 +1135,7 @@ void ompl_multiset::E8Roadmap::overlay_unapply()
    overlay_manager.unapply();
 }
 
+// always called when unapplied
 void ompl_multiset::E8Roadmap::edge_init_points(
    ompl::base::State * va_state, ompl::base::State * vb_state,
    double e_distance, std::vector< ompl::base::State * > & edge_states)

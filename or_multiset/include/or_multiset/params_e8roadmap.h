@@ -39,6 +39,9 @@ public:
    bool has_do_timing;
    bool do_timing;
    
+   bool has_persist_roots;
+   bool persist_roots;
+   
    bool has_max_batches;
    unsigned int max_batches;
    
@@ -60,6 +63,7 @@ public:
       has_coeff_checkcost(false),
       has_coeff_batch(false),
       has_do_timing(false),
+      has_persist_roots(false),
       has_max_batches(false),
       has_time_limit(false),
       has_search_type(false),
@@ -73,6 +77,7 @@ public:
       _vXMLParameters.push_back("coeff_checkcost");
       _vXMLParameters.push_back("coeff_batch");
       _vXMLParameters.push_back("do_timing");
+      _vXMLParameters.push_back("persist_roots");
       _vXMLParameters.push_back("max_batches");
       _vXMLParameters.push_back("time_limit");
       _vXMLParameters.push_back("search_type");
@@ -101,7 +106,9 @@ private:
       if (has_coeff_batch)
          sout << "<coeff_batch>" << coeff_batch << "</coeff_batch>";
       if (has_do_timing)
-         sout << "<do_timing>" << do_timing << "</do_timing>";
+         sout << "<do_timing>" << (do_timing?"true":"false") << "</do_timing>";
+      if (has_persist_roots)
+         sout << "<persist_roots>" << (persist_roots?"true":"false") << "</persist_roots>";
       if (has_max_batches)
          sout << "<max_batches>" << max_batches << "</max_batches>";
       if (has_time_limit)
@@ -131,6 +138,7 @@ private:
          || name == "coeff_checkcost"
          || name == "coeff_batch"
          || name == "do_timing"
+         || name == "persist_roots"
          || name == "max_batches"
          || name == "time_limit"
          || name == "search_type"
@@ -190,6 +198,14 @@ private:
             _ss >> std::boolalpha >> do_timing;
             _ss.copyfmt(state);
             has_do_timing = true;
+         }
+         if (el_deserializing == "persist_roots")
+         {
+            std::ios state(0);
+            state.copyfmt(_ss);
+            _ss >> std::boolalpha >> persist_roots;
+            _ss.copyfmt(state);
+            has_persist_roots = true;
          }
          if (el_deserializing == "max_batches")
          {

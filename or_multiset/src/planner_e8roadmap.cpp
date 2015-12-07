@@ -203,6 +203,8 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
       ompl_planner->setCoeffBatch(params->coeff_batch);
    if (params->has_do_timing)
       ompl_planner->setDoTiming(params->do_timing);
+   if (params->has_persist_roots)
+      ompl_planner->setPersistRoots(params->persist_roots);
    if (params->has_num_batches_init)
       ompl_planner->setNumBatchesInit(params->num_batches_init);
    if (params->has_max_batches)

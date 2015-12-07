@@ -11,6 +11,7 @@ namespace pr_bgl
 // with persistent vertex descriptors (e.g. using linked lists)
 // doesnt handle properties (you do this all yourself)
 // eventually, should i have it auto-copy them somehow?
+// applied_vertices does not include anchor vertices!
 template <class GCore, class GOver, class OverVertexMap, class OverEdgeMap>
 class OverlayManager
 {

@@ -143,13 +143,16 @@ private:
    pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> eig;
    OverGraph og;
    
+   OverVertex ov_singlestart;
+   OverVertex ov_singlegoal;
+   
+   // for overlay anchors
+   std::map<Vertex, OverVertex> map_to_overlay;
+   
    pr_bgl::OverlayManager<EdgeIndexedGraph, OverGraph,
          boost::property_map<OverGraph, Vertex OverVProps::*>::type,
          boost::property_map<OverGraph, Edge OverEProps::*>::type>
       overlay_manager;
-   
-   OverVertex ov_singlestart;
-   OverVertex ov_singlegoal;
    
    BisectPerm bisect_perm;
    
@@ -164,6 +167,7 @@ private:
    double _coeff_batch;
    
    bool _do_timing;
+   bool _persist_roots;
    
    unsigned int _num_batches_init; // dont do a search on batches below this
    unsigned int _max_batches;
@@ -218,7 +222,10 @@ public:
    double getCoeffBatch() const;
    
    void setDoTiming(bool do_timing);
-   double getDoTiming() const;
+   bool getDoTiming() const;
+   
+   void setPersistRoots(bool persist_roots);
+   bool getPersistRoots() const;
    
    void setNumBatchesInit(unsigned int max_batches);
    unsigned int getNumBatchesInit() const;

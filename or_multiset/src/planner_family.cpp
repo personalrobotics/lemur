@@ -359,6 +359,8 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
       ompl_planner->setCoeffBatch(params->coeff_batch);
    if (params->has_do_timing)
       ompl_planner->setDoTiming(params->do_timing);
+   if (params->has_persist_roots)
+      ompl_planner->setPersistRoots(params->persist_roots);
    if (params->has_num_batches_init)
       ompl_planner->setNumBatchesInit(params->num_batches_init);
    if (params->has_max_batches)
@@ -371,7 +373,7 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
    // problem definition
    ompl_pdef.reset(new ompl::base::ProblemDefinition(
       ompl_multiset::get_aborting_space_information(ompl_space)));
-   ompl_set_roots(ompl_pdef, params);   
+   ompl_set_roots(ompl_pdef, params);
    ompl_planner->setProblemDefinition(ompl_pdef);
    
    return true;
@@ -395,6 +397,7 @@ or_multiset::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 #if 0
    ompl_checker->num_checks = 0;
    ompl_checker->dur_checks = boost::chrono::high_resolution_clock::duration();
+#endif
 
    std::ofstream fp_alglog;
    if (params->alglog == "-")
@@ -406,7 +409,6 @@ or_multiset::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       fp_alglog.open(params->alglog.c_str());
       ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &fp_alglog;
    }
-#endif
    
    ompl::base::PlannerStatus ompl_status;
    ompl::base::PlannerTerminationCondition ptc(ompl::base::plannerNonTerminatingCondition());
@@ -417,7 +419,8 @@ or_multiset::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 #if 0
    printf("planner returned: %s\n", ompl_status.asString().c_str());
    printf("planner performed %lu checks!\n", ompl_checker->num_checks);
-   
+#endif
+
    ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = 0;
    fp_alglog.close();
    
@@ -432,7 +435,6 @@ or_multiset::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       ompl_planner->as<ompl_multiset::E8Roadmap>()->dump_graph(fp_graph);
       fp_graph.close();
    }
-#endif
    
    if (ompl_status != ompl::base::PlannerStatus::EXACT_SOLUTION) return OpenRAVE::PS_Failed;
    
@@ -474,8 +476,16 @@ bool or_multiset::FamilyPlanner::ClearPlan(std::ostream & sout, std::istream & s
 bool or_multiset::FamilyPlanner::GetTimes(std::ostream & sout, std::istream & sin) const
 {
    //sout << "checktime " << boost::chrono::duration<double>(ompl_checker->dur_checks).count();
-   sout << " totaltime " << 0.0;
-   //sout << " n_checks " << ompl_checker->num_checks;
+   //sout << " totaltime " << 0.0;
+   if (family)
+   {
+      for (std::map<std::string, ompl_multiset::Family::Subset>::iterator
+         it=family->subsets.begin(); it!=family->subsets.end(); it++)
+      {
+         sout << " n_checks_" << it->first;
+         sout << " " << ((OrIndicatorChecker*)it->second.si->getStateValidityChecker().get())->num_checks;
+      }
+   }
    sout << " e8_dur_total " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurTotal();
    sout << " e8_dur_search " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurSearch();
    sout << " e8_dur_eval " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurEval();
