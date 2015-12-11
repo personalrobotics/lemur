@@ -42,6 +42,7 @@
 #include <ompl_multiset/RoadmapHaltonDens.h>
 #include <ompl_multiset/RoadmapHaltonOffDens.h>
 #include <ompl_multiset/RoadmapRGG.h>
+#include <ompl_multiset/RoadmapRGGDens.h>
 #include <ompl_multiset/RoadmapRGGDensConst.h>
 #include <ompl_multiset/RoadmapID.h>
 #include <ompl_multiset/BisectPerm.h>
@@ -171,6 +172,7 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    ompl_si->setup();
    
    // set up planner
+   printf("using simple effort model with check_cost=%f\n", ompl_space->getLongestValidSegmentLength());
    sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
    tag_cache.reset(new ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>());
    if (!inparams->has_roadmap_id)

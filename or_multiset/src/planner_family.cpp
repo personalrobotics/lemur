@@ -44,6 +44,7 @@
 #include <ompl_multiset/RoadmapHaltonDens.h>
 #include <ompl_multiset/RoadmapHaltonOffDens.h>
 #include <ompl_multiset/RoadmapRGG.h>
+#include <ompl_multiset/RoadmapRGGDens.h>
 #include <ompl_multiset/RoadmapRGGDensConst.h>
 #include <ompl_multiset/RoadmapID.h>
 #include <ompl_multiset/BisectPerm.h>
