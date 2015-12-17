@@ -1,4 +1,4 @@
-/* File: family_planner.h
+/* File: E8Roadmap.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -26,13 +26,16 @@ public:
    };
    struct EProps
    {
-      std::size_t index;
+      size_t index;
       // from roadmap
       double distance;
       int batch;
       // for lazysp; for current subset only!
       double w_lazy;
       // interior points, in bisection order
+      // if edge_states.size() != num_edge_states,
+      // then edge_states needs to be generated! (with tags = 0)
+      size_t num_edge_states;
       std::vector< ompl::base::State * > edge_states;
       std::vector< size_t > edge_tags;
       //size_t tag; // mega tag?
@@ -98,6 +101,7 @@ public:
       int batch;
       double w_lazy;
       bool is_evaled;
+      size_t num_edge_states;
       std::vector< ompl::base::State * > edge_states;
       std::vector< size_t > edge_tags;
       size_t tag; // mega tag?
@@ -261,8 +265,9 @@ public:
    
    // part 4: private-ish methods
    
-   void edge_init_points(ompl::base::State * va_state, ompl::base::State * vb_state,
-      double e_distance, std::vector< ompl::base::State * > & edge_states);
+   // assuming num_edge_states != edge_states.size(),
+   // this generates the states and their tags (assumed tag=0)
+   void edge_init_states(const Edge & e);
    
    void overlay_apply();
    void overlay_unapply();
