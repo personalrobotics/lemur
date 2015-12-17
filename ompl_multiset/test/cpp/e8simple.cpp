@@ -151,8 +151,8 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    pdef.reset();
    planner.reset();
    path.reset();
-   ASSERT_EQ(24713, space->as<CountingRealVectorStateSpace>()->states_allocated);
-   ASSERT_EQ(24713, space->as<CountingRealVectorStateSpace>()->states_freed);
+   ASSERT_EQ(1324, space->as<CountingRealVectorStateSpace>()->states_allocated);
+   ASSERT_EQ(1324, space->as<CountingRealVectorStateSpace>()->states_freed);
 }
 
 int main(int argc, char **argv)
