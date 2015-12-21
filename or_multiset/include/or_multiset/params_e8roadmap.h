@@ -103,7 +103,7 @@ private:
       if (has_alglog)
          sout << "<alglog>" << alglog << "</alglog>";
       if (has_do_alglog_append)
-         sout << "<do_alglog_append>" << do_alglog_append << "</do_alglog_append>";
+         sout << "<do_alglog_append>" << (do_alglog_append?"true":"false") << "</do_alglog_append>";
       if (has_graph)
          sout << "<graph>" << graph << "</graph>";
       if (has_coeff_distance)
