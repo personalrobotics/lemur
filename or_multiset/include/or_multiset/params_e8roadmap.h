@@ -21,6 +21,9 @@ public:
    
    bool has_alglog;
    std::string alglog;
+
+   bool has_do_alglog_append;
+   bool do_alglog_append;
    
    bool has_graph;
    std::string graph;
@@ -58,6 +61,7 @@ public:
       has_roadmap_id(false),
       has_num_batches_init(false),
       has_alglog(false),
+      has_do_alglog_append(false),
       has_graph(false),
       has_coeff_distance(false),
       has_coeff_checkcost(false),
@@ -72,6 +76,7 @@ public:
       _vXMLParameters.push_back("roadmap_id");
       _vXMLParameters.push_back("num_batches_init");
       _vXMLParameters.push_back("alglog");
+      _vXMLParameters.push_back("do_alglog_append");
       _vXMLParameters.push_back("graph");
       _vXMLParameters.push_back("coeff_distance");
       _vXMLParameters.push_back("coeff_checkcost");
@@ -97,6 +102,8 @@ private:
          sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
       if (has_alglog)
          sout << "<alglog>" << alglog << "</alglog>";
+      if (has_do_alglog_append)
+         sout << "<do_alglog_append>" << do_alglog_append << "</do_alglog_append>";
       if (has_graph)
          sout << "<graph>" << graph << "</graph>";
       if (has_coeff_distance)
@@ -133,6 +140,7 @@ private:
       if (name == "roadmap_id"
          || name == "num_batches_init"
          || name == "alglog"
+         || name == "do_alglog_append"
          || name == "graph"
          || name == "coeff_distance"
          || name == "coeff_checkcost"
@@ -170,6 +178,14 @@ private:
          {
             alglog = _ss.str();
             has_alglog = true;
+         }
+         if (el_deserializing == "do_alglog_append")
+         {
+            std::ios state(0);
+            state.copyfmt(_ss);
+            _ss >> std::boolalpha >> do_alglog_append;
+            _ss.copyfmt(state);
+            has_do_alglog_append = true;
          }
          if (el_deserializing == "graph")
          {

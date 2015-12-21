@@ -432,6 +432,7 @@ or_multiset::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE:
    // do setup
    params_ptr = inparams;
    alglog = inparams->has_alglog ? inparams->alglog : "";
+   do_alglog_append = inparams->has_do_alglog_append ? inparams->do_alglog_append : false;
    graph = inparams->has_graph ? inparams->graph : "";
    robot = inrobot;
    robot_adofs = inrobot->GetActiveDOFIndices();
@@ -720,7 +721,10 @@ or_multiset::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    }
    else if (alglog != "")
    {
-      fp_alglog.open(alglog.c_str());
+      if (do_alglog_append)
+         fp_alglog.open(alglog.c_str(), std::ios_base::app);
+      else
+         fp_alglog.open(alglog.c_str(), std::ios_base::out);
       ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &fp_alglog;
    }
    

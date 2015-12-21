@@ -407,7 +407,10 @@ or_multiset::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    }
    else if (params->alglog != "")
    {
-      fp_alglog.open(params->alglog.c_str());
+      if (params->has_do_alglog_append && params->do_alglog_append)
+         fp_alglog.open(params->alglog.c_str(), std::ios_base::app);
+      else
+         fp_alglog.open(params->alglog.c_str(), std::ios_base::out);
       ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = &fp_alglog;
    }
    

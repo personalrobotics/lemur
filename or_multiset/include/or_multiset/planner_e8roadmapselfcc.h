@@ -39,6 +39,7 @@ public:
    // all of this set by InitPlan
    E8RoadmapParametersConstPtr params_ptr;
    std::string alglog;
+   bool do_alglog_append;
    std::string graph;
    OpenRAVE::RobotBasePtr robot;
    std::vector<int> robot_adofs;
