@@ -230,6 +230,11 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
    
    // retrieve subset manager
    boost::shared_ptr<or_multiset::ModuleSubsetManager> subset_manager = find_subset_manager(env, "my_ssm");
+   if (!subset_manager)
+   {
+      RAVELOG_ERROR("subset_manager required!\n");
+      return false;
+   }
    
    if (!plan_initialized)
    {

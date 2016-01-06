@@ -449,6 +449,8 @@ void or_multiset::ModuleSubsetManager::tag_current_subset(
 bool or_multiset::ModuleSubsetManager::GetCurrentReport(
    std::ostream & sout, std::istream & sin)
 {
+   unsigned int ui;
+   unsigned int ui2;
    std::vector<std::string> args = args_from_sin(sin);
    if (args.size() != 1)
       throw OpenRAVE::openrave_exception("GetCurrentReport args not correct!");
@@ -458,7 +460,23 @@ bool or_multiset::ModuleSubsetManager::GetCurrentReport(
       throw OpenRAVE::openrave_exception("GetCurrentReport robot not found!");
    or_multiset::SubsetReport report;
    this->get_current_report(robot, report);
-   printf("current subset: \"%s\"\n", report.current_subset.c_str());
+   // dump subsets
+   std::streamsize old_precision = sout.precision();
+   sout.precision(2 + std::numeric_limits<OpenRAVE::dReal>::digits10);
+   for (ui=0; ui<report.subsets.size(); ui++)
+      sout << "subset " << report.subsets[ui].name << " cost " << report.subsets[ui].cost << std::endl;
+   sout.precision(old_precision);
+   sout << "current_subset " << report.current_subset << std::endl;
+   // dump relations
+   for (ui=0; ui<report.inclusions.size(); ui++)
+      sout << "inclusion subset " << report.inclusions[ui].subset << " superset " << report.inclusions[ui].superset << std::endl;
+   for (ui=0; ui<report.intersections.size(); ui++)
+   {
+      sout << "intersection subset " << report.intersections[ui].subset << " supersets";
+      for (ui2=0; ui2<report.intersections[ui].supersets.size(); ui2++)
+         sout << " " << report.intersections[ui].supersets[ui2];
+      sout << std::endl;
+   }
    return true;
 }
 
