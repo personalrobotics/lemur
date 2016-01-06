@@ -678,6 +678,39 @@ void or_multiset::ModuleSubsetManager::dump_subsets(const OpenRAVE::RobotBasePtr
             else
                printf("  '%s' (%p)\n", (*sspp2)->tag.c_str(), (*sspp2).get());
          }
+         
+         if (!fp)
+         {
+            printf("  live checks:\n");
+            for (unsigned int ui=0; ui<(*sspp)->live_checks.size(); ui++)
+            {
+               switch ((*sspp)->live_checks[ui].type)
+               {
+               case or_multiset::LiveCheck::TYPE_KINBODY:
+                  printf("  CheckCollision(%s)\n",
+                     (*sspp)->live_checks[ui].kinbody->GetName().c_str());
+                  break;
+               case or_multiset::LiveCheck::TYPE_LINK:
+                  printf("  CheckCollision(%s:%s)\n",
+                     (*sspp)->live_checks[ui].link->GetParent()->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link->GetName().c_str());
+                  break;
+               case or_multiset::LiveCheck::TYPE_LINK_LINK:
+                  printf("  CheckCollision(%s:%s, %s:%s)\n",
+                     (*sspp)->live_checks[ui].link->GetParent()->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link_other->GetParent()->GetName().c_str(),
+                     (*sspp)->live_checks[ui].link_other->GetName().c_str());
+                  break;
+               case or_multiset::LiveCheck::TYPE_SELFSA_KINBODY:
+                  printf("  CheckStandaloneSelfCollision(%s)\n",
+                     (*sspp)->live_checks[ui].kinbody->GetName().c_str());
+                  break;
+               default:
+                  printf("  UNKNOWN LIVE-CHECK!\n");
+               }
+            }
+         }
       }
       else
       {
@@ -724,7 +757,6 @@ void or_multiset::ModuleSubsetManager::dump_subsets(const OpenRAVE::RobotBasePtr
                   printf("  UNKNOWN LIVE-CHECK!\n");
                }
             }
-            std::vector<struct LiveCheck> live_checks;
          }
       }
    }

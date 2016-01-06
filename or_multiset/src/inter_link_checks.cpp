@@ -32,15 +32,17 @@ void or_multiset::compute_checks(
 {
    ilcs.clear();
    
-   //bool success;
-   
    // get the list of all robots in the environment
    // (is this necessary??)
    std::vector<OpenRAVE::RobotBasePtr> robots;
    robot->GetEnv()->GetRobots(robots);
    
-   // get non-adjacent links
-   std::set<int> non_adjacent_links = robot->GetNonAdjacentLinks(0);
+   // get non-adjacent links (sensitive to collision checker activedofs flag)
+   int collision_options = robot->GetEnv()->GetCollisionChecker()->GetCollisionOptions();
+   int adjacentoptions = OpenRAVE::KinBody::AO_Enabled;
+   if (collision_options & OpenRAVE::CO_ActiveDOFs)
+      adjacentoptions |= OpenRAVE::KinBody::AO_ActiveDOFs;
+   std::set<int> non_adjacent_links = robot->GetNonAdjacentLinks(adjacentoptions);
    
    // get active dofs
    std::vector<int> adofs = robot->GetActiveDOFIndices();
@@ -199,6 +201,16 @@ void or_multiset::compute_checks(
       if (!((*link1).get() < (*link2).get()))
          continue;
       
+      // skip any pairs where both links are not part of the robot
+      // or grabbed by the robot
+      bool is_a_link_on_robot = false;
+      if ((*link1)->GetParent() == robot) is_a_link_on_robot = true;
+      if ((*link2)->GetParent() == robot) is_a_link_on_robot = true;
+      if (robot->IsGrabbing((*link1)->GetParent())) is_a_link_on_robot = true;
+      if (robot->IsGrabbing((*link2)->GetParent())) is_a_link_on_robot = true;
+      if (!is_a_link_on_robot)
+         continue;
+      
       // if they're both robot links, ensure they're nonadjacent!
       if ((*link1)->GetParent() == robot && (*link2)->GetParent() == robot)
       {
@@ -212,7 +224,7 @@ void or_multiset::compute_checks(
          if (non_adjacent_links.find(set_key) == non_adjacent_links.end())
          {
 #if 0
-            printf("skipping adjacent links %s and %s!\n",
+            printf("found adjacent links %s and %s! skipping ...\n",
                (*link1)->GetName().c_str(),
                (*link2)->GetName().c_str());
 #endif
@@ -239,12 +251,16 @@ void or_multiset::compute_checks(
       // are there any active joints between these links?
       if (ilc.link1_path.size()-1 + ilc.link2_path.size()-1 == 0)
       {
+         // no active joints between these links, and we should ignore these
+         if (collision_options & OpenRAVE::CO_ActiveDOFs)
+         {
 #if 0
-         printf("skipping non-active link pair %s and %s!\n",
-            (*link1)->GetName().c_str(),
-            (*link2)->GetName().c_str());
+            printf("oops, skipping non-active link pair %s and %s! force-skipping ...\n",
+               (*link1)->GetName().c_str(),
+               (*link2)->GetName().c_str());
 #endif
-         continue;
+            continue;
+         }
       }
       
       // make first link1 tx identity
@@ -303,6 +319,7 @@ void or_multiset::compute_live_checks(
    
    int collision_options = robot->GetEnv()->GetCollisionChecker()->GetCollisionOptions();
 
+   // store whether each robot link is active (moves with any active dofs)
    std::vector<bool> robot_active_links;
    if ((collision_options&OpenRAVE::CO_ActiveDOFs) && !robot->GetAffineDOF())
    {
@@ -320,6 +337,33 @@ void or_multiset::compute_live_checks(
    }
    else
       robot_active_links.resize(robot->GetLinks().size(), true);
+   
+   // robot->CheckSelfCollision()
+   // aka checker->CheckStandaloneSelfCollision(robot)
+   // (was checker->CheckSelfCollision(robot), now deprecated)
+   {
+      or_multiset::LiveCheck lc;
+      lc.type = or_multiset::LiveCheck::TYPE_SELFSA_KINBODY;
+      lc.kinbody = robot;
+      int adjacentoptions = OpenRAVE::KinBody::AO_Enabled;
+      if (collision_options & OpenRAVE::CO_ActiveDOFs)
+         adjacentoptions |= OpenRAVE::KinBody::AO_ActiveDOFs;
+      const std::set<int>& nonadjacent = robot->GetNonAdjacentLinks(adjacentoptions);
+      for (std::set<int>::iterator it=nonadjacent.begin(); it!=nonadjacent.end(); it++)
+      {
+         OpenRAVE::KinBody::LinkConstPtr link1(robot->GetLinks().at(*it&0xffff));
+         OpenRAVE::KinBody::LinkConstPtr link2(robot->GetLinks().at(*it>>16));
+         if (!link1->IsEnabled())
+            continue;
+         if (!link2->IsEnabled())
+            continue;
+         // ensure link1 < link2
+         if (!((link1.get()) < (link2.get())))
+            link1.swap(link2);
+         lc.links_checked.insert(std::make_pair(link1, link2));
+      }
+      live_checks.push_back(lc);
+   }
    
    // CheckCollision(kb)
    // checks between all pairwise links between
@@ -420,30 +464,5 @@ void or_multiset::compute_live_checks(
          }
          live_checks.push_back(lc);
       }
-   }
-   
-   // CheckStandaloneSelfCollision(robot)
-   {
-      or_multiset::LiveCheck lc;
-      lc.type = or_multiset::LiveCheck::TYPE_SELFSA_KINBODY;
-      lc.kinbody = robot;
-      int adjacentoptions = OpenRAVE::KinBody::AO_Enabled;
-      if (collision_options & OpenRAVE::CO_ActiveDOFs)
-         adjacentoptions |= OpenRAVE::KinBody::AO_ActiveDOFs;
-      const std::set<int>& nonadjacent = robot->GetNonAdjacentLinks(adjacentoptions);
-      for (std::set<int>::iterator it=nonadjacent.begin(); it!=nonadjacent.end(); it++)
-      {
-         OpenRAVE::KinBody::LinkConstPtr link1(robot->GetLinks().at(*it&0xffff));
-         OpenRAVE::KinBody::LinkConstPtr link2(robot->GetLinks().at(*it>>16));
-         if (!link1->IsEnabled())
-            continue;
-         if (!link2->IsEnabled())
-            continue;
-         // ensure link1 < link2
-         if (!((link1.get()) < (link2.get())))
-            link1.swap(link2);
-         lc.links_checked.insert(std::make_pair(link1, link2));
-      }
-      live_checks.push_back(lc);
    }
 }
