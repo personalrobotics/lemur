@@ -7,44 +7,7 @@
 namespace ompl_multiset
 {
 
-template <typename Vertex>
-class NNDummy
-{
-public:
-   inline void nearestR(Vertex v_new, double radius, std::vector< std::pair<Vertex,double> > & vs_near) { abort(); }
-};
-
-template <class Graph, class VState>
-class NNLinear
-{
-public:
-   typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
-   Graph & g;
-   VState state_map;
-   const ompl::base::StateSpacePtr space;
-   NNLinear(Graph & g, VState state_map, const ompl::base::StateSpacePtr space):
-      g(g), state_map(state_map), space(space)
-   {
-   }
-   inline void nearestR(Vertex v_new, double radius, std::vector< std::pair<Vertex,double> > & vs_near)
-   {
-      vs_near.clear();
-      for (unsigned int ui=0; ui<num_vertices(g); ui++)
-      {
-         Vertex v_other = vertex(ui, g);
-         if (v_other == v_new)
-            continue;
-         double dist = this->space->distance(
-            get(state_map, v_new),
-            get(state_map, v_other));
-         if (radius < dist)
-            continue;
-         vs_near.push_back(std::make_pair(v_other,dist));
-      }
-   }
-   void sync() {}
-};
-
+#if 0
 template <class Graph, class VState>
 class NNOmplBatched
 {
@@ -99,6 +62,7 @@ public:
          ompl_nn->add(vertex(ui,g));
    }
 };
+#endif
 
 // continuous space
 // generates a possibly infinite roadmap given an ompl space
@@ -137,7 +101,7 @@ public:
    // generates one additional batch
    virtual void generate(
       Graph & g,
-      NN & nn,
+      NN * nn, // ompl nn-like object, will call add() and nearestR()
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,

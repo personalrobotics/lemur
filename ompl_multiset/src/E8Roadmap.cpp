@@ -20,6 +20,7 @@
 #include <ompl/geometric/PathGeometric.h>
 #include <ompl/datastructures/NearestNeighbors.h>
 #include <ompl/datastructures/NearestNeighborsGNAT.h>
+#include <ompl/datastructures/NearestNeighborsLinear.h>
 
 // TEMP for stringify
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -39,6 +40,7 @@
 #include <ompl_multiset/aborting_space_information.h>
 #include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/BisectPerm.h>
+#include <ompl_multiset/NearestNeighborsLinearBGL.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/EffortModel.h>
 #include <ompl_multiset/E8Roadmap.h>
@@ -76,9 +78,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       get(&OverVProps::core_vertex, og),
       get(&OverEProps::core_edge, og)),
    tag_cache(tag_cache),
-   ompl_nn(new ompl::NearestNeighborsGNAT<Vertex>),
-   //nn(g, get(&VProps::state,g), space, ompl_nn.get()),
-   nn(g, get(&VProps::state,g), space),
+   //nn(new NN), // option A
+   nn(new NN(g, get(&VProps::state,g), space)), // option B
+   //nn(new ompl::NearestNeighborsGNAT<Vertex>),
    _coeff_distance(1.),
    _coeff_checkcost(0.),
    _coeff_batch(0.),
@@ -121,7 +123,7 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       &ompl_multiset::E8Roadmap::getEvalType);
    
    // setup ompl_nn
-   ompl_nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::ompl_nn_dist, this, _1, _2));
+   //nn->setDistanceFunction(boost::bind(&ompl_multiset::E8Roadmap::nn_dist, this, _1, _2)); // option A
    
    // construct persistent singleroot/singlegoal overlay vertices
    ov_singlestart = add_vertex(og);
@@ -871,8 +873,8 @@ ompl_multiset::E8Roadmap::solve(
          
          // add a batch!
          //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
-         nn.sync();
-         roadmap_gen->generate(eig, nn,
+         //nn.sync();
+         roadmap_gen->generate(eig, nn.get(),
             get(&VProps::state, g),
             get(&EProps::distance, g),
             get(&VProps::batch, g),
@@ -1326,7 +1328,7 @@ double ompl_multiset::E8Roadmap::wmap_get(const Edge & e)
    return g[e].w_lazy;
 }
 
-double ompl_multiset::E8Roadmap::ompl_nn_dist(const Vertex & va, const Vertex & vb)
+double ompl_multiset::E8Roadmap::nn_dist(const Vertex & va, const Vertex & vb)
 {
    return space->distance(g[va].state, g[vb].state);
 }

@@ -37,6 +37,7 @@
 #include <ompl_multiset/FamilyEffortModel.h>
 #include <ompl_multiset/FnString.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
+#include <ompl_multiset/NearestNeighborsLinearBGL.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapAAGrid.h>
 #include <ompl_multiset/RoadmapFromFile.h>

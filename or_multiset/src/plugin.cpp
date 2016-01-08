@@ -29,6 +29,7 @@
 #include <ompl_multiset/MultiSetPRM.h>
 
 #include <ompl_multiset/BisectPerm.h>
+#include <ompl_multiset/NearestNeighborsLinearBGL.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/EffortModel.h>
 #include <ompl_multiset/E8Roadmap.h>

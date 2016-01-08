@@ -58,7 +58,7 @@ public:
    
    void generate(
       Graph & g,
-      NN & nn,
+      NN * nn,
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,
@@ -97,6 +97,8 @@ public:
          put(state_map, v_new, this->space->allocState());
          ompl::base::State * v_state = get(state_map, v_new);
          double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         nn->add(v_new);
+         
          std::size_t ivert_used = ivert;
          std::size_t dim_stride = 1;
          for (std::size_t idim=dim-1; ; idim--) // termination condition at end!

@@ -22,6 +22,7 @@
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/rvstate_map_string_adaptor.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
+#include <ompl_multiset/NearestNeighborsLinearBGL.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapHalton.h>
 
@@ -84,7 +85,7 @@ typedef boost::graph_traits<OverGraph>::vertex_descriptor OverVertex;
 typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::NNLinear<EdgeIndexedGraph,StateMap> NN;
+typedef ompl_multiset::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
 typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,NN> Roadmap;
 typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
@@ -106,7 +107,7 @@ int main(int argc, char **argv)
 
    // generate a graph
    NN nnlin(eig, get(&VertexProperties::state,g), space);
-   p_mygen->generate(eig, nnlin,
+   p_mygen->generate(eig, &nnlin,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),
