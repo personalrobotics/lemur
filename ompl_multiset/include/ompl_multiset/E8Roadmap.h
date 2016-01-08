@@ -78,7 +78,10 @@ public:
    
    // roadmap generator type
    //typedef ompl_multiset::NNOmplBatched<Graph,VPStateMap> NN;
-   typedef ompl_multiset::NNLinear<Graph,VPStateMap> NN;
+   //typedef ompl_multiset::NNLinear<Graph,VPStateMap> NN;
+   
+   //typedef ompl::NearestNeighbors<Vertex> NN; // option A
+   typedef ompl_multiset::NearestNeighborsLinearBGL<Graph,VPStateMap> NN; // option B
    typedef ompl_multiset::Roadmap<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap,NN> Roadmap;
    typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
@@ -162,8 +165,11 @@ private:
    
    TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache;
    
-   boost::shared_ptr< ompl::NearestNeighbors<Vertex> > ompl_nn;
-   NN nn;
+   // note: the nearest neighbor object will only store core roadmap vertices
+   // (not overlayed vertices), and will only be queried by the roadmap generator
+   // (not when e.g. connecting overlay vertices to new things, etc)
+   // eventually, it would be nice if we add/removed overlay vertices here as well!
+   boost::shared_ptr<NN> nn;
    
    // parameters
    double _coeff_distance;
@@ -280,7 +286,7 @@ public:
    bool isevaledmap_get(const Edge & e);
    double wmap_get(const Edge & e);
    
-   double ompl_nn_dist(const Vertex & va, const Vertex & vb);
+   double nn_dist(const Vertex & va, const Vertex & vb);
 };
 
 // helper property map which delegates to FamilyPlanner::isevaledmap_get()

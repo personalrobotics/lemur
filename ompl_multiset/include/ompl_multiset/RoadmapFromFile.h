@@ -63,7 +63,7 @@ public:
    
    void generate(
       Graph & g,
-      NN & nn,
+      NN * nn,
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,
@@ -89,6 +89,7 @@ public:
       {
          put(vertex_batch_map, *vi, 0);
          put(is_shadow_map, *vi, false);
+         nn->add(*vi);
       }
       
       EdgeIter ei, ei_end;

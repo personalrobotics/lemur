@@ -106,7 +106,7 @@ int main(int argc, char **argv)
 
    // generate a graph
    NN nnlin(eig, get(&VertexProperties::state,g), space);
-   p_mygen->generate(eig, nnlin,
+   p_mygen->generate(eig, &nnlin,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),

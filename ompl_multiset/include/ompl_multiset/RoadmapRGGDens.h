@@ -71,7 +71,7 @@ public:
    
    void generate(
       Graph & g,
-      NN & nn,
+      NN * nn,
       VState state_map,
       EDistance distance_map,
       VBatch vertex_batch_map,
@@ -88,16 +88,19 @@ public:
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
-         put(state_map, v_new, this->space->allocState());
-         this->sampler->sampleUniform(get(state_map, v_new));
+         ompl::base::State * v_state = this->space->allocState();
+         this->sampler->sampleUniform(v_state);
+         put(state_map, v_new, v_state);
+         nn->add(v_new);
          
          // allocate new undirected edges
-         std::vector< std::pair<Vertex,double> > vs_near;
-         nn.nearestR(v_new, radius, vs_near);
+         std::vector<Vertex> vs_near;
+         nn->nearestR(v_new, radius, vs_near);
          for (unsigned int ui=0; ui<vs_near.size(); ui++)
          {
-            Edge e = add_edge(v_new, vs_near[ui].first, g).first;
-            put(distance_map, e, vs_near[ui].second);
+            Edge e = add_edge(v_new, vs_near[ui], g).first;
+            ompl::base::State * vnear_state = get(state_map, vs_near[ui]);
+            put(distance_map, e, this->space->distance(v_state,vnear_state));
             put(edge_batch_map, e, num_batches_generated);
             edges_generated++;
          }
