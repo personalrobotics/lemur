@@ -755,6 +755,7 @@ ompl_multiset::E8Roadmap::solve(
    boost::chrono::high_resolution_clock::time_point time_total_begin;
    if (_do_timing)
    {
+      _dur_roadmapgen = boost::chrono::high_resolution_clock::duration();
       _dur_search = boost::chrono::high_resolution_clock::duration();
       _dur_eval = boost::chrono::high_resolution_clock::duration();
       time_total_begin = boost::chrono::high_resolution_clock::now();
@@ -863,6 +864,11 @@ ompl_multiset::E8Roadmap::solve(
          size_t v_from = num_vertices(eig);
          size_t e_from = num_edges(eig);
          
+         // timing
+         boost::chrono::high_resolution_clock::time_point time_roadmapgen_begin;
+         if (_do_timing)
+            time_roadmapgen_begin = boost::chrono::high_resolution_clock::now();
+         
          // add a batch!
          //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
          nn.sync();
@@ -872,6 +878,10 @@ ompl_multiset::E8Roadmap::solve(
             get(&VProps::batch, g),
             get(&EProps::batch, g),
             get(&VProps::is_shadow, g));
+         
+         // timing
+         if (_do_timing)
+            _dur_roadmapgen += boost::chrono::high_resolution_clock::now() - time_roadmapgen_begin;
          
          size_t v_to = num_vertices(eig);
          size_t e_to = num_edges(eig);
@@ -962,6 +972,8 @@ ompl_multiset::E8Roadmap::solve(
    
    if (_do_timing)
    {
+      printf("roadmapgen duration: %f\n",
+         boost::chrono::duration<double>(_dur_roadmapgen).count());
       printf("search duration: %f\n",
          boost::chrono::duration<double>(_dur_search).count());
       printf("eval duration: %f\n",
@@ -1076,6 +1088,11 @@ double ompl_multiset::E8Roadmap::getDurTotal()
    return boost::chrono::duration<double>(_dur_total).count();
 }
 
+double ompl_multiset::E8Roadmap::getDurRoadmapGen()
+{
+   return boost::chrono::duration<double>(_dur_roadmapgen).count();
+}
+
 double ompl_multiset::E8Roadmap::getDurSearch()
 {
    return boost::chrono::duration<double>(_dur_search).count();
@@ -1084,6 +1101,11 @@ double ompl_multiset::E8Roadmap::getDurSearch()
 double ompl_multiset::E8Roadmap::getDurEval()
 {
    return boost::chrono::duration<double>(_dur_eval).count();
+}
+
+double ompl_multiset::E8Roadmap::getDurUnaccounted()
+{
+   return getDurTotal() - getDurRoadmapGen() - getDurSearch() - getDurEval();
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()

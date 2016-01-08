@@ -305,7 +305,9 @@ bool or_multiset::E8Roadmap::GetTimes(std::ostream & sout, std::istream & sin) c
    sout << " totaltime " << 0.0;
    sout << " n_checks " << ompl_checker->num_checks;
    sout << " e8_dur_total " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurTotal();
+   sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurRoadmapGen();
    sout << " e8_dur_search " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurSearch();
    sout << " e8_dur_eval " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurEval();
+   sout << " e8_dur_unaccounted " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurUnaccounted();
    return true;
 }

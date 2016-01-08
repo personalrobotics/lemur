@@ -202,6 +202,7 @@ private:
    EIdxTagsMap m_eidx_tags_map;
    
    boost::chrono::high_resolution_clock::duration _dur_total;
+   boost::chrono::high_resolution_clock::duration _dur_roadmapgen;
    boost::chrono::high_resolution_clock::duration _dur_search;
    boost::chrono::high_resolution_clock::duration _dur_eval;
    
@@ -260,8 +261,10 @@ public:
    void cache_save_all();
    
    double getDurTotal();
+   double getDurRoadmapGen();
    double getDurSearch();
    double getDurEval();
+   double getDurUnaccounted();
    
    // part 4: private-ish methods
    
