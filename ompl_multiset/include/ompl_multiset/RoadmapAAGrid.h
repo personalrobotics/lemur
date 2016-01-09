@@ -32,10 +32,7 @@ public:
       RoadmapSpec(space,1),
       res(res),
       dim(0),
-      bounds(0),
-      num_batches_generated(0),
-      vertices_generated(0),
-      edges_generated(0)
+      bounds(0)
    {
       // check that we're in a real vector state space
       if (space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
@@ -45,11 +42,6 @@ public:
       // check for infinite (no) bounds?
    }
    ~RoadmapAAGrid() {}
-   
-   std::size_t get_num_batches_generated()
-   {
-      return num_batches_generated;
-   }
    
    double root_radius(std::size_t i_batch)
    {
@@ -65,7 +57,7 @@ public:
       EBatch edge_batch_map,
       VShadow is_shadow_map)
    {
-      if (this->max_batches < num_batches_generated + 1)
+      if (this->max_batches < this->num_batches_generated + 1)
          throw std::runtime_error("this roadmap gen doesnt support that many batches!");
       // ok, generate all nodes!
       // first, compute offset and number of vertices per dimension
@@ -121,7 +113,7 @@ public:
             dim_stride *= dim_numverts[idim];
          }
       }
-      num_batches_generated++;
+      this->num_batches_generated++;
    }
    
    void serialize()
@@ -136,10 +128,6 @@ private:
    // from space
    std::size_t dim;
    ompl::base::RealVectorBounds bounds;
-   // progress
-   std::size_t num_batches_generated;
-   std::size_t vertices_generated;
-   std::size_t edges_generated;
 };
 
 } // namespace ompl_multiset

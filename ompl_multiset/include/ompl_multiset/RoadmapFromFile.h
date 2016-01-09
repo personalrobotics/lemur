@@ -38,8 +38,7 @@ public:
       filename(filename),
       filesha1(ompl_multiset::util::file_sha1(filename)),
       m_root_radius(root_radius),
-      bounds(0),
-      num_batches_generated(0)
+      bounds(0)
    {
       // check that we're in a real vector state space
       if (space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
@@ -50,11 +49,6 @@ public:
       bounds = space->as<ompl::base::RealVectorStateSpace>()->getBounds();
    }
    ~RoadmapFromFile() {}
-   
-   std::size_t get_num_batches_generated()
-   {
-      return num_batches_generated;
-   }
    
    double root_radius(std::size_t i_batch)
    {
@@ -70,7 +64,7 @@ public:
       EBatch edge_batch_map,
       VShadow is_shadow_map)
    {
-      if (this->max_batches < num_batches_generated + 1)
+      if (this->max_batches < this->num_batches_generated + 1)
          throw std::runtime_error("this roadmap gen doesnt support that many batches!");
       
       std::ifstream fp;
@@ -101,7 +95,7 @@ public:
          put(distance_map, *ei, this->space->distance(state1, state2));
       }
       
-      num_batches_generated++;
+      this->num_batches_generated++;
    }
    
    void serialize()
@@ -116,8 +110,6 @@ private:
    // from space
    unsigned int dim;
    ompl::base::RealVectorBounds bounds;
-   // progress
-   std::size_t num_batches_generated;
 };
 
 } // namespace ompl_multiset

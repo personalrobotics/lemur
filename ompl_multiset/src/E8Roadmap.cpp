@@ -78,8 +78,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
       get(&OverVProps::core_vertex, og),
       get(&OverEProps::core_edge, og)),
    tag_cache(tag_cache),
-   //nn(new NN), // option A
-   nn(new NN(g, get(&VProps::state,g), space)), // option B
+   //nn(new ompl::NearestNeighborsLinear<Vertex>), // option A1
+   //nn(new ompl::NearestNeighborsGNAT<Vertex>), // option A2
+   nn(new ompl_multiset::NearestNeighborsLinearBGL<Graph,VPStateMap>(g, get(&VProps::state,g), space)), // option B
    //nn(new ompl::NearestNeighborsGNAT<Vertex>),
    _coeff_distance(1.),
    _coeff_checkcost(0.),
@@ -807,7 +808,7 @@ ompl_multiset::E8Roadmap::solve(
          
          if (os_alglog)
          {
-            *os_alglog << "subgraph " << roadmap_gen->get_num_batches_generated() << std::endl;
+            *os_alglog << "subgraph " << roadmap_gen->num_batches_generated << std::endl;
             *os_alglog << "alias reset" << std::endl;
             for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
             {
@@ -829,7 +830,7 @@ ompl_multiset::E8Roadmap::solve(
             num_vertices(eig), num_edges(eig));
          
          // run lazy search
-         if (num_batches < roadmap_gen->get_num_batches_generated())
+         if (num_batches < roadmap_gen->num_batches_generated)
          {
             printf("doing filtered lazy search ...\n");
             filter_num_batches filter(get(&EProps::batch,g), num_batches);
@@ -854,12 +855,12 @@ ompl_multiset::E8Roadmap::solve(
       // consider the next batch
       num_batches++;
       
-      if (roadmap_gen->get_num_batches_generated() < num_batches)
+      if (roadmap_gen->num_batches_generated < num_batches)
       {
-         if (roadmap_gen->max_batches && roadmap_gen->max_batches <= roadmap_gen->get_num_batches_generated())
+         if (roadmap_gen->max_batches && roadmap_gen->max_batches <= roadmap_gen->num_batches_generated)
             return ompl::base::PlannerStatus::EXACT_SOLUTION;
          
-         std::size_t new_batch = roadmap_gen->get_num_batches_generated();
+         std::size_t new_batch = roadmap_gen->num_batches_generated;
          
          printf("densifying to batch [%lu] ...\n", new_batch);
          

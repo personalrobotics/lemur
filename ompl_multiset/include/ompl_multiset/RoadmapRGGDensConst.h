@@ -43,19 +43,11 @@ public:
       unsigned int n_perbatch, double radius, unsigned int seed):
       RoadmapSpec(space,0),
       n_perbatch(n_perbatch), radius(radius), seed(seed),
-      num_batches_generated(0),
-      vertices_generated(0),
-      edges_generated(0),
       sampler(space->allocStateSampler())
    {
       ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
    }
    ~RoadmapRGGDensConst() {}
-   
-   std::size_t get_num_batches_generated()
-   {
-      return num_batches_generated;
-   }
    
    double root_radius(std::size_t i_batch)
    {
@@ -72,11 +64,12 @@ public:
       VShadow is_shadow_map)
    {
       // ok, generate n nodes!
-      while (num_vertices(g) < (num_batches_generated+1)*n_perbatch)
+      std::size_t n = (this->num_batches_generated+1) * n_perbatch;
+      for (std::size_t v_index=num_vertices(g); v_index<n; v_index++)
       {
          Vertex v_new = add_vertex(g);
          
-         put(vertex_batch_map, v_new, num_batches_generated);
+         put(vertex_batch_map, v_new, this->num_batches_generated);
          put(is_shadow_map, v_new, false);
          
          // allocate a new state for this vertex
@@ -93,13 +86,10 @@ public:
             Edge e = add_edge(v_new, vs_near[ui], g).first;
             ompl::base::State * vnear_state = get(state_map, vs_near[ui]);
             put(distance_map, e, this->space->distance(v_state,vnear_state));
-            put(edge_batch_map, e, num_batches_generated);
-            edges_generated++;
+            put(edge_batch_map, e, this->num_batches_generated);
          }
-         
-         vertices_generated++;
       }
-      num_batches_generated++;
+      this->num_batches_generated++;
    }
    
    void serialize()
@@ -112,9 +102,6 @@ public:
    
 private:
    // progress
-   std::size_t num_batches_generated;
-   std::size_t vertices_generated;
-   std::size_t edges_generated;
    ompl::base::StateSamplerPtr sampler;
 };
 

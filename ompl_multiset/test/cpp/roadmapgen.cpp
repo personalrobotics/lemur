@@ -20,6 +20,7 @@
 
 #include <ompl_multiset/util.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
+#include <ompl_multiset/NearestNeighborsLinearBGL.h>
 #include <ompl_multiset/Roadmap.h>
 #include <ompl_multiset/RoadmapRGG.h>
 
@@ -59,7 +60,7 @@ typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::NNLinear<EdgeIndexedGraph,StateMap> NN;
+typedef ompl_multiset::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
 typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,NN> Roadmap;
 typedef boost::shared_ptr<Roadmap> RoadmapPtr;
 
@@ -77,7 +78,7 @@ TEST(RoadmapRRGTestCase, FixedExampleTest)
    
    // generate a graph
    NN nnlin(eig, get(&VertexProperties::state,g), space);
-   p_mygen->generate(eig, nnlin,
+   p_mygen->generate(eig, &nnlin,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),

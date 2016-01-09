@@ -43,19 +43,11 @@ public:
       unsigned int n, double radius, unsigned int seed):
       RoadmapSpec(space,1),
       n(n), radius(radius), seed(seed),
-      num_batches_generated(0),
-      vertices_generated(0),
-      edges_generated(0),
       sampler(space->allocStateSampler())
    {
       ompl_multiset::SamplerGenMonkeyPatch(sampler) = boost::mt19937(seed);
    }
    ~RoadmapRGG() {}
-   
-   std::size_t get_num_batches_generated()
-   {
-      return num_batches_generated;
-   }
    
    double root_radius(std::size_t i_batch)
    {
@@ -71,10 +63,10 @@ public:
       EBatch edge_batch_map,
       VShadow is_shadow_map)
    {
-      if (this->max_batches < num_batches_generated + 1)
+      if (this->max_batches < this->num_batches_generated + 1)
          throw std::runtime_error("this roadmap gen doesnt support that many batches!");
       // ok, generate n nodes!
-      while (num_vertices(g) < n)
+      for (std::size_t v_index=num_vertices(g); v_index<n; v_index++)
       {
          Vertex v_new = add_vertex(g);
          
@@ -96,12 +88,9 @@ public:
             ompl::base::State * vnear_state = get(state_map, vs_near[ui]);
             put(distance_map, e, this->space->distance(v_state,vnear_state));
             put(edge_batch_map, e, 0);
-            edges_generated++;
          }
-         
-         vertices_generated++;
       }
-      num_batches_generated++;
+      this->num_batches_generated++;
    }
    
    void serialize()
@@ -113,10 +102,6 @@ public:
    }
    
 private:
-   // progress
-   std::size_t num_batches_generated;
-   std::size_t vertices_generated;
-   std::size_t edges_generated;
    ompl::base::StateSamplerPtr sampler;
 };
 

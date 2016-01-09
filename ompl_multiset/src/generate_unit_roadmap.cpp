@@ -122,7 +122,7 @@ int main(int argc, char **argv)
    std::size_t num_batches = args["num-batches"].as<std::size_t>();
    printf("generating %lu batches ...\n", num_batches);
    
-   while (p_mygen->get_num_batches_generated() < num_batches)
+   while (p_mygen->num_batches_generated < num_batches)
    {
       // generate a graph
       NN nnlin(g, get(&VertexProperties::state,g), space);
