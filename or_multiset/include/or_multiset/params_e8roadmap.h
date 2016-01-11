@@ -11,10 +11,15 @@ namespace or_multiset
 class E8RoadmapParameters : public OpenRAVE::PlannerBase::PlannerParameters
 {
 public:
-   // for construction
+
+   bool has_roadmap_type;
+   std::string roadmap_type;
    
-   bool has_roadmap_id;
-   std::string roadmap_id;
+   // key/value strings for roadmap (keys without roadmap. prefix)
+   std::vector< std::pair<std::string,std::string> > roadmap_params;
+   
+   bool has_do_roadmap_save;
+   bool do_roadmap_save;
    
    bool has_num_batches_init;
    unsigned int num_batches_init;
@@ -27,8 +32,6 @@ public:
    
    bool has_graph;
    std::string graph;
-   
-   // ompl parameters
    
    bool has_coeff_distance;
    double coeff_distance;
@@ -58,7 +61,8 @@ public:
    std::string eval_type;
    
    E8RoadmapParameters():
-      has_roadmap_id(false),
+      has_roadmap_type(false),
+      has_do_roadmap_save(false),
       has_num_batches_init(false),
       has_alglog(false),
       has_do_alglog_append(false),
@@ -73,7 +77,9 @@ public:
       has_search_type(false),
       has_eval_type(false)
    {
-      _vXMLParameters.push_back("roadmap_id");
+      _vXMLParameters.push_back("roadmap_type");
+      _vXMLParameters.push_back("roadmap_param");
+      _vXMLParameters.push_back("do_roadmap_save");
       _vXMLParameters.push_back("num_batches_init");
       _vXMLParameters.push_back("alglog");
       _vXMLParameters.push_back("do_alglog_append");
@@ -96,8 +102,16 @@ private:
    {
       if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
          return false;
-      if (has_roadmap_id)
-         sout << "<roadmap_id>" << roadmap_id << "</roadmap_id>";
+      if (has_roadmap_type)
+         sout << "<roadmap_type>" << roadmap_type << "</roadmap_type>";
+      for (unsigned int ui=0; ui<roadmap_params.size(); ui++)
+      {
+         sout << "<roadmap_param>"
+            << roadmap_params[ui].first << "=" << roadmap_params[ui].second
+            << "</roadmap_param>";
+      }
+      if (has_do_roadmap_save)
+         sout << "<do_roadmap_save>" << (do_roadmap_save?"true":"false") << "</do_roadmap_save>";
       if (has_num_batches_init)
          sout << "<num_batches_init>" << num_batches_init << "</num_batches_init>";
       if (has_alglog)
@@ -137,7 +151,9 @@ private:
       base = OpenRAVE::PlannerBase::PlannerParameters::startElement(name,atts);
       if (base != PE_Pass) return base;
       // can we handle it?
-      if (name == "roadmap_id"
+      if (name == "roadmap_type"
+         || name == "roadmap_param"
+         || name == "do_roadmap_save"
          || name == "num_batches_init"
          || name == "alglog"
          || name == "do_alglog_append"
@@ -164,10 +180,28 @@ private:
          return OpenRAVE::PlannerBase::PlannerParameters::endElement(name);
       if (name == el_deserializing)
       {
-         if (el_deserializing == "roadmap_id")
+         if (el_deserializing == "roadmap_type")
          {
-            roadmap_id = _ss.str();
-            has_roadmap_id = true;
+            roadmap_type = _ss.str();
+            has_roadmap_type = true;
+         }
+         if (el_deserializing == "roadmap_param")
+         {
+            std::string roadmap_param = _ss.str();
+            size_t eq = roadmap_param.find('=');
+            if (eq != roadmap_param.npos)
+               roadmap_params.push_back(std::make_pair(
+                  roadmap_param.substr(0,eq), roadmap_param.substr(eq+1)));
+            else
+               RAVELOG_WARN("no = found in roadmap_param!\n");
+         }
+         if (el_deserializing == "do_roadmap_save")
+         {
+            std::ios state(0);
+            state.copyfmt(_ss);
+            _ss >> std::boolalpha >> do_roadmap_save;
+            _ss.copyfmt(state);
+            has_do_roadmap_save = true;
          }
          if (el_deserializing == "num_batches_init")
          {

@@ -24,7 +24,7 @@ public:
    boost::shared_ptr<or_multiset::OrChecker> ompl_checker;
    boost::shared_ptr<ompl_multiset::SimpleEffortModel> sem;
    boost::shared_ptr< ompl_multiset::TagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap> > tag_cache;
-   ompl_multiset::E8Roadmap::RoadmapPtr roadmapgen;
+   //boost::shared_ptr< or_multiset::RoadmapCached<ompl_multiset::E8Roadmap::Roadmap> > roadmapgen;
    boost::shared_ptr<ompl_multiset::E8Roadmap> ompl_planner;
    ompl::base::ProblemDefinitionPtr ompl_pdef;
    

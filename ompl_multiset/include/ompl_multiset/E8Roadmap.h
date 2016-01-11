@@ -82,8 +82,8 @@ public:
    
    //typedef ompl::NearestNeighbors<Vertex> NN; // option A
    typedef ompl_multiset::NearestNeighborsLinearBGL<Graph,VPStateMap> NN; // option B
-   typedef ompl_multiset::Roadmap<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap,NN> Roadmap;
-   typedef boost::shared_ptr<Roadmap> RoadmapPtr;
+
+   typedef ompl_multiset::RoadmapArgs<EdgeIndexedGraph,VPStateMap,EPDistanceMap,VPBatchMap,EPBatchMap,VPIsShadowMap,EdgeVectorMap,NN> RoadmapArgs;
 
    // roots overlay graph (used internally)
    // create an overlay graph for roots
@@ -140,7 +140,14 @@ private:
 
    ompl_multiset::EffortModel & effort_model;
 
-   const RoadmapPtr roadmap_gen;
+   std::map<std::string, boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> > _roadmap_registry;
+
+   std::string _roadmap_type;
+   std::vector<std::string> _roadmap_params;
+public:
+   boost::shared_ptr< Roadmap<RoadmapArgs> > _roadmap;
+private:
+
    std::vector< std::pair<size_t,size_t> > m_subgraph_sizes; // numverts,numedges (cumulative)
 
    const ompl::base::StateSpacePtr space;
@@ -218,10 +225,21 @@ public:
    E8Roadmap(
       const ompl::base::StateSpacePtr & space,
       ompl_multiset::EffortModel & effort_model,
-      ompl_multiset::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
-      const RoadmapPtr roadmap_gen);
+      ompl_multiset::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache);
    
    ~E8Roadmap(void);
+   
+   template <template<class> class RoadmapTemplate>
+   void registerRoadmapType(std::string roadmap_type)
+   {
+      return registerRoadmapType(roadmap_type, ompl_multiset::RoadmapFactory<RoadmapArgs,RoadmapTemplate>());
+   }
+   
+   void registerRoadmapType(std::string roadmap_type,
+      boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> factory);
+   
+   void setRoadmapType(std::string roadmap_type);
+   std::string getRoadmapType() const;
    
    void setCoeffDistance(double coeff_distance);
    double getCoeffDistance() const;

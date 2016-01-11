@@ -28,6 +28,8 @@ std::string ompl_multiset::space_id(const ompl::base::StateSpacePtr space)
             ompl_multiset::util::double_to_text(bounds.low[di]).c_str(),
             ompl_multiset::util::double_to_text(bounds.high[di]).c_str());
       }
+      id += ompl_multiset::util::sf(" longest_valid_segment_length=%s",
+         ompl_multiset::util::double_to_text(real->getLongestValidSegmentLength()).c_str());
       return id;
    }
    throw std::runtime_error("space_id: unknown space type!");

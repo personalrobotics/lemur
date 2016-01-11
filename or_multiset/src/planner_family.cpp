@@ -5,8 +5,10 @@
  */
 
 #include <openrave/openrave.h>
+#include <openrave/utils.h>
 
 #include <boost/chrono.hpp>
+#include <boost/filesystem.hpp>
 #include <boost/graph/adjacency_list.hpp>
 #include <boost/graph/graphml.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
@@ -36,6 +38,7 @@
 #include <ompl_multiset/Family.h>
 #include <ompl_multiset/FamilyEffortModel.h>
 #include <ompl_multiset/FnString.h>
+#include <ompl_multiset/SpaceID.h>
 #include <ompl_multiset/SamplerGenMonkeyPatch.h>
 #include <ompl_multiset/NearestNeighborsLinearBGL.h>
 #include <ompl_multiset/Roadmap.h>
@@ -47,10 +50,10 @@
 #include <ompl_multiset/RoadmapRGG.h>
 #include <ompl_multiset/RoadmapRGGDens.h>
 #include <ompl_multiset/RoadmapRGGDensConst.h>
-#include <ompl_multiset/RoadmapID.h>
 #include <ompl_multiset/BisectPerm.h>
 #include <ompl_multiset/E8Roadmap.h>
 
+#include <or_multiset/RoadmapCached.h>
 #include <or_multiset/inter_link_checks.h>
 #include <or_multiset/module_subset_manager.h>
 #include <or_multiset/or_checker.h>
@@ -253,22 +256,6 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
       ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / ompl_space->getMaximumExtent());
       ompl_space->setup();
       
-      // construct roadmap
-      if (!params->has_roadmap_id)
-      {
-         RAVELOG_ERROR("roadmap_id parameter was not passed!\n");
-         return false;
-      }
-      try
-      {
-         roadmapgen.reset(ompl_multiset::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, params->roadmap_id));
-      }
-      catch (const std::runtime_error & ex)
-      {
-         RAVELOG_ERROR("failure to create roadmap!\n");
-         return false;
-      }
-      
       // get current family report from subset manager
       or_multiset::SubsetReport subset_report;
       subset_manager->get_current_report(robot, subset_report);
@@ -314,7 +301,37 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
       // punt on tag cache for now
       tag_cache.reset(new ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>());
       
-      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *fem, *tag_cache, roadmapgen));
+      ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *fem, *tag_cache));
+      
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapAAGrid>("AAGrid");
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapFromFile>("FromFile");
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapHalton>("Halton");
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapHaltonDens>("HaltonDens");
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapHaltonOffDens>("HaltonOffDens");
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapRGG>("RGG");
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapRGGDens>("RGGDens");
+      ompl_planner->registerRoadmapType<ompl_multiset::RoadmapRGGDensConst>("RGGDensConst");
+      ompl_planner->registerRoadmapType("CachedAAGrid",
+         or_multiset::RoadmapCachedFactory<ompl_multiset::E8Roadmap::RoadmapArgs>(
+            ompl_multiset::RoadmapFactory<ompl_multiset::E8Roadmap::RoadmapArgs,ompl_multiset::RoadmapAAGrid>()));
+      ompl_planner->registerRoadmapType("CachedHalton",
+         or_multiset::RoadmapCachedFactory<ompl_multiset::E8Roadmap::RoadmapArgs>(
+            ompl_multiset::RoadmapFactory<ompl_multiset::E8Roadmap::RoadmapArgs,ompl_multiset::RoadmapHalton>()));
+      ompl_planner->registerRoadmapType("CachedHaltonDens",
+         or_multiset::RoadmapCachedFactory<ompl_multiset::E8Roadmap::RoadmapArgs>(
+            ompl_multiset::RoadmapFactory<ompl_multiset::E8Roadmap::RoadmapArgs,ompl_multiset::RoadmapHaltonDens>()));
+      ompl_planner->registerRoadmapType("CachedHaltonOffDens",
+         or_multiset::RoadmapCachedFactory<ompl_multiset::E8Roadmap::RoadmapArgs>(
+            ompl_multiset::RoadmapFactory<ompl_multiset::E8Roadmap::RoadmapArgs,ompl_multiset::RoadmapHaltonOffDens>()));
+      ompl_planner->registerRoadmapType("CachedRGG",
+         or_multiset::RoadmapCachedFactory<ompl_multiset::E8Roadmap::RoadmapArgs>(
+            ompl_multiset::RoadmapFactory<ompl_multiset::E8Roadmap::RoadmapArgs,ompl_multiset::RoadmapRGG>()));
+      ompl_planner->registerRoadmapType("CachedRGGDens",
+         or_multiset::RoadmapCachedFactory<ompl_multiset::E8Roadmap::RoadmapArgs>(
+            ompl_multiset::RoadmapFactory<ompl_multiset::E8Roadmap::RoadmapArgs,ompl_multiset::RoadmapRGGDens>()));
+      ompl_planner->registerRoadmapType("CachedRGGDensConst",
+         or_multiset::RoadmapCachedFactory<ompl_multiset::E8Roadmap::RoadmapArgs>(
+            ompl_multiset::RoadmapFactory<ompl_multiset::E8Roadmap::RoadmapArgs,ompl_multiset::RoadmapRGGDensConst>()));
       
       plan_initialized = true;
    }
@@ -329,11 +346,6 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
    if (robot_adofs != robot->GetActiveDOFIndices())
    {
       RAVELOG_ERROR("stateful planner supports only one robot adofs!\n");
-      return false;
-   }
-   if (inparams->has_roadmap_id && inparams->roadmap_id != params->roadmap_id)
-   {
-      RAVELOG_ERROR("stateful planner supports only one roadmap_id!\n");
       return false;
    }
    
@@ -358,6 +370,10 @@ or_multiset::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Pla
    params->copy(inparams);
    
    // planner params
+   if (params->has_roadmap_type)
+      ompl_planner->setRoadmapType(params->roadmap_type);
+   for (unsigned int ui=0; ui<params->roadmap_params.size(); ui++)
+      ompl_planner->params().setParam("roadmap."+params->roadmap_params[ui].first, params->roadmap_params[ui].second);
    if (params->has_coeff_distance)
       ompl_planner->setCoeffDistance(params->coeff_distance);
    if (params->has_coeff_checkcost)
@@ -425,11 +441,22 @@ or_multiset::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    if (params->has_time_limit)
       ptc = ompl::base::timedPlannerTerminationCondition(params->time_limit);
    ompl_status = ompl_planner->solve(ptc);
-   
-#if 0
    printf("planner returned: %s\n", ompl_status.asString().c_str());
-   printf("planner performed %lu checks!\n", ompl_checker->num_checks);
-#endif
+
+   if (params->has_do_roadmap_save && params->do_roadmap_save)
+   {
+      boost::shared_ptr< or_multiset::RoadmapCached<ompl_multiset::E8Roadmap::RoadmapArgs> > cached_roadmap
+         = boost::dynamic_pointer_cast< or_multiset::RoadmapCached<ompl_multiset::E8Roadmap::RoadmapArgs> >(ompl_planner->_roadmap);
+      if (cached_roadmap)
+      {
+         printf("saving cached roadmap ...\n");
+         ompl_planner->_roadmap->as< or_multiset::RoadmapCached<ompl_multiset::E8Roadmap::RoadmapArgs> >()->save_file();
+      }
+      else
+      {
+         throw OpenRAVE::openrave_exception("asked to save roadmap cache, but non-cached roadmap used!");
+      }
+   }
 
    ompl_planner->as<ompl_multiset::E8Roadmap>()->os_alglog = 0;
    fp_alglog.close();
@@ -472,7 +499,6 @@ bool or_multiset::FamilyPlanner::ClearPlan(std::ostream & sout, std::istream & s
    w_robot.reset();
    robot_adofs.clear();
    ompl_space.reset();
-   roadmapgen.reset();
    family.reset();;
    fem.reset();
    tag_cache.reset();

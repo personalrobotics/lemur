@@ -25,7 +25,6 @@ public:
    boost::weak_ptr<OpenRAVE::RobotBase> w_robot;
    std::vector<int> robot_adofs;
    ompl::base::StateSpacePtr ompl_space;
-   ompl_multiset::E8Roadmap::RoadmapPtr roadmapgen;
    boost::shared_ptr<ompl_multiset::Family> family;
    boost::shared_ptr<ompl_multiset::FamilyEffortModel> fem;
    boost::shared_ptr< ompl_multiset::TagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap> > tag_cache;

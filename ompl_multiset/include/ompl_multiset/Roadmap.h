@@ -7,6 +7,171 @@
 namespace ompl_multiset
 {
 
+
+template <class Graph_, class VState_, class EDistance_, class VBatch_, class EBatch_, class VShadow_, class EVector_, class NN_>
+struct RoadmapArgs
+{
+   typedef Graph_ Graph;
+   typedef VState_ VState;
+   typedef EDistance_ EDistance;
+   typedef VBatch_ VBatch;
+   typedef EBatch_ EBatch;
+   typedef VShadow_ VShadow;
+   typedef EVector_ EVector;
+   typedef NN_ NN;
+   ompl::base::StateSpacePtr space;
+   Graph & g;
+   VState state_map;
+   EDistance distance_map;
+   VBatch vertex_batch_map;
+   EBatch edge_batch_map;
+   VShadow is_shadow_map;
+   EVector edge_vector_map;
+   NN * nn;
+   RoadmapArgs(
+      ompl::base::StateSpacePtr space,
+      Graph & g,
+      VState state_map,
+      EDistance distance_map,
+      VBatch vertex_batch_map,
+      EBatch edge_batch_map,
+      VShadow is_shadow_map,
+      EVector edge_vector_map,
+      NN * nn):
+      space(space), g(g),
+      state_map(state_map), distance_map(distance_map),
+      vertex_batch_map(vertex_batch_map), edge_batch_map(edge_batch_map),
+      is_shadow_map(is_shadow_map),
+      edge_vector_map(edge_vector_map), nn(nn)
+   {
+   }
+};
+
+// continuous space
+// generates a possibly infinite roadmap given an ompl space
+// note, generate() should tolerate the graph having unused but
+// added vertices (e.g. from old/unapplied roots)
+//
+// API: after construction,
+// the caller may set parameters,
+// and then must call initialize() at most once at the beginning,
+// followed by at most one call to deserialize(),
+// followed by successive calls to generate()
+// serialize() will save the roadmap generator's state so it can be re-constructed in the future!
+//
+// new-stype roadmap interface
+template <class RoadmapArgs>
+class Roadmap
+{
+public:
+   const std::string name;
+   const ompl::base::StateSpacePtr space;
+   const size_t max_batches; // 0 means inf
+   bool initialized;
+   size_t num_batches_generated; // should be incremented by implementation's generate()
+   
+   typename RoadmapArgs::Graph & g;
+   typename RoadmapArgs::VState state_map;
+   typename RoadmapArgs::EDistance distance_map;
+   typename RoadmapArgs::VBatch vertex_batch_map;
+   typename RoadmapArgs::EBatch edge_batch_map;
+   typename RoadmapArgs::VShadow is_shadow_map;
+   typename RoadmapArgs::EVector edge_vector_map;
+   typename RoadmapArgs::NN * nn; // ompl nn-like object, will call add() and nearestR()
+   
+   ompl::base::ParamSet params;
+   
+   Roadmap(RoadmapArgs & args, std::string name, size_t max_batches):
+      name(name),
+      space(args.space),
+      max_batches(max_batches),
+      initialized(false),
+      num_batches_generated(0),
+      g(args.g),
+      state_map(args.state_map),
+      distance_map(args.distance_map),
+      vertex_batch_map(args.vertex_batch_map),
+      edge_batch_map(args.edge_batch_map),
+      is_shadow_map(args.is_shadow_map),
+      edge_vector_map(args.edge_vector_map),
+      nn(args.nn)
+   {
+   }
+   virtual ~Roadmap() {}
+   
+   template<class T>
+   T* as()
+   {
+      BOOST_CONCEPT_ASSERT((boost::Convertible<T*, Roadmap*>));
+      return static_cast<T*>(this);
+   }
+
+   template<class T>
+   const T* as() const
+   {
+      BOOST_CONCEPT_ASSERT((boost::Convertible<T*, Roadmap*>));
+      return static_cast<const T*>(this);
+   }
+   
+   template<typename T, typename RoadmapType, typename SetterType, typename GetterType>
+   void declareParam(const std::string &name, const RoadmapType &roadmap, const SetterType& setter, const GetterType& getter, const std::string &rangeSuggestion = "")
+   {
+      params.declareParam<T>(name, boost::bind(setter, roadmap, _1), boost::bind(getter, roadmap));
+      if (!rangeSuggestion.empty())
+         params[name].setRangeSuggestion(rangeSuggestion);
+   }
+
+   template<typename T, typename RoadmapType, typename SetterType>
+   void declareParam(const std::string &name, const RoadmapType &roadmap, const SetterType& setter, const std::string &rangeSuggestion = "")
+   {
+      params.declareParam<T>(name, boost::bind(setter, roadmap, _1));
+      if (!rangeSuggestion.empty())
+         params[name].setRangeSuggestion(rangeSuggestion);
+   }
+   
+   virtual void initialize() = 0;
+   
+   // should be stateless (but after initialize)
+   virtual double root_radius(std::size_t i_batch) = 0;
+   
+   virtual void deserialize(const std::string & ser_data) = 0;
+   
+   // sets all of these maps
+   // generates one additional batch
+   virtual void generate() = 0;
+   
+   virtual void serialize(std::string & ser_data) = 0;
+};
+
+template <class RoadmapArgs, template<class> class RoadmapTemplate>
+struct RoadmapFactory
+{ 
+   ompl_multiset::Roadmap<RoadmapArgs> * operator()(RoadmapArgs args) const
+   {
+      return new RoadmapTemplate<RoadmapArgs>(args);
+   };
+};
+
+template <class RoadmapArgs>
+std::string roadmap_id(ompl_multiset::Roadmap<RoadmapArgs> * roadmap)
+{
+   std::string roadmap_id;
+   
+   roadmap_id += "type=" + roadmap->name;
+      
+   std::map<std::string, std::string> roadmap_params;
+   roadmap->params.getParams(roadmap_params);
+   
+   for (std::map<std::string, std::string>::iterator
+      it=roadmap_params.begin(); it!=roadmap_params.end(); it++)
+   {
+      roadmap_id += " " + it->first + "=" + it->second;
+   }
+   
+   return roadmap_id;
+}
+
+
 #if 0
 template <class Graph, class VState>
 class NNOmplBatched
@@ -63,56 +228,5 @@ public:
    }
 };
 #endif
-
-// continuous space
-// generates a possibly infinite roadmap given an ompl space
-// note, generate() should tolerate the graph having unused but
-// added vertices (e.g. from old/unapplied roots)
-//template <class Graph, class VertexIndexMap, class EdgeIndexMap
-   //,class StateMap, class BatchMap, class IsShadowMap, class DistanceMap
-//   >
-// API: after construction, the caller may optionally call
-// deserialize() (at most once) at the beginning,
-// followed by successive calls to generate();
-// serialize() will save the roadmap generator's state so it can be re-constructed in the future!
-template <class Graph, class VState, class EDistance, class VBatch, class EBatch, class VShadow, class NN>
-class Roadmap
-{
-public:
-   typedef Graph BaseGraph;
-   typedef VState BaseVState;
-   typedef EDistance BaseEDistance;
-   typedef VBatch BaseVBatch;
-   typedef EBatch BaseEBatch;
-   typedef VShadow BaseVShadow;
-   typedef NN BaseNN;
-
-   const ompl::base::StateSpacePtr space;
-   const std::size_t max_batches; // 0 means inf
-   std::size_t num_batches_generated; // should be incremented by implementation's generate()
-   
-   Roadmap(const ompl::base::StateSpacePtr space, int max_batches):
-      space(space), max_batches(max_batches), num_batches_generated(0)
-   {
-   }
-   virtual ~Roadmap() {}
-   
-   // should be stateless
-   virtual double root_radius(std::size_t i_batch) = 0;
-   
-   // sets all of these maps
-   // generates one additional batch
-   virtual void generate(
-      Graph & g,
-      NN * nn, // ompl nn-like object, will call add() and nearestR()
-      VState state_map,
-      EDistance distance_map,
-      VBatch vertex_batch_map,
-      EBatch edge_batch_map,
-      VShadow is_shadow_map) = 0;
-   
-   virtual void serialize() = 0;
-   virtual void deserialize() = 0;
-};
 
 } // namespace ompl_multiset

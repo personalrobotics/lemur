@@ -35,7 +35,6 @@
 #include <ompl_multiset/RoadmapRGG.h>
 #include <ompl_multiset/RoadmapRGGDens.h>
 #include <ompl_multiset/RoadmapRGGDensConst.h>
-#include <ompl_multiset/RoadmapID.h>
 
 struct VertexProperties
 {
@@ -71,9 +70,10 @@ typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
-typedef ompl_multiset::NearestNeighborsLinearBGL<Graph,StateMap> NN;
-typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,NN> Roadmap;
-typedef boost::shared_ptr<Roadmap> RoadmapPtr;
+typedef ompl_multiset::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
+
+typedef ompl_multiset::RoadmapArgs<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,EdgeVectorMap,NN> RoadmapArgs;
+typedef boost::shared_ptr< ompl_multiset::Roadmap<RoadmapArgs> > RoadmapPtr;
 
 
 int main(int argc, char **argv)
@@ -82,7 +82,8 @@ int main(int argc, char **argv)
    desc.add_options()
       ("help", "produce help message")
       ("dim", boost::program_options::value<int>(), "unit hypercube dimension (e.g. 2)")
-      ("roadmap-id", boost::program_options::value<std::string>(), "(e.g. Halton(n=30 radius=0.3))")
+      ("roadmap-type", boost::program_options::value<std::string>(), "(e.g. halton)")
+      ("roadmap-param", boost::program_options::value< std::vector<std::string> >(), "(e.g. num=30)")
       ("num-batches", boost::program_options::value<std::size_t>(), "number of batches (e.g. 1)")
       ("out-file", boost::program_options::value<std::string>(), "output file (can be - for stdout)")
       ("out-format", boost::program_options::value<std::string>(), "output format (graphml or graphio)")
@@ -94,7 +95,7 @@ int main(int argc, char **argv)
 
    if (args.count("help")
       || args.count("dim") != 1
-      || args.count("roadmap-id") != 1
+      || args.count("roadmap-type") != 1
       || args.count("num-batches") != 1
       || args.count("out-file") != 1
       || args.count("out-format") != 1)
@@ -110,28 +111,65 @@ int main(int argc, char **argv)
    
    RoadmapPtr p_mygen;
    
-   std::string roadmap_id(args["roadmap-id"].as<std::string>());
-   printf("creating roadmap with id %s ...\n", roadmap_id.c_str());
-   p_mygen.reset(ompl_multiset::make_roadmap_gen<Roadmap>(space, roadmap_id));
-   
    Graph g;
    
    pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
       eig(g, get(&EdgeProperties::index, g));
    
+   NN nnlin(eig, get(&VertexProperties::state,g), space);
+   
+   // construct roadmap
+   RoadmapArgs rmargs(space, eig, 
+      get(&VertexProperties::state, g),
+      get(&EdgeProperties::distance, g),
+      get(&VertexProperties::batch, g),
+      get(&EdgeProperties::batch, g),
+      get(&VertexProperties::is_shadow, g),
+      eig.edge_vector_map,
+      &nnlin);
+   
+   if (args["roadmap-type"].as<std::string>() == "aa_grid")
+      p_mygen.reset(new ompl_multiset::RoadmapAAGrid<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "from_file")
+      p_mygen.reset(new ompl_multiset::RoadmapFromFile<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "rgg")
+      p_mygen.reset(new ompl_multiset::RoadmapRGG<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "rgg_dens")
+      p_mygen.reset(new ompl_multiset::RoadmapRGGDens<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "rgg_dens_const")
+      p_mygen.reset(new ompl_multiset::RoadmapRGGDensConst<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "halton")
+      p_mygen.reset(new ompl_multiset::RoadmapHalton<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "halton_dens")
+      p_mygen.reset(new ompl_multiset::RoadmapHaltonDens<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "halton_off_dens")
+      p_mygen.reset(new ompl_multiset::RoadmapHaltonOffDens<RoadmapArgs>(rmargs));
+   else
+   {
+      std::cout << "unknown roadmap type!" << std::endl;
+      return 1;
+   }
+   
+   const std::vector<std::string> & params = args["roadmap-param"].as< std::vector<std::string> >();
+   for (unsigned int ui=0; ui<params.size(); ui++)
+   {
+      size_t eq = params[ui].find('=');
+      if (eq == params[ui].npos)
+      {
+         std::cout << "param has bad format!" << std::endl;
+         return 1;
+      }
+      p_mygen->params.setParam(params[ui].substr(0,eq), params[ui].substr(eq+1));
+   }
+   
    std::size_t num_batches = args["num-batches"].as<std::size_t>();
    printf("generating %lu batches ...\n", num_batches);
    
+   p_mygen->initialize();
    while (p_mygen->num_batches_generated < num_batches)
    {
       // generate a graph
-      NN nnlin(g, get(&VertexProperties::state,g), space);
-      p_mygen->generate(eig, &nnlin,
-         get(&VertexProperties::state, g),
-         get(&EdgeProperties::distance, g),
-         get(&VertexProperties::batch, g),
-         get(&EdgeProperties::batch, g),
-         get(&VertexProperties::is_shadow, g));
+      p_mygen->generate();
    }
    
    // write it out to file

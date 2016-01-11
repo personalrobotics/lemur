@@ -54,36 +54,44 @@ typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeInde
 typedef boost::vector_property_map<Edge> EdgeVectorMap;
 
 typedef boost::property_map<Graph, ompl::base::State * VertexProperties::*>::type StateMap;
-typedef boost::property_map<Graph, int VertexProperties::*>::type VertexSubgraphMap;
-typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeSubgraphMap;
+typedef boost::property_map<Graph, int VertexProperties::*>::type VertexBatchMap;
+typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeBatchMap;
 typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
 typedef ompl_multiset::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
-typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,NN> Roadmap;
-typedef boost::shared_ptr<Roadmap> RoadmapPtr;
+typedef ompl_multiset::RoadmapArgs<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,EdgeVectorMap,NN> RoadmapArgs;
+typedef boost::shared_ptr< ompl_multiset::RoadmapRGG<RoadmapArgs> > RoadmapPtr;
 
 
 TEST(RoadmapRRGTestCase, FixedExampleTest)
 {
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(2));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
-   RoadmapPtr p_mygen(new ompl_multiset::RoadmapRGG<Roadmap>(space, 10, 0.3, 1));
    
    Graph g;
-   
    pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
       eig(g, get(&EdgeProperties::index, g));
    
    // generate a graph
    NN nnlin(eig, get(&VertexProperties::state,g), space);
-   p_mygen->generate(eig, &nnlin,
+   
+   RoadmapArgs args(space, eig, 
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),
       get(&EdgeProperties::subgraph, g),
-      get(&VertexProperties::is_shadow, g));
+      get(&VertexProperties::is_shadow, g),
+      eig.edge_vector_map,
+      &nnlin);
+   RoadmapPtr p_mygen(new ompl_multiset::RoadmapRGG<RoadmapArgs>(args));
+   p_mygen->setNum(10);
+   p_mygen->setRadius(0.3);
+   p_mygen->setSeed(1);
+   
+   p_mygen->initialize();
+   p_mygen->generate();
    
    // write it out to file
    boost::dynamic_properties props;

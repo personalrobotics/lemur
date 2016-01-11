@@ -47,7 +47,10 @@ TEST(Wam7TestCase, Wam7Test)
    params->SetConfigurationSpecification(env, robot->GetActiveConfigurationSpecification());
    params->vinitialconfig = std::vector<OpenRAVE::dReal>(q_start, q_start+7);
    params->vgoalconfig = std::vector<OpenRAVE::dReal>(q_goal, q_goal+7);
-   params->_sExtraParameters = "<roadmap_id>Halton(n=1000 radius=2.0)</roadmap_id>";
+   params->_sExtraParameters = "<roadmap_type>Halton</roadmap_type>"
+      "<roadmap_param>num=1000</roadmap_param>"
+      "<roadmap_param>radius=2.0</roadmap_param>";
+   
    params->Validate();
    success = planner->InitPlan(robot, params);
    ASSERT_TRUE(success);

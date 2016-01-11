@@ -86,8 +86,8 @@ typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
 
 typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
 typedef ompl_multiset::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
-typedef ompl_multiset::Roadmap<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,NN> Roadmap;
-typedef boost::shared_ptr<Roadmap> RoadmapPtr;
+typedef ompl_multiset::RoadmapArgs<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,EdgeVectorMap,NN> RoadmapArgs;
+typedef boost::shared_ptr< ompl_multiset::RoadmapHalton<RoadmapArgs> > RoadmapPtr;
 
 int main(int argc, char **argv)
 {
@@ -96,23 +96,30 @@ int main(int argc, char **argv)
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(2));
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
-   // roadmapgen
-   RoadmapPtr p_mygen(new ompl_multiset::RoadmapHalton<Roadmap>(space, 30, 0.3));
-   
    // graph
    Graph g;
    
    pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
       eig(g, get(&EdgeProperties::index, g));
-
-   // generate a graph
+   
    NN nnlin(eig, get(&VertexProperties::state,g), space);
-   p_mygen->generate(eig, &nnlin,
+   
+   // roadmapgen
+   RoadmapArgs rm_args(space, eig,
       get(&VertexProperties::state, g),
       get(&EdgeProperties::distance, g),
       get(&VertexProperties::subgraph, g),
       get(&EdgeProperties::subgraph, g),
-      get(&VertexProperties::is_shadow, g));
+      get(&VertexProperties::is_shadow, g),
+      eig.edge_vector_map,
+      &nnlin);
+   RoadmapPtr p_mygen(new ompl_multiset::RoadmapHalton<RoadmapArgs>(rm_args));
+   p_mygen->setNum(30);
+   p_mygen->setRadius(0.3);
+
+   // generate a graph
+   p_mygen->initialize();
+   p_mygen->generate();
 
    {
       // write it out to file

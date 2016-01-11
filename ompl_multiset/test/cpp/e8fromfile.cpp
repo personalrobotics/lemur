@@ -94,11 +94,6 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    pdef->addStartState(make_state(space, 0.25, 0.75));
    pdef->setGoalState(make_state(space, 0.75, 0.25));
    
-   // roadmap
-   ompl_multiset::E8Roadmap::RoadmapPtr roadmap_gen(
-      new ompl_multiset::RoadmapFromFile<ompl_multiset::E8Roadmap::Roadmap>(
-      space, XSTR(DATADIR) "/halton2d.xml", 0.3));
-   
    // family
    ompl_multiset::Family family;
    family.subsets.insert(std::make_pair("space_si",
@@ -110,10 +105,16 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap> tag_cache;
    
    // planner
-   ompl::base::PlannerPtr planner(new ompl_multiset::E8Roadmap(space, fem, tag_cache, roadmap_gen));
+   ompl::base::PlannerPtr planner(new ompl_multiset::E8Roadmap(space, fem, tag_cache));
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffDistance(1.);
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffCheckcost(0.);
    planner->as<ompl_multiset::E8Roadmap>()->setCoeffBatch(0.);
+   
+   // roadmap
+   planner->as<ompl_multiset::E8Roadmap>()->registerRoadmapType<ompl_multiset::RoadmapFromFile>("FromFile");
+   planner->as<ompl_multiset::E8Roadmap>()->setRoadmapType("FromFile");
+   planner->params().setParam("roadmap.filename", XSTR(DATADIR) "/halton2d.xml");
+   planner->params().setParam("roadmap.root_radius", "0.3");
    
    // solve
    planner->setProblemDefinition(pdef);

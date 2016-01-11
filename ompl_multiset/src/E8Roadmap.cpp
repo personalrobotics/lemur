@@ -65,12 +65,10 @@
 ompl_multiset::E8Roadmap::E8Roadmap(
       const ompl::base::StateSpacePtr & space,
       EffortModel & effort_model,
-      TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache,
-      const RoadmapPtr roadmap_gen):
+      TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache):
    ompl::base::Planner(
       ompl_multiset::get_aborting_space_information(space), "E8Roadmap"),
    effort_model(effort_model),
-   roadmap_gen(roadmap_gen),
    space(space),
    check_radius(0.5*space->getLongestValidSegmentLength()),
    eig(g, get(&EProps::index,g)),
@@ -95,6 +93,9 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    m_vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
    m_eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tags,g), eig.edge_vector_map))
 {
+   Planner::declareParam<std::string>("roadmap_type", this,
+      &ompl_multiset::E8Roadmap::setRoadmapType,
+      &ompl_multiset::E8Roadmap::getRoadmapType);
    Planner::declareParam<double>("coeff_distance", this,
       &ompl_multiset::E8Roadmap::setCoeffDistance,
       &ompl_multiset::E8Roadmap::getCoeffDistance, "0.:1.:10000.");
@@ -165,6 +166,48 @@ ompl_multiset::E8Roadmap::~E8Roadmap()
    for (boost::tie(oei,oei_end)=edges(og); oei!=oei_end; ++oei)
       for (unsigned int ui=0; ui<og[*oei].edge_states.size(); ui++)
          space->freeState(og[*oei].edge_states[ui]);
+}
+
+void ompl_multiset::E8Roadmap::registerRoadmapType(std::string roadmap_type,
+   boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> factory)
+{
+   _roadmap_registry[roadmap_type] = factory;
+}
+
+void ompl_multiset::E8Roadmap::setRoadmapType(std::string roadmap_type)
+{
+   std::map<std::string, boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> >::iterator it=_roadmap_registry.find(roadmap_type);
+   if (it == _roadmap_registry.end())
+      throw std::runtime_error("roadmap type not in registry!");
+   
+   RoadmapArgs args(
+      space, eig,
+      get(&VProps::state, g),
+      get(&EProps::distance, g),
+      get(&VProps::batch, g),
+      get(&EProps::batch, g),
+      get(&VProps::is_shadow, g),
+      eig.edge_vector_map,
+      nn.get());
+   
+   _roadmap.reset(it->second(args));
+   
+   // copy over parameters
+   while (_roadmap_params.size())
+   {
+      std::string prefixed_param = "roadmap." + _roadmap_params.back();
+      params().remove(prefixed_param);
+      _roadmap_params.pop_back();
+   }
+   _roadmap->params.getParamNames(_roadmap_params);
+   params().include(_roadmap->params, "roadmap");
+   
+   _roadmap_type = roadmap_type;
+}
+
+std::string ompl_multiset::E8Roadmap::getRoadmapType() const
+{
+   return _roadmap_type;
 }
 
 void ompl_multiset::E8Roadmap::setCoeffDistance(double coeff_distance)
@@ -422,7 +465,7 @@ void ompl_multiset::E8Roadmap::setProblemDefinition(
          // (for now, we skip neighbors in overlay graph -- what radius?)
          for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
          {
-            double root_radius = roadmap_gen->root_radius(g[*vi].batch);
+            double root_radius = _roadmap->root_radius(g[*vi].batch);
             double dist = space->distance(state, g[*vi].state);
             if (root_radius < dist)
                continue;
@@ -755,6 +798,9 @@ ompl::base::PlannerStatus
 ompl_multiset::E8Roadmap::solve(
    const ompl::base::PlannerTerminationCondition & ptc)
 {
+   if (!_roadmap)
+      throw std::runtime_error("no roadmap set!");
+   
    boost::chrono::high_resolution_clock::time_point time_total_begin;
    if (_do_timing)
    {
@@ -764,15 +810,16 @@ ompl_multiset::E8Roadmap::solve(
       time_total_begin = boost::chrono::high_resolution_clock::now();
    }
    
+   // ensure roadmap is initialized
+   if (!_roadmap->initialized)
+      _roadmap->initialize();
+   
    // ok, do some sweet sweet lazy search!
    
    if (out_degree(ov_singlestart,og) == 0)
       throw std::runtime_error("no start states passed!");
    if (out_degree(ov_singlegoal,og) == 0)
       throw std::runtime_error("no goal states passed!");
-   
-   bool success = false;
-   std::vector<Edge> epath;
    
    if (os_alglog)
    {
@@ -797,7 +844,8 @@ ompl_multiset::E8Roadmap::solve(
    unsigned int num_batches = 0;
    
    // run batches of lazy search
-   while (!success && ptc() == false)
+   ompl::base::PlannerStatus ret = ompl::base::PlannerStatus::TIMEOUT;
+   while (ptc() == false)
    {
       printf("considering %u batches ...\n", num_batches);
       
@@ -808,7 +856,7 @@ ompl_multiset::E8Roadmap::solve(
          
          if (os_alglog)
          {
-            *os_alglog << "subgraph " << roadmap_gen->num_batches_generated << std::endl;
+            *os_alglog << "subgraph " << _roadmap->num_batches_generated << std::endl;
             *os_alglog << "alias reset" << std::endl;
             for (unsigned int ui=0; ui<overlay_manager.applied_vertices.size(); ui++)
             {
@@ -830,7 +878,9 @@ ompl_multiset::E8Roadmap::solve(
             num_vertices(eig), num_edges(eig));
          
          // run lazy search
-         if (num_batches < roadmap_gen->num_batches_generated)
+         bool success;
+         std::vector<Edge> epath;
+         if (num_batches < _roadmap->num_batches_generated)
          {
             printf("doing filtered lazy search ...\n");
             filter_num_batches filter(get(&EProps::batch,g), num_batches);
@@ -845,22 +895,45 @@ ompl_multiset::E8Roadmap::solve(
          overlay_unapply();
          
          if (success)
+         {
+            /* create the path */
+            ompl::geometric::PathGeometric * path
+               = new ompl::geometric::PathGeometric(si_);
+            //path->append(g[og[ov_start].core_vertex].state->state);
+            epath.pop_back(); // last edge targets singlegoal
+            
+            // move this into loop so we don't have to reapply!
+            overlay_apply();
+            for (std::vector<Edge>::iterator it=epath.begin(); it!=epath.end(); it++)
+               path->append(g[target(*it,g)].state);
+            overlay_unapply();
+            
+            pdef_->addSolutionPath(ompl::base::PathPtr(path));
+      
+            ret = ompl::base::PlannerStatus::EXACT_SOLUTION;
             break;
+         }
       }
       
       // did we run out of batches?
       if (_max_batches <= num_batches)
-         return ompl::base::PlannerStatus::EXACT_SOLUTION;
+      {
+         ret = ompl::base::PlannerStatus::EXACT_SOLUTION;
+         break;
+      }
       
       // consider the next batch
       num_batches++;
       
-      if (roadmap_gen->num_batches_generated < num_batches)
+      if (_roadmap->num_batches_generated < num_batches)
       {
-         if (roadmap_gen->max_batches && roadmap_gen->max_batches <= roadmap_gen->num_batches_generated)
-            return ompl::base::PlannerStatus::EXACT_SOLUTION;
+         if (_roadmap->max_batches && _roadmap->max_batches <= _roadmap->num_batches_generated)
+         {
+            ret = ompl::base::PlannerStatus::EXACT_SOLUTION;
+            break;
+         }
          
-         std::size_t new_batch = roadmap_gen->num_batches_generated;
+         std::size_t new_batch = _roadmap->num_batches_generated;
          
          printf("densifying to batch [%lu] ...\n", new_batch);
          
@@ -873,14 +946,8 @@ ompl_multiset::E8Roadmap::solve(
             time_roadmapgen_begin = boost::chrono::high_resolution_clock::now();
          
          // add a batch!
-         //NN nnbatched(eig, get(&VProps::state,g), space, ompl_nn.get());
          //nn.sync();
-         roadmap_gen->generate(eig, nn.get(),
-            get(&VProps::state, g),
-            get(&EProps::distance, g),
-            get(&VProps::batch, g),
-            get(&EProps::batch, g),
-            get(&VProps::is_shadow, g));
+         _roadmap->generate();
          
          // timing
          if (_do_timing)
@@ -921,7 +988,7 @@ ompl_multiset::E8Roadmap::solve(
          }
          
          // add new edges to overlay vertices
-         double root_radius = roadmap_gen->root_radius(new_batch);
+         double root_radius = _roadmap->root_radius(new_batch);
          
          // iterate over all non-anchor non-singleroot overlay vertices
          // connect them to the new batch
@@ -974,39 +1041,9 @@ ompl_multiset::E8Roadmap::solve(
    }
    
    if (_do_timing)
-   {
-      printf("roadmapgen duration: %f\n",
-         boost::chrono::duration<double>(_dur_roadmapgen).count());
-      printf("search duration: %f\n",
-         boost::chrono::duration<double>(_dur_search).count());
-      printf("eval duration: %f\n",
-         boost::chrono::duration<double>(_dur_eval).count());
       _dur_total = boost::chrono::high_resolution_clock::now() - time_total_begin;
-      printf("total duration: %f\n",
-         boost::chrono::duration<double>(_dur_total).count());
-   }
 
-   if (success)
-   {
-      /* create the path */
-      ompl::geometric::PathGeometric * path
-         = new ompl::geometric::PathGeometric(si_);
-      //path->append(g[og[ov_start].core_vertex].state->state);
-      epath.pop_back(); // last edge targets singlegoal
-      
-      // move this into loop so we don't have to reapply!
-      overlay_apply();
-      for (std::vector<Edge>::iterator it=epath.begin(); it!=epath.end(); it++)
-         path->append(g[target(*it,g)].state);
-      overlay_unapply();
-      
-      pdef_->addSolutionPath(ompl::base::PathPtr(path));
-      return ompl::base::PlannerStatus::EXACT_SOLUTION;
-   }
-   else
-   {
-      return ompl::base::PlannerStatus::TIMEOUT;
-   }
+   return ret;
 }
 
 // solves only core vertices

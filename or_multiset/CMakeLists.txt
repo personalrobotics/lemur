@@ -37,7 +37,7 @@ add_library(${PROJECT_NAME}
    src/module_subset_manager.cpp
    src/planner_multiset_prm.cpp
    src/planner_e8roadmap.cpp
-   src/planner_e8roadmapselfcc.cpp
+   #src/planner_e8roadmapselfcc.cpp
    src/planner_family.cpp
    )
 
