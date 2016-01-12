@@ -176,6 +176,13 @@ void ompl_multiset::E8Roadmap::registerRoadmapType(std::string roadmap_type,
 
 void ompl_multiset::E8Roadmap::setRoadmapType(std::string roadmap_type)
 {
+   if (_roadmap && _roadmap->initialized)
+   {
+      if (roadmap_type == _roadmap_type)
+         return;
+      throw std::runtime_error("roadmap cannot be changed once initialized!");
+   }
+
    std::map<std::string, boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> >::iterator it=_roadmap_registry.find(roadmap_type);
    if (it == _roadmap_registry.end())
       throw std::runtime_error("roadmap type not in registry!");

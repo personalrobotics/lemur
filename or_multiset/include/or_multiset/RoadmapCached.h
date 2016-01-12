@@ -180,7 +180,9 @@ public:
          // we've generated num_batches_generated so far
          
          // is this the first one, after we generated something?
-         if (_infile_num_batches && this->num_batches_generated)
+         if (_infile_num_batches // there were batches in the file
+            && this->num_batches_generated // that we've generated
+            && !(_roadmap_wrapped->num_batches_generated)) // but wrapped hasn't yet!
          {
             // ok, there were batches we generated from the cache,
             // and now we're using the wrapped roadmap for the rest

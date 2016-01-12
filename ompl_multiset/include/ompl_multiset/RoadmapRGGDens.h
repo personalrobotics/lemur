@@ -66,6 +66,8 @@ public:
    
    void setNumPerBatch(unsigned int num_per_batch)
    {
+      if (num_per_batch == _num_per_batch)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set num_per_batch, already initialized!");
       _num_per_batch = num_per_batch;
@@ -78,6 +80,8 @@ public:
    
    void setRadiusFirstBatch(double radius_first_batch)
    {
+      if (radius_first_batch == _radius_first_batch)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set radius_first_batch, already initialized!");
       _radius_first_batch = radius_first_batch;
@@ -90,6 +94,8 @@ public:
    
    void setSeed(unsigned int seed)
    {
+      if (seed == _seed)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set seed, already initialized!");
       _seed = seed;

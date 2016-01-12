@@ -65,6 +65,8 @@ public:
    
    void setNum(unsigned int num)
    {
+      if (num == _num)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set num, already initialized!");
       _num = num;
@@ -77,6 +79,8 @@ public:
    
    void setRadius(double radius)
    {
+      if (radius == _radius)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set radius, already initialized!");
       _radius = radius;
@@ -89,6 +93,8 @@ public:
    
    void setSeed(unsigned int seed)
    {
+      if (seed == _seed)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set seed, already initialized!");
       _seed = seed;

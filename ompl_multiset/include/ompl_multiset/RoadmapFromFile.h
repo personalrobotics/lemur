@@ -40,6 +40,8 @@ public:
 
    void setFilename(std::string filename)
    {
+      if (filename == _filename)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set filename, already initialized!");
       _filename = filename;
@@ -52,6 +54,8 @@ public:
 
    void setRootRadius(double root_radius)
    {
+      if (root_radius == _root_radius)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set root_radius, already initialized!");
       _root_radius = root_radius;

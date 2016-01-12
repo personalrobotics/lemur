@@ -42,6 +42,8 @@ public:
 
    void setRes(double res)
    {
+      if (res == _res)
+         return;
       if (this->initialized)
          throw std::runtime_error("cannot set res, already initialized!");
       _res = res;
