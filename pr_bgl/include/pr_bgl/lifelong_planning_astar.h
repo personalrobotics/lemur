@@ -26,6 +26,7 @@ public:
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
    typedef typename boost::graph_traits<Graph>::out_edge_iterator OutEdgeIter;
    typedef typename boost::graph_traits<Graph>::in_edge_iterator InEdgeIter;
+   typedef typename boost::property_traits<WeightMap>::value_type weight_type;
    
    const Graph & g;
    Vertex v_start;
@@ -42,7 +43,7 @@ public:
    CostInf inf;
    CostZero zero;
    
-   HeapIndexed< std::pair<unsigned int, unsigned int> > queue;
+   HeapIndexed< std::pair<weight_type,weight_type> > queue;
    
    lifelong_planning_astar(
       const Graph & g,
@@ -73,9 +74,9 @@ public:
       queue.insert(get(index_map,v_start), std::make_pair(h(v_start),0));
    }
    
-   inline std::pair<unsigned int, unsigned int> calculate_key(Vertex u)
+   inline std::pair<weight_type,weight_type> calculate_key(Vertex u)
    {
-      unsigned int minval
+      weight_type minval
          = std::min(get(distance,u), get(distance_lookahead,u));
       return std::make_pair(minval+h(u), minval);
    }
@@ -85,11 +86,11 @@ public:
       size_t u_idx = get(index_map,u);
       if (u != v_start)
       {
-         unsigned int rhs = inf;
+         weight_type rhs = inf;
          InEdgeIter ei, ei_end;
          for (boost::tie(ei,ei_end)=in_edges(u,g); ei!=ei_end; ei++)
          {
-            unsigned int val = combine(get(distance,source(*ei,g)), get(weight,*ei));
+            weight_type val = combine(get(distance,source(*ei,g)), get(weight,*ei));
             if (val < rhs)
             {
                rhs = val;
@@ -110,6 +111,7 @@ public:
          || get(distance_lookahead,v_goal) != get(distance,v_goal))
       {
          Vertex u = vertex(queue.top_idx(), g);
+         
          vis.examine_vertex(u, g);
          queue.remove_min();
          if (get(distance,u) > get(distance_lookahead,u))
