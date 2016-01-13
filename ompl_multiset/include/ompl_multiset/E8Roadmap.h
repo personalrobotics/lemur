@@ -160,6 +160,11 @@ private:
    OverVertex ov_singlestart;
    OverVertex ov_singlegoal;
    
+   // hack to account for singleroot edges given 
+   // undirected representation (breaks heuristic consistency)
+   double _singlestart_cost;
+   double _singlegoal_cost;
+   
    // for overlay anchors
    std::map<Vertex, OverVertex> map_to_overlay;
    
@@ -192,7 +197,8 @@ private:
    enum
    {
       SEARCH_TYPE_DIJKSTRAS,
-      SEARCH_TYPE_ASTAR
+      SEARCH_TYPE_ASTAR,
+      SEARCH_TYPE_LPASTAR
    } _search_type;
    
    enum

@@ -335,7 +335,7 @@ public:
 
 // solve returns weight_type::max if a non-infinite path is found
 // solve is always called with the same g,v_start,v_goal
-template <class Graph, class WMap>
+template <class Graph, class WMap, class PredecessorMap, class DistanceMap>
 class lazysp_incsp_dijkstra
 {
 public:
@@ -362,20 +362,24 @@ public:
       inline void finish_vertex(Vertex u, const Graph & g) {}
    };
    
-   lazysp_incsp_dijkstra() {}
+   PredecessorMap predecessor_map;
+   DistanceMap distance_map;
+   
+   lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map):
+      predecessor_map(predecessor_map), distance_map(distance_map)
+   {
+   }
    
    weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
       WMap wmap, std::vector<Edge> & path)
    {
-      std::map<Vertex,Vertex> startpreds;
-      std::map<Vertex,weight_type> startdist;
       try
       {
          boost::dijkstra_shortest_paths(
             g,
             v_start,
-            boost::make_assoc_property_map(startpreds),
-            boost::make_assoc_property_map(startdist),
+            predecessor_map,
+            distance_map,
             wmap,
             get(boost::vertex_index, g), // implicit vertex index map
             std::less<weight_type>(), // compare
@@ -390,14 +394,14 @@ public:
       {
       }
          
-      if (startdist[v_goal] == std::numeric_limits<weight_type>::max())
+      if (get(distance_map,v_goal) == std::numeric_limits<weight_type>::max())
          return std::numeric_limits<weight_type>::max();
       
       // get path
       path.clear();
       for (Vertex v_walk=v_goal; v_walk!=v_start;)
       {
-         Vertex v_pred = startpreds[v_walk];
+         Vertex v_pred = get(predecessor_map, v_walk);
          std::pair<Edge,bool> ret = edge(v_pred, v_walk, g);
          BOOST_ASSERT(ret.second);
          path.push_back(ret.first);
@@ -405,7 +409,7 @@ public:
       }
       std::reverse(path.begin(),path.end());
       
-      return startdist[v_goal];
+      return get(distance_map, v_goal);
    }
    
    void update_notify(Edge e)
@@ -413,9 +417,16 @@ public:
    }
 };
 
+template <class Graph, class WMap, class PredecessorMap, class DistanceMap>
+lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap>
+make_lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map)
+{
+   return lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap>(predecessor_map, distance_map);
+}
+
 // solve returns weight_type::max if a non-infinite path is found
 // solve is always called with the same g,v_start,v_goal
-template <class Graph, class WMap, class HeuristicMap, class CostMap, class ColorMap>
+template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class CostMap, class ColorMap>
 class lazysp_incsp_astar
 {
 public:
@@ -455,17 +466,18 @@ public:
    };
    
    HeuristicMap heuristic_map;
+   PredecessorMap predecessor_map;
+   DistanceMap distance_map;
    CostMap cost_map;
    ColorMap color_map;
-   lazysp_incsp_astar(HeuristicMap heuristic_map, CostMap cost_map, ColorMap color_map):
-      heuristic_map(heuristic_map), cost_map(cost_map), color_map(color_map)
+   
+   lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map, CostMap cost_map, ColorMap color_map):
+      heuristic_map(heuristic_map), predecessor_map(predecessor_map), distance_map(distance_map), cost_map(cost_map), color_map(color_map)
    {}
    
    weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
       WMap wmap, std::vector<Edge> & path)
    {
-      std::map<Vertex,Vertex> startpreds;
-      std::map<Vertex,weight_type> startdist;
       try
       {
          astar_search(
@@ -473,9 +485,9 @@ public:
             v_start,
             map_heuristic(heuristic_map), // AStarHeuristic h
             throw_visitor(v_goal), // AStarVisitor vis
-            boost::make_assoc_property_map(startpreds), // PredecessorMap predecessor
+            predecessor_map, // PredecessorMap predecessor
             cost_map, // CostMap cost
-            boost::make_assoc_property_map(startdist), // DistanceMap distance
+            distance_map, // DistanceMap distance
             wmap, // WeightMap weight
             get(boost::vertex_index, g), // VertexIndexMap index_map
             color_map, // ColorMap color
@@ -489,14 +501,14 @@ public:
       {
       }
          
-      if (startdist[v_goal] == std::numeric_limits<weight_type>::max())
+      if (get(distance_map,v_goal) == std::numeric_limits<weight_type>::max())
          return std::numeric_limits<weight_type>::max();
       
       // get path
       path.clear();
       for (Vertex v_walk=v_goal; v_walk!=v_start;)
       {
-         Vertex v_pred = startpreds[v_walk];
+         Vertex v_pred = get(predecessor_map, v_walk);
          std::pair<Edge,bool> ret = edge(v_pred, v_walk, g);
          BOOST_ASSERT(ret.second);
          path.push_back(ret.first);
@@ -504,7 +516,7 @@ public:
       }
       std::reverse(path.begin(),path.end());
       
-      return startdist[v_goal];
+      return get(distance_map, v_goal);
    }
    
    void update_notify(Edge e)
@@ -512,11 +524,11 @@ public:
    }
 };
 
-template <class Graph, class WMap, class HeuristicMap, class CostMap, class ColorMap>
-lazysp_incsp_astar<Graph,WMap,HeuristicMap,CostMap,ColorMap>
-make_lazysp_incsp_astar(HeuristicMap heuristic_map, CostMap cost_map, ColorMap color_map)
+template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class CostMap, class ColorMap>
+lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap>
+make_lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map, CostMap cost_map, ColorMap color_map)
 {
-   return lazysp_incsp_astar<Graph,WMap,HeuristicMap,CostMap,ColorMap>(heuristic_map, cost_map, color_map);
+   return lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap>(heuristic_map, predecessor_map, distance_map, cost_map, color_map);
 }
 
 } // namespace pr_bgl
