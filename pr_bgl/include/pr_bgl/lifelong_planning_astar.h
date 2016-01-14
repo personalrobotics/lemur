@@ -107,8 +107,9 @@ public:
    
    void compute_shortest_path()
    {
-      while (queue.top_key() < calculate_key(v_goal)
-         || get(distance_lookahead,v_goal) != get(distance,v_goal))
+      while (queue.size()
+         && (queue.top_key() < calculate_key(v_goal)
+         || get(distance_lookahead,v_goal) != get(distance,v_goal)))
       {
          Vertex u = vertex(queue.top_idx(), g);
          
