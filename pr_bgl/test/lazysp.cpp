@@ -66,6 +66,8 @@ TEST(LazySPTestCase, LazySPTest)
    // run lazysp
    std::vector<Edge> path;
    std::map<Edge, double> dist_lazy = dist;
+   std::vector<Vertex> v_startpreds(num_vertices(g));
+   std::vector<double> v_startdist(num_vertices(g));
    
    bool success = pr_bgl::lazy_shortest_path(
       g, vertex(17,g), vertex(22,g),
@@ -75,7 +77,9 @@ TEST(LazySPTestCase, LazySPTest)
       boost::make_assoc_property_map(dist_lazy),
       boost::make_assoc_property_map(isevaled),
       path,
-      pr_bgl::lazysp_incsp_dijkstra<Graph,boost::associative_property_map< std::map<Edge,double> > >(),
+      pr_bgl::make_lazysp_incsp_dijkstra< Graph, boost::associative_property_map< std::map<Edge,double> > >(
+         boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+         boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
       pr_bgl::LazySpEvalAlt(),
       pr_bgl::lazysp_null_visitor());
    ASSERT_EQ(true, success);

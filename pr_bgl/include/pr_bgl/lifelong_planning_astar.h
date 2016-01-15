@@ -42,6 +42,7 @@ public:
    CombineFunction combine;
    CostInf inf;
    CostZero zero;
+   weight_type goal_margin;
    
    HeapIndexed< std::pair<weight_type,weight_type> > queue;
    
@@ -55,13 +56,15 @@ public:
       WeightMap weight,
       VertexIndexMap index_map,
       CompareFunction compare, CombineFunction combine,
-      CostInf inf, CostZero zero):
+      CostInf inf, CostZero zero,
+      weight_type goal_margin):
       g(g), v_start(v_start), v_goal(v_goal),
       h(h), vis(vis), predecessor(predecessor),
       distance(distance), distance_lookahead(distance_lookahead),
       weight(weight), index_map(index_map),
       compare(compare), combine(combine),
-      inf(inf), zero(zero)
+      inf(inf), zero(zero),
+      goal_margin(goal_margin)
    {
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
@@ -74,10 +77,12 @@ public:
       queue.insert(get(index_map,v_start), std::make_pair(h(v_start),0));
    }
    
-   inline std::pair<weight_type,weight_type> calculate_key(Vertex u)
+   inline std::pair<weight_type,weight_type> calculate_key(Vertex u, bool do_goal_margin=false)
    {
       weight_type minval
          = std::min(get(distance,u), get(distance_lookahead,u));
+      if (do_goal_margin)
+         minval += goal_margin;
       return std::make_pair(minval+h(u), minval);
    }
    
@@ -108,7 +113,7 @@ public:
    void compute_shortest_path()
    {
       while (queue.size()
-         && (queue.top_key() < calculate_key(v_goal)
+         && (queue.top_key() < calculate_key(v_goal,true) // do_goal_margin
          || get(distance_lookahead,v_goal) != get(distance,v_goal)))
       {
          Vertex u = vertex(queue.top_idx(), g);

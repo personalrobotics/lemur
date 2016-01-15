@@ -802,7 +802,8 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                   boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g))), // rhsvalues_map
+                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  1.0e-9),
                pr_bgl::LazySpEvalFwd(),
                epath);
          case EVAL_TYPE_REV:
@@ -814,7 +815,8 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                   boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g))), // rhsvalues_map
+                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  1.0e-9),
                pr_bgl::LazySpEvalRev(),
                epath);
          case EVAL_TYPE_ALT:
@@ -826,7 +828,8 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                   boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g))), // rhsvalues_map
+                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  1.0e-9),
                pr_bgl::LazySpEvalAlt(),
                epath);
          case EVAL_TYPE_BISECT:
@@ -838,7 +841,8 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                   boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g))), // rhsvalues_map
+                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  1.0e-9),
                pr_bgl::LazySpEvalBisect(),
                epath);
          case EVAL_TYPE_FWD_EXPAND:
@@ -850,7 +854,8 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                   boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g))), // rhsvalues_map
+                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  1.0e-9),
                pr_bgl::LazySpEvalFwdExpand(),
                epath);
          case EVAL_TYPE_PARTITION_ALL:
@@ -862,7 +867,8 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                   boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g))), // rhsvalues_map
+                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  1.0e-9),
                pr_bgl::lazysp_partition_all<MyGraph,EPWlazyMap>(
                   g, get(&EProps::w_lazy,g),
                   1.0/3.0, // len_ref
@@ -879,7 +885,8 @@ bool ompl_multiset::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epat
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                   boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g))), // rhsvalues_map
+                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  1.0e-9),
                pr_bgl::lazysp_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_multiset::IsEvaledMap>(
                   get(&EProps::w_lazy,g),
                   ompl_multiset::IsEvaledMap(*this),

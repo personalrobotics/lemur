@@ -245,7 +245,8 @@ TEST(LifelongPlanningAstarTestCase, LifelongPlanningAstarTest)
       get(boost::vertex_index, g), // index_map
       std::less<unsigned int>(), // compare
       boost::closed_plus<unsigned int>(std::numeric_limits<unsigned int>::max()), // combine
-      std::numeric_limits<unsigned int>::max(), 0// cost inf, zero
+      std::numeric_limits<unsigned int>::max(), 0, // cost inf, zero
+      0 // goal_margin
    );
 
    // run search

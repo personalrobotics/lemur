@@ -55,7 +55,8 @@ public:
       Graph & g, Vertex v_start, Vertex v_goal, WMap w_map,
       HeuristicMap heuristic_map,
       PredecessorMap predecessor_map, DistanceMap distance_map,
-      DistanceLookaheadMap distance_lookahead_map):
+      DistanceLookaheadMap distance_lookahead_map,
+      weight_type goal_margin):
       g(g), v_start(v_start), v_goal(v_goal), w_map(w_map),
       heuristic_map(heuristic_map),
       predecessor_map(predecessor_map),
@@ -72,7 +73,8 @@ public:
          std::less<weight_type>(), // compare
          boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
          std::numeric_limits<weight_type>::max(),
-         weight_type())
+         weight_type(),
+         goal_margin)
    {
    }
    
@@ -116,10 +118,11 @@ make_lazysp_incsp_lifelong_planning_astar(
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
    WMap w_map, HeuristicMap heuristic_map,
    PredecessorMap predecessor_map, DistanceMap distance_map,
-   DistanceLookaheadMap distance_lookahead_map)
+   DistanceLookaheadMap distance_lookahead_map,
+   typename boost::property_traits<WMap>::value_type goal_margin)
 {
    return lazysp_incsp_lifelong_planning_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap>(
-      g, v_start, v_goal, w_map, heuristic_map, predecessor_map, distance_map, distance_lookahead_map);
+      g, v_start, v_goal, w_map, heuristic_map, predecessor_map, distance_map, distance_lookahead_map, goal_margin);
 }
 
 } // namespace pr_bgl
