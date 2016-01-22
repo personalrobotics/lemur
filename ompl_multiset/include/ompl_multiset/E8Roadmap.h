@@ -222,6 +222,8 @@ private:
    
    boost::chrono::high_resolution_clock::duration _dur_total;
    boost::chrono::high_resolution_clock::duration _dur_roadmapgen;
+   boost::chrono::high_resolution_clock::duration _dur_roadmapinit;
+   boost::chrono::high_resolution_clock::duration _dur_lazysp;
    boost::chrono::high_resolution_clock::duration _dur_search;
    boost::chrono::high_resolution_clock::duration _dur_eval;
    
@@ -292,9 +294,10 @@ public:
    
    double getDurTotal();
    double getDurRoadmapGen();
+   double getDurRoadmapInit();
+   double getDurLazySP();
    double getDurSearch();
    double getDurEval();
-   double getDurUnaccounted();
    
    // part 4: private-ish methods
    

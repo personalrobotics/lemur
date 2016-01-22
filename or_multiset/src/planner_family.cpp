@@ -524,8 +524,9 @@ bool or_multiset::FamilyPlanner::GetTimes(std::ostream & sout, std::istream & si
    }
    sout << " e8_dur_total " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurTotal();
    sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurRoadmapGen();
+   sout << " e8_dur_roadmapinit " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurRoadmapInit();
+   sout << " e8_dur_lazysp " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurLazySP();
    sout << " e8_dur_search " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurSearch();
    sout << " e8_dur_eval " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurEval();
-   sout << " e8_dur_unaccounted " <<  ompl_planner->as<ompl_multiset::E8Roadmap>()->getDurUnaccounted();
    return true;
 }

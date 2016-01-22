@@ -58,6 +58,18 @@ vertex(size_t v_index, const boost::filtered_graph<ompl_multiset::E8Roadmap::Gra
    return vertex(v_index, g.m_g);
 }
 
+// since we've structured our graph (via the overlay manager)
+// to always remove vertices in the reverse order,
+// we replace boost's remove_vertex function
+// (which iterates over all graph edges in order to shift vertex descriptors)
+// with our simple and much faster version
+inline
+void remove_vertex(ompl_multiset::E8Roadmap::Vertex v, ompl_multiset::E8Roadmap::Graph & g)
+{
+   BOOST_ASSERT(v == num_vertices(g)-1);
+   g.m_vertices.pop_back();
+}
+
 } // anonymous namespace
 
 /*
@@ -983,6 +995,8 @@ ompl_multiset::E8Roadmap::solve(
    if (_do_timing)
    {
       _dur_roadmapgen = boost::chrono::high_resolution_clock::duration();
+      _dur_roadmapinit = boost::chrono::high_resolution_clock::duration();
+      _dur_lazysp = boost::chrono::high_resolution_clock::duration();
       _dur_search = boost::chrono::high_resolution_clock::duration();
       _dur_eval = boost::chrono::high_resolution_clock::duration();
       time_total_begin = boost::chrono::high_resolution_clock::now();
@@ -1027,7 +1041,7 @@ ompl_multiset::E8Roadmap::solve(
    }
    
    unsigned int num_batches = 0;
-   
+
    // run batches of lazy search
    ompl::base::PlannerStatus ret = ompl::base::PlannerStatus::TIMEOUT;
    while (ptc() == false)
@@ -1065,6 +1079,11 @@ ompl_multiset::E8Roadmap::solve(
          // run lazy search
          bool success;
          std::vector<Edge> epath;
+         
+         boost::chrono::high_resolution_clock::time_point time_lazysp_begin;
+         if (_do_timing)
+            time_lazysp_begin = boost::chrono::high_resolution_clock::now();
+         
          if (num_batches < _roadmap->num_batches_generated)
          {
             printf("doing filtered lazy search ...\n");
@@ -1077,7 +1096,8 @@ ompl_multiset::E8Roadmap::solve(
             success = do_lazysp_a(g, epath);
          }
          
-         overlay_unapply();
+         if (_do_timing)
+            _dur_lazysp += boost::chrono::high_resolution_clock::now() - time_lazysp_begin;
          
          if (success)
          {
@@ -1087,14 +1107,16 @@ ompl_multiset::E8Roadmap::solve(
             //path->append(g[og[ov_start].core_vertex].state->state);
             epath.pop_back(); // last edge targets singlegoal
             
-            // move this into loop so we don't have to reapply!
-            overlay_apply();
             for (std::vector<Edge>::iterator it=epath.begin(); it!=epath.end(); it++)
                path->append(g[target(*it,g)].state);
-            overlay_unapply();
             
             pdef_->addSolutionPath(ompl::base::PathPtr(path));
-      
+         }
+         
+         overlay_unapply();
+         
+         if (success)
+         {
             ret = ompl::base::PlannerStatus::EXACT_SOLUTION;
             break;
          }
@@ -1135,8 +1157,12 @@ ompl_multiset::E8Roadmap::solve(
          _roadmap->generate();
          
          // timing
+         boost::chrono::high_resolution_clock::time_point time_roadmapinit_begin;
          if (_do_timing)
-            _dur_roadmapgen += boost::chrono::high_resolution_clock::now() - time_roadmapgen_begin;
+         {
+            time_roadmapinit_begin = boost::chrono::high_resolution_clock::now();
+            _dur_roadmapgen += time_roadmapinit_begin - time_roadmapgen_begin;
+         }
          
          size_t v_to = num_vertices(eig);
          size_t e_to = num_edges(eig);
@@ -1222,6 +1248,9 @@ ompl_multiset::E8Roadmap::solve(
                //og[e].tag = 0;
             }
          }
+         
+         if (_do_timing)
+            _dur_roadmapinit += boost::chrono::high_resolution_clock::now() - time_roadmapinit_begin;
       }
    }
    
@@ -1318,6 +1347,16 @@ double ompl_multiset::E8Roadmap::getDurRoadmapGen()
    return boost::chrono::duration<double>(_dur_roadmapgen).count();
 }
 
+double ompl_multiset::E8Roadmap::getDurRoadmapInit()
+{
+   return boost::chrono::duration<double>(_dur_roadmapinit).count();
+}
+
+double ompl_multiset::E8Roadmap::getDurLazySP()
+{
+   return boost::chrono::duration<double>(_dur_lazysp).count();
+}
+
 double ompl_multiset::E8Roadmap::getDurSearch()
 {
    return boost::chrono::duration<double>(_dur_search).count();
@@ -1326,11 +1365,6 @@ double ompl_multiset::E8Roadmap::getDurSearch()
 double ompl_multiset::E8Roadmap::getDurEval()
 {
    return boost::chrono::duration<double>(_dur_eval).count();
-}
-
-double ompl_multiset::E8Roadmap::getDurUnaccounted()
-{
-   return getDurTotal() - getDurRoadmapGen() - getDurSearch() - getDurEval();
 }
 
 void ompl_multiset::E8Roadmap::overlay_apply()
