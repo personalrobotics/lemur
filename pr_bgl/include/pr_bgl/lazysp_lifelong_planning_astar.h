@@ -7,7 +7,7 @@
 namespace pr_bgl
 {
 
-// solve returns weight_type::max if a non-infinite path is found
+// solve returns weight_type::max if no path is found
 // solve is always called with the same g,v_start,v_goal
 template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class DistanceLookaheadMap>
 class lazysp_incsp_lifelong_planning_astar
@@ -32,11 +32,8 @@ public:
    Graph & g;
    Vertex v_start;
    Vertex v_goal;
-   WMap w_map;
-   HeuristicMap heuristic_map;
    PredecessorMap predecessor_map;
    DistanceMap distance_map;
-   DistanceLookaheadMap distance_lookahead_map;
    
    // lpa* instance
    pr_bgl::lifelong_planning_astar<Graph,
@@ -57,11 +54,9 @@ public:
       PredecessorMap predecessor_map, DistanceMap distance_map,
       DistanceLookaheadMap distance_lookahead_map,
       weight_type goal_margin):
-      g(g), v_start(v_start), v_goal(v_goal), w_map(w_map),
-      heuristic_map(heuristic_map),
+      g(g), v_start(v_start), v_goal(v_goal),
       predecessor_map(predecessor_map),
       distance_map(distance_map),
-      distance_lookahead_map(distance_lookahead_map),
       lpastar(g, v_start, v_goal,
          map_heuristic(heuristic_map),
          boost::make_astar_visitor(boost::null_visitor()),

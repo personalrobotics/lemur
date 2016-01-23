@@ -11,7 +11,8 @@ namespace pr_bgl
 // (that is, update_edge will attempt an upate in both directions)
 // we assume that everything is constant (graph structure)
 // rhs = one-step-lookahead (based on d/g)
-// d[DynamicSWSF-FP] = g[LPA*] = saved value = distance map
+// d (DynamicSWSF-FP) = g (LPA*) value = distance map
+// rhs (DynamicSWSF-FP) = rhs (LPA*) = distance_lookahead_map
 template <typename Graph, typename AStarHeuristic,
    typename LPAStarVisitor, typename PredecessorMap,
    typename DistanceMap, typename DistanceLookaheadMap,

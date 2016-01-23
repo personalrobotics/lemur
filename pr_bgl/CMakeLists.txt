@@ -12,9 +12,7 @@ include_directories(
    include
    ${Boost_INCLUDE_DIRS})
 
-#set(CMAKE_BUILD_TYPE Release)
-
-add_executable(test_incbi src/test_incbi.cpp)
+set(CMAKE_BUILD_TYPE Release)
 
 if (CATKIN_ENABLE_TESTING)
    
@@ -29,6 +27,8 @@ if (CATKIN_ENABLE_TESTING)
    set_target_properties(test_lifelong_planning_astar PROPERTIES
       COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
    target_link_libraries(test_lifelong_planning_astar ${Boost_LIBRARIES})
+   
+   catkin_add_gtest(test_inc_bi test/inc_bi.cpp)
    
    catkin_add_gtest(test_partition_all test/partition_all.cpp)
    
