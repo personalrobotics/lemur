@@ -1161,8 +1161,8 @@ ompl_multiset::E8Roadmap::solve(
       _singlegoal_cost = 1.0e-9;
       break;
    default:
-      _singlestart_cost = 0.0;
-      _singlegoal_cost = 0.0;
+      _singlestart_cost = 1.0e-9;
+      _singlegoal_cost = 1.0e-9;
    }
 
    

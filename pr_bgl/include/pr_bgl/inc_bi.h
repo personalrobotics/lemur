@@ -37,6 +37,33 @@ public:
    typedef typename boost::graph_traits<Graph>::in_edge_iterator InEdgeIter;
    typedef typename boost::property_traits<WeightMap>::value_type weight_type;
    
+   struct conn_key
+   {
+      weight_type path_length;
+      weight_type start_dist;
+      weight_type goal_dist;
+      conn_key():
+         path_length(weight_type()), start_dist(weight_type()), goal_dist(weight_type())
+      {
+      }
+      conn_key(weight_type path_length, weight_type start_dist, weight_type goal_dist):
+         path_length(path_length), start_dist(start_dist), goal_dist(goal_dist)
+      {
+      }
+      bool operator<(const conn_key & rhs) const
+      {
+         return path_length < rhs.path_length;
+      }
+      bool operator>(const conn_key & rhs) const
+      {
+         return path_length > rhs.path_length;
+      }
+      bool operator<=(const conn_key & rhs) const
+      {
+         return path_length <= rhs.path_length;
+      }
+   };
+   
    const Graph & g;
    Vertex v_start;
    Vertex v_goal;
@@ -60,7 +87,7 @@ public:
    
    // contains the indices of all edges connecting one start-tree vertex to one goal-tree vertex
    // that are both consistent, sorted by start_distance + edge_weight + goal_distance
-   HeapIndexed< weight_type > conn_queue;
+   HeapIndexed< conn_key > conn_queue;
    
    inc_bi(
       const Graph & g,
@@ -144,10 +171,11 @@ public:
       {
          // ok, edge should be there!
          weight_type pathlen = combine(combine(get(start_distance,va), elen), get(goal_distance,vb));
+         conn_key new_key(pathlen, get(start_distance,va), get(goal_distance,vb));
          if (conn_queue.contains(eidx))
-            conn_queue.update(eidx, pathlen);
+            conn_queue.update(eidx, new_key);
          else
-            conn_queue.insert(eidx, pathlen);
+            conn_queue.insert(eidx, new_key);
       }
    }
    
@@ -190,8 +218,9 @@ public:
                   weight_type goaldist_target = get(goal_distance,v_target);
                   if (!goal_queue.contains(idx_target) && goaldist_target != inf)
                   {
-                     conn_queue.insert(get(edge_index_map,*ei),
-                        combine(combine(u_dist, get(weight,*ei)), goaldist_target));
+                     conn_key new_key(combine(combine(u_dist, get(weight,*ei)), goaldist_target),
+                        u_dist, goaldist_target);
+                     conn_queue.insert(get(edge_index_map,*ei), new_key);
                   }
                }
             }
@@ -255,8 +284,9 @@ public:
                   weight_type startdist_source = get(start_distance,v_source);
                   if (!start_queue.contains(idx_source) && startdist_source != inf)
                   {
-                     conn_queue.insert(get(edge_index_map,*ei),
-                        combine(combine(startdist_source, get(weight,*ei)), u_dist));
+                     conn_key new_key(combine(combine(startdist_source, get(weight,*ei)), u_dist),
+                        startdist_source, u_dist);
+                     conn_queue.insert(get(edge_index_map,*ei), new_key);
                   }
                }
             }
@@ -291,10 +321,16 @@ public:
          if (start_top == inf && goal_top == inf)
             return std::make_pair(0, false);
          
-         if (conn_queue.size() && combine(conn_queue.top_key(),goal_margin) <= combine(start_top,goal_top))
+         // termination condition is rather complicated!
+         do
          {
+            if (!conn_queue.size()) break;
+            if (combine(conn_queue.top_key().path_length,goal_margin) > combine(start_top,goal_top)) break;
+            if (combine(conn_queue.top_key().start_dist,goal_margin) > start_top) break;
+            if (combine(conn_queue.top_key().goal_dist,goal_margin) > goal_top) break;
             return std::make_pair(conn_queue.top_idx(), true);
          }
+         while (0);
          
          if (start_top < goal_top)
          {
@@ -321,8 +357,9 @@ public:
                   weight_type goaldist_target = get(goal_distance,v_target);
                   if (u_dist != inf && !goal_queue.contains(idx_target) && goaldist_target != inf)
                   {
-                     conn_queue.insert(get(edge_index_map,*ei),
-                        combine(combine(u_dist, get(weight,*ei)), goaldist_target));
+                     conn_key new_key(combine(combine(u_dist, get(weight,*ei)), goaldist_target),
+                        u_dist, goaldist_target);
+                     conn_queue.insert(get(edge_index_map,*ei), new_key);
                   }
                }
             }
@@ -360,8 +397,9 @@ public:
                   weight_type startdist_source = get(start_distance,v_source);
                   if (u_dist != inf && !start_queue.contains(idx_source) && startdist_source != inf)
                   {
-                     conn_queue.insert(get(edge_index_map,*ei),
-                        combine(combine(startdist_source, get(weight,*ei)), u_dist));
+                     conn_key new_key(combine(combine(startdist_source, get(weight,*ei)), u_dist),
+                        startdist_source, u_dist);
+                     conn_queue.insert(get(edge_index_map,*ei), new_key);
                   }
                }
             }
