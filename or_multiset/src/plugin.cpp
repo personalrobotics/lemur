@@ -46,6 +46,7 @@
 #include <or_multiset/planner_e8roadmap.h>
 //#include <or_multiset/planner_e8roadmapselfcc.h>
 #include <or_multiset/planner_family.h>
+#include <or_multiset/planner_cctimer.h>
 
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {
@@ -53,6 +54,7 @@ void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
    info.interfacenames[OpenRAVE::PT_Planner].push_back("E8Roadmap");
    //info.interfacenames[OpenRAVE::PT_Planner].push_back("E8RoadmapSelfCC");
    info.interfacenames[OpenRAVE::PT_Planner].push_back("FamilyPlanner");
+   info.interfacenames[OpenRAVE::PT_Planner].push_back("CCTimer");
    info.interfacenames[OpenRAVE::PT_Module].push_back("SubsetManager");
 }
 
@@ -70,6 +72,8 @@ OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
    //   return OpenRAVE::InterfaceBasePtr(new or_multiset::E8RoadmapSelfCC(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "familyplanner"))
       return OpenRAVE::InterfaceBasePtr(new or_multiset::FamilyPlanner(penv));
+   if((type == OpenRAVE::PT_Planner) && (interfacename == "cctimer"))
+      return OpenRAVE::InterfaceBasePtr(new or_multiset::CCTimer(penv));
    if((type == OpenRAVE::PT_Module) && (interfacename == "subsetmanager"))
       return OpenRAVE::InterfaceBasePtr(new or_multiset::ModuleSubsetManager(penv));
    return OpenRAVE::InterfaceBasePtr();

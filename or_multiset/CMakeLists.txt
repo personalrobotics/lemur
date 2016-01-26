@@ -39,6 +39,7 @@ add_library(${PROJECT_NAME}
    src/planner_e8roadmap.cpp
    #src/planner_e8roadmapselfcc.cpp
    src/planner_family.cpp
+   src/planner_cctimer.cpp
    )
 
 # openrave bindings
