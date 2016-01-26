@@ -176,8 +176,15 @@ or_multiset::E8Roadmap::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Plann
    ompl_si->setup();
    
    // set up planner
-   printf("using simple effort model with check_cost=%f\n", ompl_space->getLongestValidSegmentLength());
-   sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, ompl_space->getLongestValidSegmentLength()));
+   double check_cost;
+   if (params->has_check_cost)
+      check_cost = params->check_cost;
+   else
+   {
+      check_cost = ompl_space->getLongestValidSegmentLength();
+      printf("using simple effort model with default check_cost=%f\n", check_cost);
+   }
+   sem.reset(new ompl_multiset::SimpleEffortModel(ompl_si, check_cost));
    tag_cache.reset(new ompl_multiset::DummyTagCache<ompl_multiset::E8Roadmap::VIdxTagMap,ompl_multiset::E8Roadmap::EIdxTagsMap>());
    ompl_planner.reset(new ompl_multiset::E8Roadmap(ompl_space, *sem, *tag_cache));
    

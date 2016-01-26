@@ -33,6 +33,9 @@ public:
    bool has_graph;
    std::string graph;
    
+   bool has_check_cost;
+   double check_cost;
+   
    bool has_coeff_distance;
    double coeff_distance;
    
@@ -67,6 +70,7 @@ public:
       has_alglog(false),
       has_do_alglog_append(false),
       has_graph(false),
+      has_check_cost(false),
       has_coeff_distance(false),
       has_coeff_checkcost(false),
       has_coeff_batch(false),
@@ -84,6 +88,7 @@ public:
       _vXMLParameters.push_back("alglog");
       _vXMLParameters.push_back("do_alglog_append");
       _vXMLParameters.push_back("graph");
+      _vXMLParameters.push_back("check_cost");
       _vXMLParameters.push_back("coeff_distance");
       _vXMLParameters.push_back("coeff_checkcost");
       _vXMLParameters.push_back("coeff_batch");
@@ -120,6 +125,8 @@ private:
          sout << "<do_alglog_append>" << (do_alglog_append?"true":"false") << "</do_alglog_append>";
       if (has_graph)
          sout << "<graph>" << graph << "</graph>";
+      if (has_check_cost)
+         sout << "<check_cost>" << check_cost << "</check_cost>";
       if (has_coeff_distance)
          sout << "<coeff_distance>" << coeff_distance << "</coeff_distance>";
       if (has_coeff_checkcost)
@@ -158,6 +165,7 @@ private:
          || name == "alglog"
          || name == "do_alglog_append"
          || name == "graph"
+         || name == "check_cost"
          || name == "coeff_distance"
          || name == "coeff_checkcost"
          || name == "coeff_batch"
@@ -225,6 +233,11 @@ private:
          {
             graph = _ss.str();
             has_graph = true;
+         }
+         if (el_deserializing == "check_cost")
+         {
+            _ss >> check_cost;
+            has_check_cost = true;
          }
          if (el_deserializing == "coeff_distance")
          {

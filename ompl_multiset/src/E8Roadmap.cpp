@@ -169,6 +169,8 @@ ompl_multiset::E8Roadmap::E8Roadmap(
    og[ov_singlegoal].is_shadow = false;
    og[ov_singlegoal].tag = 0;
    
+   printf("space->getLongestValidSegmentLength(): %f\n", space->getLongestValidSegmentLength());
+   
    printf("E8Roadmap: constructor finished.\n");
 }
 
