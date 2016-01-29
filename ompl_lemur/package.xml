@@ -1,0 +1,20 @@
+<package>
+   
+   <name>ompl_lemur</name>
+   <version>0.0.1</version>
+   <description>
+      Multi-Set PRM planner for OMPL.
+      The Multi-Set PRM is a roadmap planner which reasons about
+      a family of subsets over configuration space.
+   </description>
+   
+   <author email="cdellin@gmail.com">Chris Dellin</author>
+   <maintainer email="cdellin@gmail.com">Chris Dellin</maintainer>
+   <license>BSD</license>
+   
+   <buildtool_depend>catkin</buildtool_depend>
+   <build_depend>ompl</build_depend>
+   <build_depend>pr_bgl</build_depend>
+   <run_depend>ompl</run_depend>
+   
+</package>
