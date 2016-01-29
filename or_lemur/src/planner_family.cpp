@@ -51,7 +51,7 @@
 #include <ompl_lemur/RoadmapRGGDens.h>
 #include <ompl_lemur/RoadmapRGGDensConst.h>
 #include <ompl_lemur/BisectPerm.h>
-#include <ompl_lemur/E8Roadmap.h>
+#include <ompl_lemur/LEMUR.h>
 
 #include <or_lemur/RoadmapCached.h>
 #include <or_lemur/inter_link_checks.h>
@@ -210,7 +210,7 @@ or_lemur::FamilyPlanner::~FamilyPlanner()
 bool
 or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & inparams_ser)
 {
-   or_lemur::E8RoadmapParametersPtr inparams(new or_lemur::E8RoadmapParameters());
+   or_lemur::LEMURParametersPtr inparams(new or_lemur::LEMURParameters());
    inparams_ser >> *inparams;
    inparams->Validate();
    return this->InitPlan(robot, inparams);
@@ -224,7 +224,7 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       RAVELOG_ERROR("robot/params objects must be passed!\n");
       return false;
    }
-   E8RoadmapParametersConstPtr inparams = boost::dynamic_pointer_cast<or_lemur::E8RoadmapParameters const>(inparams_base);
+   LEMURParametersConstPtr inparams = boost::dynamic_pointer_cast<or_lemur::LEMURParameters const>(inparams_base);
    if (!inparams)
    {
       std::stringstream inparams_ser;
@@ -243,7 +243,7 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
    if (!plan_initialized)
    {
       // do setup (at most once)
-      params.reset(new or_lemur::E8RoadmapParameters());
+      params.reset(new or_lemur::LEMURParameters());
       params->copy(inparams);
       
       // robot stuff
@@ -299,9 +299,9 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       //fem->set_target(family->subsets.find("targ")->second.si);
       
       // punt on tag cache for now
-      tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::E8Roadmap::VIdxTagMap,ompl_lemur::E8Roadmap::EIdxTagsMap>());
+      tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
       
-      ompl_planner.reset(new ompl_lemur::E8Roadmap(ompl_space, *fem, *tag_cache));
+      ompl_planner.reset(new ompl_lemur::LEMUR(ompl_space, *fem, *tag_cache));
       
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
@@ -312,26 +312,26 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDens>("RGGDens");
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDensConst>("RGGDensConst");
       ompl_planner->registerRoadmapType("CachedAAGrid",
-         or_lemur::RoadmapCachedFactory<ompl_lemur::E8Roadmap::RoadmapArgs>(
-            ompl_lemur::RoadmapFactory<ompl_lemur::E8Roadmap::RoadmapArgs,ompl_lemur::RoadmapAAGrid>()));
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapAAGrid>()));
       ompl_planner->registerRoadmapType("CachedHalton",
-         or_lemur::RoadmapCachedFactory<ompl_lemur::E8Roadmap::RoadmapArgs>(
-            ompl_lemur::RoadmapFactory<ompl_lemur::E8Roadmap::RoadmapArgs,ompl_lemur::RoadmapHalton>()));
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHalton>()));
       ompl_planner->registerRoadmapType("CachedHaltonDens",
-         or_lemur::RoadmapCachedFactory<ompl_lemur::E8Roadmap::RoadmapArgs>(
-            ompl_lemur::RoadmapFactory<ompl_lemur::E8Roadmap::RoadmapArgs,ompl_lemur::RoadmapHaltonDens>()));
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonDens>()));
       ompl_planner->registerRoadmapType("CachedHaltonOffDens",
-         or_lemur::RoadmapCachedFactory<ompl_lemur::E8Roadmap::RoadmapArgs>(
-            ompl_lemur::RoadmapFactory<ompl_lemur::E8Roadmap::RoadmapArgs,ompl_lemur::RoadmapHaltonOffDens>()));
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonOffDens>()));
       ompl_planner->registerRoadmapType("CachedRGG",
-         or_lemur::RoadmapCachedFactory<ompl_lemur::E8Roadmap::RoadmapArgs>(
-            ompl_lemur::RoadmapFactory<ompl_lemur::E8Roadmap::RoadmapArgs,ompl_lemur::RoadmapRGG>()));
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGG>()));
       ompl_planner->registerRoadmapType("CachedRGGDens",
-         or_lemur::RoadmapCachedFactory<ompl_lemur::E8Roadmap::RoadmapArgs>(
-            ompl_lemur::RoadmapFactory<ompl_lemur::E8Roadmap::RoadmapArgs,ompl_lemur::RoadmapRGGDens>()));
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDens>()));
       ompl_planner->registerRoadmapType("CachedRGGDensConst",
-         or_lemur::RoadmapCachedFactory<ompl_lemur::E8Roadmap::RoadmapArgs>(
-            ompl_lemur::RoadmapFactory<ompl_lemur::E8Roadmap::RoadmapArgs,ompl_lemur::RoadmapRGGDensConst>()));
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDensConst>()));
       
       plan_initialized = true;
    }
@@ -366,7 +366,7 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
    }
    
    // set params
-   params.reset(new or_lemur::E8RoadmapParameters());
+   params.reset(new or_lemur::LEMURParameters());
    params->copy(inparams);
    
    // planner params
@@ -425,7 +425,7 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    std::ofstream fp_alglog;
    if (params->alglog == "-")
    {
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->os_alglog = &std::cout;
+      ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = &std::cout;
    }
    else if (params->alglog != "")
    {
@@ -433,7 +433,7 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
          fp_alglog.open(params->alglog.c_str(), std::ios_base::app);
       else
          fp_alglog.open(params->alglog.c_str(), std::ios_base::out);
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->os_alglog = &fp_alglog;
+      ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = &fp_alglog;
    }
    
    ompl::base::PlannerStatus ompl_status;
@@ -445,12 +445,12 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 
    if (params->has_do_roadmap_save && params->do_roadmap_save)
    {
-      boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::E8Roadmap::RoadmapArgs> > cached_roadmap
-         = boost::dynamic_pointer_cast< or_lemur::RoadmapCached<ompl_lemur::E8Roadmap::RoadmapArgs> >(ompl_planner->_roadmap);
+      boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> > cached_roadmap
+         = boost::dynamic_pointer_cast< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >(ompl_planner->_roadmap);
       if (cached_roadmap)
       {
          printf("saving cached roadmap ...\n");
-         ompl_planner->_roadmap->as< or_lemur::RoadmapCached<ompl_lemur::E8Roadmap::RoadmapArgs> >()->save_file();
+         ompl_planner->_roadmap->as< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >()->save_file();
       }
       else
       {
@@ -458,18 +458,18 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       }
    }
 
-   ompl_planner->as<ompl_lemur::E8Roadmap>()->os_alglog = 0;
+   ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = 0;
    fp_alglog.close();
    
    if (params->graph == "-")
    {
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->dump_graph(std::cout);
+      ompl_planner->as<ompl_lemur::LEMUR>()->dump_graph(std::cout);
    }
    else if (params->graph != "")
    {
       std::ofstream fp_graph;
       fp_graph.open(params->graph.c_str());
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->dump_graph(fp_graph);
+      ompl_planner->as<ompl_lemur::LEMUR>()->dump_graph(fp_graph);
       fp_graph.close();
    }
    
@@ -522,11 +522,11 @@ bool or_lemur::FamilyPlanner::GetTimes(std::ostream & sout, std::istream & sin) 
          sout << " " << ((OrIndicatorChecker*)it->second.si->getStateValidityChecker().get())->num_checks;
       }
    }
-   sout << " e8_dur_total " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurTotal();
-   sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurRoadmapGen();
-   sout << " e8_dur_roadmapinit " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurRoadmapInit();
-   sout << " e8_dur_lazysp " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurLazySP();
-   sout << " e8_dur_search " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurSearch();
-   sout << " e8_dur_eval " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurEval();
+   sout << " e8_dur_total " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurTotal();
+   sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapGen();
+   sout << " e8_dur_roadmapinit " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapInit();
+   sout << " e8_dur_lazysp " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurLazySP();
+   sout << " e8_dur_search " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSearch();
+   sout << " e8_dur_eval " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurEval();
    return true;
 }

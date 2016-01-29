@@ -1,4 +1,4 @@
-/* File: E8Roadmap.h
+/* File: LEMUR.h
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -10,7 +10,7 @@ namespace ompl_lemur
 // for now, this does HARD BATCHING with SUBGRAPH COSTS
 // the core roadmap states are owned by the core roadmap
 // the overlay roots and edges own their states (except anchors)
-class E8Roadmap : public ompl::base::Planner
+class LEMUR : public ompl::base::Planner
 {
 public:
    // part 1: typedefs
@@ -231,12 +231,12 @@ private:
    // part 3: ompl methods
 
 public:
-   E8Roadmap(
+   LEMUR(
       const ompl::base::StateSpacePtr & space,
       ompl_lemur::EffortModel & effort_model,
       ompl_lemur::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache);
    
-   ~E8Roadmap(void);
+   ~LEMUR(void);
    
    template <template<class> class RoadmapTemplate>
    void registerRoadmapType(std::string roadmap_type)
@@ -322,13 +322,13 @@ class IsEvaledMap
 {
 public:
    typedef boost::readable_property_map_tag category;
-   typedef E8Roadmap::Edge key_type;
+   typedef LEMUR::Edge key_type;
    typedef bool value_type;
    typedef bool reference;
-   E8Roadmap & e8_roadmap;
-   IsEvaledMap(E8Roadmap & e8_roadmap): e8_roadmap(e8_roadmap) {}
+   LEMUR & e8_roadmap;
+   IsEvaledMap(LEMUR & e8_roadmap): e8_roadmap(e8_roadmap) {}
 };
-inline const double get(const IsEvaledMap & isevaledmap, const E8Roadmap::Edge & e)
+inline const double get(const IsEvaledMap & isevaledmap, const LEMUR::Edge & e)
 {
    return isevaledmap.e8_roadmap.isevaledmap_get(e);
 }
@@ -338,13 +338,13 @@ class WMap
 {
 public:
    typedef boost::readable_property_map_tag category;
-   typedef E8Roadmap::Edge key_type;
+   typedef LEMUR::Edge key_type;
    typedef double value_type;
    typedef double reference;
-   E8Roadmap & e8_roadmap;
-   WMap(E8Roadmap & e8_roadmap): e8_roadmap(e8_roadmap) {}
+   LEMUR & e8_roadmap;
+   WMap(LEMUR & e8_roadmap): e8_roadmap(e8_roadmap) {}
 };
-inline const double get(const WMap & wmap, const E8Roadmap::Edge & e)
+inline const double get(const WMap & wmap, const LEMUR::Edge & e)
 {
    return wmap.e8_roadmap.wmap_get(e);
 }

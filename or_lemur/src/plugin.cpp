@@ -32,7 +32,7 @@
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
 #include <ompl_lemur/EffortModel.h>
-#include <ompl_lemur/E8Roadmap.h>
+#include <ompl_lemur/LEMUR.h>
 #include <ompl_lemur/SimpleEffortModel.h>
 #include <ompl_lemur/Family.h>
 #include <ompl_lemur/FamilyEffortModel.h>
@@ -51,8 +51,8 @@
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {
    info.interfacenames[OpenRAVE::PT_Planner].push_back("MultiSetPRM");
-   info.interfacenames[OpenRAVE::PT_Planner].push_back("E8Roadmap");
-   //info.interfacenames[OpenRAVE::PT_Planner].push_back("E8RoadmapSelfCC");
+   info.interfacenames[OpenRAVE::PT_Planner].push_back("LEMUR");
+   //info.interfacenames[OpenRAVE::PT_Planner].push_back("LEMURSelfCC");
    info.interfacenames[OpenRAVE::PT_Planner].push_back("FamilyPlanner");
    info.interfacenames[OpenRAVE::PT_Planner].push_back("CCTimer");
    info.interfacenames[OpenRAVE::PT_Module].push_back("SubsetManager");
@@ -67,9 +67,9 @@ OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
    if((type == OpenRAVE::PT_Planner) && (interfacename == "multisetprm"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::MultiSetPRM(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "e8roadmap"))
-      return OpenRAVE::InterfaceBasePtr(new or_lemur::E8Roadmap(penv));
+      return OpenRAVE::InterfaceBasePtr(new or_lemur::LEMUR(penv));
    //if((type == OpenRAVE::PT_Planner) && (interfacename == "e8roadmapselfcc"))
-   //   return OpenRAVE::InterfaceBasePtr(new or_lemur::E8RoadmapSelfCC(penv));
+   //   return OpenRAVE::InterfaceBasePtr(new or_lemur::LEMURSelfCC(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "familyplanner"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::FamilyPlanner(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "cctimer"))

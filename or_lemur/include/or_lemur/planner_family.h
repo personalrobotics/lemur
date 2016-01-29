@@ -27,12 +27,12 @@ public:
    ompl::base::StateSpacePtr ompl_space;
    boost::shared_ptr<ompl_lemur::Family> family;
    boost::shared_ptr<ompl_lemur::FamilyEffortModel> fem;
-   boost::shared_ptr< ompl_lemur::TagCache<ompl_lemur::E8Roadmap::VIdxTagMap,ompl_lemur::E8Roadmap::EIdxTagsMap> > tag_cache;
-   boost::shared_ptr<ompl_lemur::E8Roadmap> ompl_planner;
+   boost::shared_ptr< ompl_lemur::TagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> > tag_cache;
+   boost::shared_ptr<ompl_lemur::LEMUR> ompl_planner;
    //boost::shared_ptr<or_lemur::OrChecker> ompl_checker;
    
    // changed arbitrarily on InitPlan()
-   E8RoadmapParametersPtr params;
+   LEMURParametersPtr params;
    ompl::base::ProblemDefinitionPtr ompl_pdef;
    
    FamilyPlanner(OpenRAVE::EnvironmentBasePtr env);

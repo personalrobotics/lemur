@@ -8,7 +8,7 @@ namespace or_lemur
 {
 
 // <startstate> and <goalstate> can be specified multiple times
-class E8RoadmapParameters : public OpenRAVE::PlannerBase::PlannerParameters
+class LEMURParameters : public OpenRAVE::PlannerBase::PlannerParameters
 {
 public:
 
@@ -63,7 +63,7 @@ public:
    bool has_eval_type;
    std::string eval_type;
    
-   E8RoadmapParameters():
+   LEMURParameters():
       has_roadmap_type(false),
       has_do_roadmap_save(false),
       has_num_batches_init(false),
@@ -299,7 +299,7 @@ private:
    }
 };
 
-typedef boost::shared_ptr<E8RoadmapParameters> E8RoadmapParametersPtr;
-typedef boost::shared_ptr<E8RoadmapParameters const> E8RoadmapParametersConstPtr;
+typedef boost::shared_ptr<LEMURParameters> LEMURParametersPtr;
+typedef boost::shared_ptr<LEMURParameters const> LEMURParametersConstPtr;
 
 } // namespace or_lemur

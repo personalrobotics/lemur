@@ -32,7 +32,7 @@ add_definitions("-Wall")
 add_library(${PROJECT_NAME}
    src/Cache.cpp
    src/MultiSetPRM.cpp
-   src/E8Roadmap.cpp
+   src/LEMUR.cpp
    src/MultiSetRoadmapSampledConst.cpp
    src/MultiSetRoadmapSampledDensified.cpp
    src/SamplerGenMonkeyPatch.cpp

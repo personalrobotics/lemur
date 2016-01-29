@@ -12,7 +12,7 @@ class HashesTestcase(unittest.TestCase):
          robot = env.ReadRobotXMLFile('robots/barrettwam.robot.xml')
          env.Add(robot)
          robot.SetActiveDOFs(robot.GetManipulator('arm').GetArmIndices())
-         planner = prpy_lemur.planning_e8roadmapselfcc.E8RoadmapSelfCCPlanner()
+         planner = prpy_lemur.planning_e8roadmapselfcc.LEMURSelfCCPlanner()
          planner.roadmap_id = 'RGG(n=1000 radius=2.0 seed=1)'
          selfhash = planner.GetSelfHash(robot)
          self.assertEquals('d7db082d667f76549d13d04c4b9b4603', selfhash)

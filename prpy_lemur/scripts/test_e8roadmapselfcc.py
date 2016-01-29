@@ -20,7 +20,7 @@ mug3 = env.ReadKinBodyURI("models/objects/mug3.iv")
 env.Add(mug3)
 mug3.SetTransform([1,0,0,0, 1,0,0])
 
-planner = prpy_lemur.planning_e8roadmapselfcc.E8RoadmapSelfCCPlanner()
+planner = prpy_lemur.planning_e8roadmapselfcc.LEMURSelfCCPlanner()
 planner.roadmap_id = 'RGG(n=1000 radius=1.6 seed=1)'
 #planner.CacheCalculateSave(robot)
 print('self hash:', planner.GetSelfHash(robot))

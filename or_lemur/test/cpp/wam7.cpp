@@ -38,7 +38,7 @@ TEST(Wam7TestCase, Wam7Test)
    ASSERT_EQ(robot->GetActiveDOF(), 7);
    
    // construct planner
-   OpenRAVE::PlannerBasePtr planner = OpenRAVE::RaveCreatePlanner(env, "E8Roadmap");
+   OpenRAVE::PlannerBasePtr planner = OpenRAVE::RaveCreatePlanner(env, "LEMUR");
    ASSERT_TRUE(planner);
    
    // construct planner parameters

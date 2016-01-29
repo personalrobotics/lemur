@@ -26,7 +26,7 @@
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
 #include <ompl_lemur/EffortModel.h>
-#include <ompl_lemur/E8Roadmap.h>
+#include <ompl_lemur/LEMUR.h>
 #include <ompl_lemur/Family.h>
 #include <ompl_lemur/FamilyEffortModel.h>
 #include <ompl_lemur/RoadmapHalton.h>
@@ -119,17 +119,17 @@ TEST(E8SimpleTestCase, E8SimpleTest)
    fem.set_target(si);
    
    // cache
-   ompl_lemur::DummyTagCache<ompl_lemur::E8Roadmap::VIdxTagMap,ompl_lemur::E8Roadmap::EIdxTagsMap> tag_cache;
+   ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> tag_cache;
    
    // planner
-   ompl::base::PlannerPtr planner(new ompl_lemur::E8Roadmap(space, fem, tag_cache));
-   planner->as<ompl_lemur::E8Roadmap>()->setCoeffDistance(1.);
-   planner->as<ompl_lemur::E8Roadmap>()->setCoeffCheckcost(0.);
-   planner->as<ompl_lemur::E8Roadmap>()->setCoeffBatch(0.);
+   ompl::base::PlannerPtr planner(new ompl_lemur::LEMUR(space, fem, tag_cache));
+   planner->as<ompl_lemur::LEMUR>()->setCoeffDistance(1.);
+   planner->as<ompl_lemur::LEMUR>()->setCoeffCheckcost(0.);
+   planner->as<ompl_lemur::LEMUR>()->setCoeffBatch(0.);
    
    // roadmap
-   planner->as<ompl_lemur::E8Roadmap>()->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
-   planner->as<ompl_lemur::E8Roadmap>()->setRoadmapType("Halton");
+   planner->as<ompl_lemur::LEMUR>()->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
+   planner->as<ompl_lemur::LEMUR>()->setRoadmapType("Halton");
    planner->params().setParam("roadmap.num", "30");
    planner->params().setParam("roadmap.radius", "0.3");
    

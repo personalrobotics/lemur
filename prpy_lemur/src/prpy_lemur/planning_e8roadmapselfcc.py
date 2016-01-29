@@ -2,15 +2,15 @@ from __future__ import print_function, unicode_literals, absolute_import, divisi
 import openravepy
 import prpy.planning.base
 
-class E8RoadmapSelfCCPlanner(prpy.planning.base.BasePlanner):
+class LEMURSelfCCPlanner(prpy.planning.base.BasePlanner):
    
    def __init__(self):
-      super(E8RoadmapSelfCCPlanner, self).__init__()
-      self.planner = openravepy.RaveCreatePlanner(self.env, 'E8RoadmapSelfCC')
+      super(LEMURSelfCCPlanner, self).__init__()
+      self.planner = openravepy.RaveCreatePlanner(self.env, 'LEMURSelfCC')
       self.roadmap_id = 'RGG(n=1000 radius=2.0 seed=1)'
       
    def __str__(self):
-      return 'E8RoadmapSelfCCPlanner'
+      return 'LEMURSelfCCPlanner'
    
    def GetSelfHash(self, robot):
       params = openravepy.Planner.PlannerParameters()

@@ -23,7 +23,7 @@ class Wam7Testcase(unittest.TestCase):
          env.Add(robot)
          robot.SetActiveDOFs(robot.GetManipulator('arm').GetArmIndices())
          robot.SetActiveDOFValues(q_start)
-         planner = openravepy.RaveCreatePlanner(env, 'E8Roadmap')
+         planner = openravepy.RaveCreatePlanner(env, 'LEMUR')
          self.assertIsNotNone(planner)
          
          params = openravepy.Planner.PlannerParameters()

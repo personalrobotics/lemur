@@ -50,7 +50,7 @@
 #include <ompl_lemur/RoadmapRGGDensConst.h>
 #include <ompl_lemur/RoadmapID.h>
 #include <ompl_lemur/BisectPerm.h>
-#include <ompl_lemur/E8Roadmap.h>
+#include <ompl_lemur/LEMUR.h>
 
 #include <openrave/utils.h>
 #include <or_lemur/inter_link_checks.h>
@@ -237,11 +237,11 @@ public:
 } // anonymous namespace
 
 
-or_lemur::E8RoadmapSelfCC::TagCache::TagCache()
+or_lemur::LEMURSelfCC::TagCache::TagCache()
 {
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::load_begin(void)
+void or_lemur::LEMURSelfCC::TagCache::load_begin(void)
 {
    std::string selffname = "e8/set-" + selffile_header_md5 + ".txt";
    printf("reading from cache file: |%s|\n", selffname.c_str());
@@ -266,15 +266,15 @@ void or_lemur::E8RoadmapSelfCC::TagCache::load_begin(void)
    printf("header matches!\n");
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::load_end(void)
+void or_lemur::LEMURSelfCC::TagCache::load_end(void)
 {
    if (!fp) return;
    fclose(fp);
    fp = 0;
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::load_vertices(
-   ompl_lemur::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
+void or_lemur::LEMURSelfCC::TagCache::load_vertices(
+   ompl_lemur::LEMUR::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
 {
    if (!fp) return;
    for (size_t v_index=v_from; v_index<v_to; v_index++)
@@ -303,8 +303,8 @@ void or_lemur::E8RoadmapSelfCC::TagCache::load_vertices(
    }
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::load_edges(
-   ompl_lemur::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
+void or_lemur::LEMURSelfCC::TagCache::load_edges(
+   ompl_lemur::LEMUR::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
 {
    if (!fp) return;
    for (size_t e_index=e_from; e_index<e_to; e_index++)
@@ -341,7 +341,7 @@ void or_lemur::E8RoadmapSelfCC::TagCache::load_edges(
    }
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::save_begin(void)
+void or_lemur::LEMURSelfCC::TagCache::save_begin(void)
 {
    std::string selffname = "e8/set-" + selffile_header_md5 + ".txt";
    printf("writing to cache file: |%s|\n", selffname.c_str());
@@ -353,15 +353,15 @@ void or_lemur::E8RoadmapSelfCC::TagCache::save_begin(void)
    fprintf(fp, "%s", selffile_header.c_str());
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::save_end(void)
+void or_lemur::LEMURSelfCC::TagCache::save_end(void)
 {
    if (!fp) return;
    fclose(fp);
    fp = 0;
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::save_vertices(
-   ompl_lemur::E8Roadmap::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
+void or_lemur::LEMURSelfCC::TagCache::save_vertices(
+   ompl_lemur::LEMUR::VIdxTagMap v_tag_map, size_t v_from, size_t v_to)
 {
    if (!fp) return;
    for (size_t v_index=v_from; v_index<v_to; v_index++)
@@ -371,8 +371,8 @@ void or_lemur::E8RoadmapSelfCC::TagCache::save_vertices(
    }
 }
 
-void or_lemur::E8RoadmapSelfCC::TagCache::save_edges(
-   ompl_lemur::E8Roadmap::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
+void or_lemur::LEMURSelfCC::TagCache::save_edges(
+   ompl_lemur::LEMUR::EIdxTagsMap e_tags_map, size_t e_from, size_t e_to)
 {
    if (!fp) return;
    for (size_t e_index=e_from; e_index<e_to; e_index++)
@@ -385,44 +385,44 @@ void or_lemur::E8RoadmapSelfCC::TagCache::save_edges(
    }
 }
 
-or_lemur::E8RoadmapSelfCC::E8RoadmapSelfCC(OpenRAVE::EnvironmentBasePtr env):
+or_lemur::LEMURSelfCC::LEMURSelfCC(OpenRAVE::EnvironmentBasePtr env):
    OpenRAVE::PlannerBase(env), env(env)
 {
    __description = "E8 roadmap planner";
    RegisterCommand("GetSelfHeader",
-      boost::bind(&or_lemur::E8RoadmapSelfCC::GetSelfHeader,this,_1,_2),
+      boost::bind(&or_lemur::LEMURSelfCC::GetSelfHeader,this,_1,_2),
       "get self header");
    RegisterCommand("GetSelfHash",
-      boost::bind(&or_lemur::E8RoadmapSelfCC::GetSelfHash,this,_1,_2),
+      boost::bind(&or_lemur::LEMURSelfCC::GetSelfHash,this,_1,_2),
       "get self hash");
    RegisterCommand("GetTimes",
-      boost::bind(&or_lemur::E8RoadmapSelfCC::GetTimes,this,_1,_2),
+      boost::bind(&or_lemur::LEMURSelfCC::GetTimes,this,_1,_2),
       "get timing information from last plan");
    RegisterCommand("CacheCalculateSave",
-      boost::bind(&or_lemur::E8RoadmapSelfCC::CacheCalculateSave,this,_1,_2),
+      boost::bind(&or_lemur::LEMURSelfCC::CacheCalculateSave,this,_1,_2),
       "cache calculate and save");
 }
 
-or_lemur::E8RoadmapSelfCC::~E8RoadmapSelfCC()
+or_lemur::LEMURSelfCC::~LEMURSelfCC()
 {
 }
 
 bool
-or_lemur::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & inparams_ser)
+or_lemur::LEMURSelfCC::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & inparams_ser)
 {
-   or_lemur::E8RoadmapParametersPtr inparams(new or_multiset::E8RoadmapParameters());
+   or_lemur::LEMURParametersPtr inparams(new or_multiset::LEMURParameters());
    inparams_ser >> *inparams;
    inparams->Validate();
    return this->InitPlan(robot, inparams);
 }
 
 bool
-or_lemur::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase::PlannerParametersConstPtr inparams_base)
+or_lemur::LEMURSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase::PlannerParametersConstPtr inparams_base)
 {
-   or_lemur::E8RoadmapParametersConstPtr inparams = boost::dynamic_pointer_cast<or_multiset::E8RoadmapParameters const>(inparams_base);
+   or_lemur::LEMURParametersConstPtr inparams = boost::dynamic_pointer_cast<or_multiset::LEMURParameters const>(inparams_base);
    if (!inparams)
    {
-      RAVELOG_WARN("Warning, E8RoadmapSelfCC planner passed an unknown PlannerParameters type! Attempting to serialize ...\n");
+      RAVELOG_WARN("Warning, LEMURSelfCC planner passed an unknown PlannerParameters type! Attempting to serialize ...\n");
       std::stringstream inparams_ser;
       inparams_ser << *inparams_base;
       return this->InitPlan(inrobot, inparams_ser);
@@ -445,12 +445,12 @@ or_lemur::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Pl
    ompl_space->setup();
    
    // roadmap
-   tag_cache.reset(new or_lemur::E8RoadmapSelfCC::TagCache());
+   tag_cache.reset(new or_lemur::LEMURSelfCC::TagCache());
    if (!inparams->has_roadmap_id)
       throw OpenRAVE::openrave_exception("no roadmap_id parameter passed!");
    try
    {
-      roadmapgen.reset(ompl_lemur::make_roadmap_gen<ompl_multiset::E8Roadmap::Roadmap>(ompl_space, inparams->roadmap_id));
+      roadmapgen.reset(ompl_lemur::make_roadmap_gen<ompl_multiset::LEMUR::Roadmap>(ompl_space, inparams->roadmap_id));
    }
    catch (const std::runtime_error & ex)
    {
@@ -670,7 +670,7 @@ or_lemur::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Pl
    }
    
    // set up planner
-   ompl_planner.reset(new ompl_lemur::E8Roadmap(ompl_space, *fem, *tag_cache, roadmapgen));
+   ompl_planner.reset(new ompl_lemur::LEMUR(ompl_space, *fem, *tag_cache, roadmapgen));
    
    // planner params
    if (inparams->has_coeff_distance)
@@ -701,13 +701,13 @@ or_lemur::E8RoadmapSelfCC::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::Pl
 }
 
 OpenRAVE::PlannerBase::PlannerParametersConstPtr
-or_lemur::E8RoadmapSelfCC::GetParameters() const
+or_lemur::LEMURSelfCC::GetParameters() const
 {
    return params_ptr;
 }
 
 OpenRAVE::PlannerStatus
-or_lemur::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
+or_lemur::LEMURSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 {
    for (std::map<std::string, ompl_lemur::Family::Subset>::iterator
       it=family->subsets.begin(); it!=family->subsets.end(); it++)
@@ -718,7 +718,7 @@ or_lemur::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    std::ofstream fp_alglog;
    if (alglog == "-")
    {
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->os_alglog = &std::cout;
+      ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = &std::cout;
    }
    else if (alglog != "")
    {
@@ -726,25 +726,25 @@ or_lemur::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
          fp_alglog.open(alglog.c_str(), std::ios_base::app);
       else
          fp_alglog.open(alglog.c_str(), std::ios_base::out);
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->os_alglog = &fp_alglog;
+      ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = &fp_alglog;
    }
    
    ompl::base::PlannerStatus ompl_status;
    ompl_status = ompl_planner->solve(ompl::base::timedPlannerTerminationCondition(10.0));
    printf("planner returned: %s\n", ompl_status.asString().c_str());
    
-   ompl_planner->as<ompl_lemur::E8Roadmap>()->os_alglog = 0;
+   ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = 0;
    fp_alglog.close();
    
    if (graph == "-")
    {
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->dump_graph(std::cout);
+      ompl_planner->as<ompl_lemur::LEMUR>()->dump_graph(std::cout);
    }
    else if (graph != "")
    {
       std::ofstream fp_graph;
       fp_graph.open(graph.c_str());
-      ompl_planner->as<ompl_lemur::E8Roadmap>()->dump_graph(fp_graph);
+      ompl_planner->as<ompl_lemur::LEMUR>()->dump_graph(fp_graph);
       fp_graph.close();
    }
    
@@ -788,19 +788,19 @@ or_lemur::E8RoadmapSelfCC::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       return OpenRAVE::PS_HasSolution;
 }
 
-bool or_lemur::E8RoadmapSelfCC::GetSelfHeader(std::ostream & sout, std::istream & sin) const
+bool or_lemur::LEMURSelfCC::GetSelfHeader(std::ostream & sout, std::istream & sin) const
 {
    sout << tag_cache->selffile_header;
    return true;
 }
 
-bool or_lemur::E8RoadmapSelfCC::GetSelfHash(std::ostream & sout, std::istream & sin) const
+bool or_lemur::LEMURSelfCC::GetSelfHash(std::ostream & sout, std::istream & sin) const
 {
    sout << tag_cache->selffile_header_md5;
    return true;
 }
 
-bool or_lemur::E8RoadmapSelfCC::CacheCalculateSave(std::ostream & sout, std::istream & sin)
+bool or_lemur::LEMURSelfCC::CacheCalculateSave(std::ostream & sout, std::istream & sin)
 {
    printf("CacheCalculateSave called ...\n");
    
@@ -819,7 +819,7 @@ bool or_lemur::E8RoadmapSelfCC::CacheCalculateSave(std::ostream & sout, std::ist
    return true;
 }
 
-bool or_lemur::E8RoadmapSelfCC::GetTimes(std::ostream & sout, std::istream & sin) const
+bool or_lemur::LEMURSelfCC::GetTimes(std::ostream & sout, std::istream & sin) const
 {
    sout << "checktime " << 0.0;
    sout << " totaltime " << 0.0;
@@ -829,10 +829,10 @@ bool or_lemur::E8RoadmapSelfCC::GetTimes(std::ostream & sout, std::istream & sin
       sout << " n_checks_" << it->first;
       sout << " " << boost::dynamic_pointer_cast<IlcChecker>(it->second.si->getStateValidityChecker())->num_checks;
    }
-   sout << " e8_dur_total " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurTotal();
-   sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurRoadmapGen();
-   sout << " e8_dur_search " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurSearch();
-   sout << " e8_dur_eval " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurEval();
-   sout << " e8_dur_unaccounted " <<  ompl_planner->as<ompl_lemur::E8Roadmap>()->getDurUnaccounted();
+   sout << " e8_dur_total " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurTotal();
+   sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapGen();
+   sout << " e8_dur_search " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSearch();
+   sout << " e8_dur_eval " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurEval();
+   sout << " e8_dur_unaccounted " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurUnaccounted();
    return true;
 }

@@ -11,25 +11,25 @@ namespace or_lemur
  * This planner is totally stateless -- a new ompl planner
  * is created on each call to InitPlan()
  */
-class E8Roadmap : public OpenRAVE::PlannerBase
+class LEMUR : public OpenRAVE::PlannerBase
 {
 public:
 
    const OpenRAVE::EnvironmentBasePtr env;
-   E8RoadmapParametersConstPtr params;
+   LEMURParametersConstPtr params;
    OpenRAVE::RobotBasePtr robot;
    std::vector<int> robot_adofs;
    ompl::base::StateSpacePtr ompl_space;
    ompl::base::SpaceInformationPtr ompl_si;
    boost::shared_ptr<or_lemur::OrChecker> ompl_checker;
    boost::shared_ptr<ompl_lemur::SimpleEffortModel> sem;
-   boost::shared_ptr< ompl_lemur::TagCache<ompl_lemur::E8Roadmap::VIdxTagMap,ompl_lemur::E8Roadmap::EIdxTagsMap> > tag_cache;
-   //boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::E8Roadmap::Roadmap> > roadmapgen;
-   boost::shared_ptr<ompl_lemur::E8Roadmap> ompl_planner;
+   boost::shared_ptr< ompl_lemur::TagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> > tag_cache;
+   //boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::LEMUR::Roadmap> > roadmapgen;
+   boost::shared_ptr<ompl_lemur::LEMUR> ompl_planner;
    ompl::base::ProblemDefinitionPtr ompl_pdef;
    
-   E8Roadmap(OpenRAVE::EnvironmentBasePtr env);
-   ~E8Roadmap();
+   LEMUR(OpenRAVE::EnvironmentBasePtr env);
+   ~LEMUR();
    
    bool InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & isParameters);
    bool InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::PlannerBase::PlannerParametersConstPtr params);

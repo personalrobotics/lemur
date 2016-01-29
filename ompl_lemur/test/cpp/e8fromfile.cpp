@@ -31,7 +31,7 @@
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
 #include <ompl_lemur/EffortModel.h>
-#include <ompl_lemur/E8Roadmap.h>
+#include <ompl_lemur/LEMUR.h>
 #include <ompl_lemur/Family.h>
 #include <ompl_lemur/FamilyEffortModel.h>
 #include <ompl_lemur/RoadmapFromFile.h>
@@ -102,17 +102,17 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    fem.set_target(si);
    
    // cache
-   ompl_lemur::DummyTagCache<ompl_lemur::E8Roadmap::VIdxTagMap,ompl_lemur::E8Roadmap::EIdxTagsMap> tag_cache;
+   ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> tag_cache;
    
    // planner
-   ompl::base::PlannerPtr planner(new ompl_lemur::E8Roadmap(space, fem, tag_cache));
-   planner->as<ompl_lemur::E8Roadmap>()->setCoeffDistance(1.);
-   planner->as<ompl_lemur::E8Roadmap>()->setCoeffCheckcost(0.);
-   planner->as<ompl_lemur::E8Roadmap>()->setCoeffBatch(0.);
+   ompl::base::PlannerPtr planner(new ompl_lemur::LEMUR(space, fem, tag_cache));
+   planner->as<ompl_lemur::LEMUR>()->setCoeffDistance(1.);
+   planner->as<ompl_lemur::LEMUR>()->setCoeffCheckcost(0.);
+   planner->as<ompl_lemur::LEMUR>()->setCoeffBatch(0.);
    
    // roadmap
-   planner->as<ompl_lemur::E8Roadmap>()->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
-   planner->as<ompl_lemur::E8Roadmap>()->setRoadmapType("FromFile");
+   planner->as<ompl_lemur::LEMUR>()->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
+   planner->as<ompl_lemur::LEMUR>()->setRoadmapType("FromFile");
    planner->params().setParam("roadmap.filename", XSTR(DATADIR) "/halton2d.xml");
    planner->params().setParam("roadmap.root_radius", "0.3");
    

@@ -6,7 +6,7 @@ Core planner implementation for the [Open Motion Planning Library (OMPL)][ompl].
 Planners
 --------
 
-The primary planner is the `E8Roadmap`, a derived class of `ompl::base::Planner`.  It takes the following arguments:
+The primary planner is the `LEMUR`, a derived class of `ompl::base::Planner`.  It takes the following arguments:
 
 * `const ompl::base::SpaceInformationPtr & si`
 * `ompl_lemur::EffortModel & effort_model`,
@@ -18,7 +18,7 @@ The roadmap input is an instance of a roadmap type which subclasses `ompl_lemur:
 
 ### Parameters
 
-In addition to the construction arguments above, `E8Roadmap` takes the following parameters:
+In addition to the construction arguments above, `LEMUR` takes the following parameters:
 
 #### Optimization coefficients
 

@@ -42,7 +42,7 @@ TEST(SelfCCTestCase, SimpleTest)
    mug3->SetTransform(mk_ortx(1,0,0, 0,0,0,1));
    
    // construct planner
-   OpenRAVE::PlannerBasePtr planner = OpenRAVE::RaveCreatePlanner(env, "E8RoadmapSelfCC");
+   OpenRAVE::PlannerBasePtr planner = OpenRAVE::RaveCreatePlanner(env, "LEMURSelfCC");
    ASSERT_TRUE(planner);
    
    // construct planner parameters

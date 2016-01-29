@@ -1,4 +1,4 @@
-/* File: E8Roadmap.cpp
+/* File: LEMUR.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -47,15 +47,15 @@
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
 #include <ompl_lemur/EffortModel.h>
-#include <ompl_lemur/E8Roadmap.h>
+#include <ompl_lemur/LEMUR.h>
 #include <ompl_lemur/lazysp_log_visitor.h>
 
 namespace boost {
 
 template <class Filter>
 inline
-ompl_lemur::E8Roadmap::Vertex
-vertex(size_t v_index, const boost::filtered_graph<ompl_lemur::E8Roadmap::Graph, Filter>& g)
+ompl_lemur::LEMUR::Vertex
+vertex(size_t v_index, const boost::filtered_graph<ompl_lemur::LEMUR::Graph, Filter>& g)
 {
    return vertex(v_index, g.m_g);
 }
@@ -66,7 +66,7 @@ vertex(size_t v_index, const boost::filtered_graph<ompl_lemur::E8Roadmap::Graph,
 // (which iterates over all graph edges in order to shift vertex descriptors)
 // with our simple and much faster version
 inline
-void remove_vertex(ompl_lemur::E8Roadmap::Vertex v, ompl_lemur::E8Roadmap::Graph & g)
+void remove_vertex(ompl_lemur::LEMUR::Vertex v, ompl_lemur::LEMUR::Graph & g)
 {
    BOOST_ASSERT(v == num_vertices(g)-1);
    g.m_vertices.pop_back();
@@ -90,12 +90,12 @@ void remove_vertex(ompl_lemur::E8Roadmap::Vertex v, ompl_lemur::E8Roadmap::Graph
  *  - other edges, from roots to core vertices (or other roots) look like regular edges
  */
 
-ompl_lemur::E8Roadmap::E8Roadmap(
+ompl_lemur::LEMUR::LEMUR(
       const ompl::base::StateSpacePtr & space,
       EffortModel & effort_model,
       TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache):
    ompl::base::Planner(
-      ompl_lemur::get_aborting_space_information(space), "E8Roadmap"),
+      ompl_lemur::get_aborting_space_information(space), "LEMUR"),
    effort_model(effort_model),
    space(space),
    check_radius(0.5*space->getLongestValidSegmentLength()),
@@ -122,38 +122,38 @@ ompl_lemur::E8Roadmap::E8Roadmap(
    m_eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tags,g), eig.edge_vector_map))
 {
    Planner::declareParam<std::string>("roadmap_type", this,
-      &ompl_lemur::E8Roadmap::setRoadmapType,
-      &ompl_lemur::E8Roadmap::getRoadmapType);
+      &ompl_lemur::LEMUR::setRoadmapType,
+      &ompl_lemur::LEMUR::getRoadmapType);
    Planner::declareParam<double>("coeff_distance", this,
-      &ompl_lemur::E8Roadmap::setCoeffDistance,
-      &ompl_lemur::E8Roadmap::getCoeffDistance, "0.:1.:10000.");
+      &ompl_lemur::LEMUR::setCoeffDistance,
+      &ompl_lemur::LEMUR::getCoeffDistance, "0.:1.:10000.");
    Planner::declareParam<double>("coeff_checkcost", this,
-      &ompl_lemur::E8Roadmap::setCoeffCheckcost,
-      &ompl_lemur::E8Roadmap::getCoeffCheckcost, "0.:1.:10000.");
+      &ompl_lemur::LEMUR::setCoeffCheckcost,
+      &ompl_lemur::LEMUR::getCoeffCheckcost, "0.:1.:10000.");
    Planner::declareParam<double>("coeff_batch", this,
-      &ompl_lemur::E8Roadmap::setCoeffBatch,
-      &ompl_lemur::E8Roadmap::getCoeffBatch, "0.:1.:10000.");
+      &ompl_lemur::LEMUR::setCoeffBatch,
+      &ompl_lemur::LEMUR::getCoeffBatch, "0.:1.:10000.");
    Planner::declareParam<bool>("do_timing", this,
-      &ompl_lemur::E8Roadmap::setDoTiming,
-      &ompl_lemur::E8Roadmap::getDoTiming);
+      &ompl_lemur::LEMUR::setDoTiming,
+      &ompl_lemur::LEMUR::getDoTiming);
    Planner::declareParam<bool>("persist_roots", this,
-      &ompl_lemur::E8Roadmap::setPersistRoots,
-      &ompl_lemur::E8Roadmap::getPersistRoots);
+      &ompl_lemur::LEMUR::setPersistRoots,
+      &ompl_lemur::LEMUR::getPersistRoots);
    Planner::declareParam<unsigned int>("num_batches_init", this,
-      &ompl_lemur::E8Roadmap::setNumBatchesInit,
-      &ompl_lemur::E8Roadmap::getNumBatchesInit);
+      &ompl_lemur::LEMUR::setNumBatchesInit,
+      &ompl_lemur::LEMUR::getNumBatchesInit);
    Planner::declareParam<unsigned int>("max_batches", this,
-      &ompl_lemur::E8Roadmap::setMaxBatches,
-      &ompl_lemur::E8Roadmap::getMaxBatches);
+      &ompl_lemur::LEMUR::setMaxBatches,
+      &ompl_lemur::LEMUR::getMaxBatches);
    Planner::declareParam<std::string>("search_type", this,
-      &ompl_lemur::E8Roadmap::setSearchType,
-      &ompl_lemur::E8Roadmap::getSearchType);
+      &ompl_lemur::LEMUR::setSearchType,
+      &ompl_lemur::LEMUR::getSearchType);
    Planner::declareParam<std::string>("eval_type", this,
-      &ompl_lemur::E8Roadmap::setEvalType,
-      &ompl_lemur::E8Roadmap::getEvalType);
+      &ompl_lemur::LEMUR::setEvalType,
+      &ompl_lemur::LEMUR::getEvalType);
    
    // setup ompl_nn
-   //nn->setDistanceFunction(boost::bind(&ompl_lemur::E8Roadmap::nn_dist, this, _1, _2)); // option A
+   //nn->setDistanceFunction(boost::bind(&ompl_lemur::LEMUR::nn_dist, this, _1, _2)); // option A
    
    // construct persistent singleroot/singlegoal overlay vertices
    ov_singlestart = add_vertex(og);
@@ -171,10 +171,10 @@ ompl_lemur::E8Roadmap::E8Roadmap(
    
    printf("space->getLongestValidSegmentLength(): %f\n", space->getLongestValidSegmentLength());
    
-   printf("E8Roadmap: constructor finished.\n");
+   printf("LEMUR: constructor finished.\n");
 }
 
-ompl_lemur::E8Roadmap::~E8Roadmap()
+ompl_lemur::LEMUR::~LEMUR()
 {
    overlay_unapply(); // just to be sure
    
@@ -198,13 +198,13 @@ ompl_lemur::E8Roadmap::~E8Roadmap()
          space->freeState(og[*oei].edge_states[ui]);
 }
 
-void ompl_lemur::E8Roadmap::registerRoadmapType(std::string roadmap_type,
+void ompl_lemur::LEMUR::registerRoadmapType(std::string roadmap_type,
    boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> factory)
 {
    _roadmap_registry[roadmap_type] = factory;
 }
 
-void ompl_lemur::E8Roadmap::setRoadmapType(std::string roadmap_type)
+void ompl_lemur::LEMUR::setRoadmapType(std::string roadmap_type)
 {
    if (_roadmap && _roadmap->initialized)
    {
@@ -242,82 +242,82 @@ void ompl_lemur::E8Roadmap::setRoadmapType(std::string roadmap_type)
    _roadmap_type = roadmap_type;
 }
 
-std::string ompl_lemur::E8Roadmap::getRoadmapType() const
+std::string ompl_lemur::LEMUR::getRoadmapType() const
 {
    return _roadmap_type;
 }
 
-void ompl_lemur::E8Roadmap::setCoeffDistance(double coeff_distance)
+void ompl_lemur::LEMUR::setCoeffDistance(double coeff_distance)
 {
    _coeff_distance = coeff_distance;
 }
 
-double ompl_lemur::E8Roadmap::getCoeffDistance() const
+double ompl_lemur::LEMUR::getCoeffDistance() const
 {
    return _coeff_distance;
 }
 
-void ompl_lemur::E8Roadmap::setCoeffCheckcost(double coeff_checkcost)
+void ompl_lemur::LEMUR::setCoeffCheckcost(double coeff_checkcost)
 {
    _coeff_checkcost = coeff_checkcost;
 }
 
-double ompl_lemur::E8Roadmap::getCoeffCheckcost() const
+double ompl_lemur::LEMUR::getCoeffCheckcost() const
 {
    return _coeff_checkcost;
 }
 
-void ompl_lemur::E8Roadmap::setCoeffBatch(double coeff_batch)
+void ompl_lemur::LEMUR::setCoeffBatch(double coeff_batch)
 {
    _coeff_batch = coeff_batch;
 }
 
-double ompl_lemur::E8Roadmap::getCoeffBatch() const
+double ompl_lemur::LEMUR::getCoeffBatch() const
 {
    return _coeff_batch;
 }
 
-void ompl_lemur::E8Roadmap::setDoTiming(bool do_timing)
+void ompl_lemur::LEMUR::setDoTiming(bool do_timing)
 {
    _do_timing = do_timing;
 }
 
-bool ompl_lemur::E8Roadmap::getDoTiming() const
+bool ompl_lemur::LEMUR::getDoTiming() const
 {
    return _do_timing;
 }
 
-void ompl_lemur::E8Roadmap::setPersistRoots(bool persist_roots)
+void ompl_lemur::LEMUR::setPersistRoots(bool persist_roots)
 {
    _persist_roots = persist_roots;
 }
 
-bool ompl_lemur::E8Roadmap::getPersistRoots() const
+bool ompl_lemur::LEMUR::getPersistRoots() const
 {
    return _persist_roots;
 }
 
-void ompl_lemur::E8Roadmap::setNumBatchesInit(unsigned int num_batches_init)
+void ompl_lemur::LEMUR::setNumBatchesInit(unsigned int num_batches_init)
 {
    _num_batches_init = num_batches_init;
 }
 
-unsigned int ompl_lemur::E8Roadmap::getNumBatchesInit() const
+unsigned int ompl_lemur::LEMUR::getNumBatchesInit() const
 {
    return _num_batches_init;
 }
 
-void ompl_lemur::E8Roadmap::setMaxBatches(unsigned int max_batches)
+void ompl_lemur::LEMUR::setMaxBatches(unsigned int max_batches)
 {
    _max_batches = max_batches;
 }
 
-unsigned int ompl_lemur::E8Roadmap::getMaxBatches() const
+unsigned int ompl_lemur::LEMUR::getMaxBatches() const
 {
    return _max_batches;
 }
 
-void ompl_lemur::E8Roadmap::setSearchType(std::string search_type)
+void ompl_lemur::LEMUR::setSearchType(std::string search_type)
 {
    if (search_type == "dijkstras")
       _search_type = SEARCH_TYPE_DIJKSTRAS;
@@ -331,7 +331,7 @@ void ompl_lemur::E8Roadmap::setSearchType(std::string search_type)
       throw std::runtime_error("Search type parameter must be dijkstras, astar, or lpastar.");
 }
 
-std::string ompl_lemur::E8Roadmap::getSearchType() const
+std::string ompl_lemur::LEMUR::getSearchType() const
 {
    switch (_search_type)
    {
@@ -344,7 +344,7 @@ std::string ompl_lemur::E8Roadmap::getSearchType() const
    }
 }
 
-void ompl_lemur::E8Roadmap::setEvalType(std::string eval_type)
+void ompl_lemur::LEMUR::setEvalType(std::string eval_type)
 {
    if (eval_type == "fwd")
       _eval_type = EVAL_TYPE_FWD;
@@ -364,7 +364,7 @@ void ompl_lemur::E8Roadmap::setEvalType(std::string eval_type)
       throw std::runtime_error("Eval type parameter must be fwd rev alt bisect or fwd_expand.");
 }
 
-std::string ompl_lemur::E8Roadmap::getEvalType() const
+std::string ompl_lemur::LEMUR::getEvalType() const
 {
    switch (_eval_type)
    {
@@ -380,7 +380,7 @@ std::string ompl_lemur::E8Roadmap::getEvalType() const
    }
 }
 
-void ompl_lemur::E8Roadmap::setProblemDefinition(
+void ompl_lemur::LEMUR::setProblemDefinition(
    const ompl::base::ProblemDefinitionPtr & pdef)
 {
    // call planner base class implementation
@@ -579,7 +579,7 @@ void ompl_lemur::E8Roadmap::setProblemDefinition(
 }
 
 template <class MyGraph, class IncSP, class EvalStrategy>
-bool ompl_lemur::E8Roadmap::do_lazysp_b(
+bool ompl_lemur::LEMUR::do_lazysp_b(
    MyGraph & g,
    IncSP incsp, EvalStrategy evalstrategy,
    std::vector<Edge> & epath)
@@ -654,7 +654,7 @@ bool ompl_lemur::E8Roadmap::do_lazysp_b(
 }
 
 template <class MyGraph>
-bool ompl_lemur::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
+bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
 {
    if (_search_type == SEARCH_TYPE_ASTAR
       || _search_type == SEARCH_TYPE_LPASTAR) // a* as inner search
@@ -1126,7 +1126,7 @@ bool ompl_lemur::E8Roadmap::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
 
 
 ompl::base::PlannerStatus
-ompl_lemur::E8Roadmap::solve(
+ompl_lemur::LEMUR::solve(
    const ompl::base::PlannerTerminationCondition & ptc)
 {
    if (!_roadmap)
@@ -1334,7 +1334,7 @@ ompl_lemur::E8Roadmap::solve(
             //g[e].edge_tags.resize(g[e].edge_states.size(), 0);
          }
          
-         printf("E8Roadmap: loading from cache ...\n");
+         printf("LEMUR: loading from cache ...\n");
          
          // load new batch from cache
          tag_cache.load_begin();
@@ -1412,7 +1412,7 @@ ompl_lemur::E8Roadmap::solve(
 }
 
 // solves only core vertices
-void ompl_lemur::E8Roadmap::solve_all()
+void ompl_lemur::LEMUR::solve_all()
 {
    // evaluate all vertices first
    printf("solve_all() evaluating vertices ...\n");
@@ -1443,7 +1443,7 @@ void ompl_lemur::E8Roadmap::solve_all()
    }
 }
 
-void ompl_lemur::E8Roadmap::dump_graph(std::ostream & os_graph)
+void ompl_lemur::LEMUR::dump_graph(std::ostream & os_graph)
 {
    overlay_apply();
    
@@ -1467,7 +1467,7 @@ void ompl_lemur::E8Roadmap::dump_graph(std::ostream & os_graph)
 }
 
 // saves only core vertices
-void ompl_lemur::E8Roadmap::cache_save_all()
+void ompl_lemur::LEMUR::cache_save_all()
 {
    tag_cache.save_begin();
    
@@ -1488,37 +1488,37 @@ void ompl_lemur::E8Roadmap::cache_save_all()
    tag_cache.save_end();
 }
 
-double ompl_lemur::E8Roadmap::getDurTotal()
+double ompl_lemur::LEMUR::getDurTotal()
 {
    return boost::chrono::duration<double>(_dur_total).count();
 }
 
-double ompl_lemur::E8Roadmap::getDurRoadmapGen()
+double ompl_lemur::LEMUR::getDurRoadmapGen()
 {
    return boost::chrono::duration<double>(_dur_roadmapgen).count();
 }
 
-double ompl_lemur::E8Roadmap::getDurRoadmapInit()
+double ompl_lemur::LEMUR::getDurRoadmapInit()
 {
    return boost::chrono::duration<double>(_dur_roadmapinit).count();
 }
 
-double ompl_lemur::E8Roadmap::getDurLazySP()
+double ompl_lemur::LEMUR::getDurLazySP()
 {
    return boost::chrono::duration<double>(_dur_lazysp).count();
 }
 
-double ompl_lemur::E8Roadmap::getDurSearch()
+double ompl_lemur::LEMUR::getDurSearch()
 {
    return boost::chrono::duration<double>(_dur_search).count();
 }
 
-double ompl_lemur::E8Roadmap::getDurEval()
+double ompl_lemur::LEMUR::getDurEval()
 {
    return boost::chrono::duration<double>(_dur_eval).count();
 }
 
-void ompl_lemur::E8Roadmap::overlay_apply()
+void ompl_lemur::LEMUR::overlay_apply()
 {
    if (overlay_manager.is_applied)
       return;
@@ -1551,7 +1551,7 @@ void ompl_lemur::E8Roadmap::overlay_apply()
    }
 }
 
-void ompl_lemur::E8Roadmap::overlay_unapply()
+void ompl_lemur::LEMUR::overlay_unapply()
 {
    // unapply the overlay graph if it is applied
    if (!overlay_manager.is_applied)
@@ -1583,7 +1583,7 @@ void ompl_lemur::E8Roadmap::overlay_unapply()
    overlay_manager.unapply();
 }
 
-void ompl_lemur::E8Roadmap::edge_init_states(const Edge & e)
+void ompl_lemur::LEMUR::edge_init_states(const Edge & e)
 {
    // get endpoint vertices in consistent order
    Vertex va = source(e,g);
@@ -1616,7 +1616,7 @@ void ompl_lemur::E8Roadmap::edge_init_states(const Edge & e)
    g[e].edge_tags.resize(n, 0);
 }
 
-void ompl_lemur::E8Roadmap::calculate_w_lazy(const Edge & e)
+void ompl_lemur::LEMUR::calculate_w_lazy(const Edge & e)
 {
    Vertex va = source(e,g);
    Vertex vb = target(e,g);
@@ -1672,7 +1672,7 @@ void ompl_lemur::E8Roadmap::calculate_w_lazy(const Edge & e)
    }
 }
 
-bool ompl_lemur::E8Roadmap::isevaledmap_get(const Edge & e)
+bool ompl_lemur::LEMUR::isevaledmap_get(const Edge & e)
 {
    // this directly calls the family effort model (distance not needed!)
    Vertex va = source(e, g);
@@ -1689,7 +1689,7 @@ bool ompl_lemur::E8Roadmap::isevaledmap_get(const Edge & e)
    return true;
 }
 
-double ompl_lemur::E8Roadmap::wmap_get(const Edge & e)
+double ompl_lemur::LEMUR::wmap_get(const Edge & e)
 {
    // check all points!
    Vertex va = source(e, g);
@@ -1738,7 +1738,7 @@ double ompl_lemur::E8Roadmap::wmap_get(const Edge & e)
    return g[e].w_lazy;
 }
 
-double ompl_lemur::E8Roadmap::nn_dist(const Vertex & va, const Vertex & vb)
+double ompl_lemur::LEMUR::nn_dist(const Vertex & va, const Vertex & vb)
 {
    return space->distance(g[va].state, g[vb].state);
 }

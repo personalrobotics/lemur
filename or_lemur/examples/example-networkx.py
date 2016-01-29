@@ -61,7 +61,7 @@ g = Halton(primes7, 1000, 2.0, bounds_min, bounds_max)
 networkx.write_graphml(graph_statestr(g), 'nx.xml')
 
 print('initializing planner ...')
-planner = openravepy.RaveCreatePlanner(env, 'E8Roadmap')
+planner = openravepy.RaveCreatePlanner(env, 'LEMUR')
 params = openravepy.Planner.PlannerParameters()
 params.SetRobotActiveJoints(robot)
 params.SetGoalConfig(q_goal)
