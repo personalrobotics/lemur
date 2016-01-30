@@ -66,7 +66,7 @@ OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
 {
    if((type == OpenRAVE::PT_Planner) && (interfacename == "multisetprm"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::MultiSetPRM(penv));
-   if((type == OpenRAVE::PT_Planner) && (interfacename == "e8roadmap"))
+   if((type == OpenRAVE::PT_Planner) && (interfacename == "lemur"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::LEMUR(penv));
    //if((type == OpenRAVE::PT_Planner) && (interfacename == "e8roadmapselfcc"))
    //   return OpenRAVE::InterfaceBasePtr(new or_lemur::LEMURSelfCC(penv));
