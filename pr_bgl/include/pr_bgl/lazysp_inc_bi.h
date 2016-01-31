@@ -43,7 +43,8 @@ inline const size_t get(
 template <class Graph, class WMap,
    class StartPredecessorMap, class StartDistanceMap, class StartDistanceLookaheadMap,
    class GoalPredecessorMap, class GoalDistanceMap, class GoalDistanceLookaheadMap,
-   class EdgeIndexMap, class EdgeVectorMap>
+   class EdgeIndexMap, class EdgeVectorMap,
+   class IncBiVisitor>
 class lazysp_incsp_inc_bi
 {
 public:
@@ -70,7 +71,8 @@ public:
       VIndexMap,
       lazysp_incsp_inc_bi_edge_index_adaptor<Graph,EdgeIndexMap>,
       std::less<weight_type>, boost::closed_plus<weight_type>,
-      weight_type, weight_type
+      weight_type, weight_type,
+      IncBiVisitor
    > incbi;
    
    lazysp_incsp_inc_bi(
@@ -81,7 +83,8 @@ public:
       GoalDistanceMap goal_distance, GoalDistanceLookaheadMap goal_distance_lookahead,
       EdgeIndexMap edge_index_map,
       EdgeVectorMap edge_vector_map,
-      weight_type goal_margin):
+      weight_type goal_margin,
+      IncBiVisitor vis):
       g(g), v_start(v_start), v_goal(v_goal),
       w_map(w_map),
       start_predecessor(start_predecessor),
@@ -99,7 +102,8 @@ public:
          boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
          std::numeric_limits<weight_type>::max(),
          weight_type(),
-         goal_margin)
+         goal_margin,
+         vis)
    {
    }
    
@@ -175,8 +179,9 @@ public:
 template <class Graph, class WMap,
    class StartPredecessorMap, class StartDistanceMap, class StartDistanceLookaheadMap,
    class GoalPredecessorMap, class GoalDistanceMap, class GoalDistanceLookaheadMap,
-   class EdgeIndexMap, class EdgeVectorMap>
-lazysp_incsp_inc_bi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap>make_lazysp_incsp_inc_bi(
+   class EdgeIndexMap, class EdgeVectorMap, class IncBiVisitor>
+lazysp_incsp_inc_bi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,IncBiVisitor>
+make_lazysp_incsp_inc_bi(
    Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
@@ -186,10 +191,11 @@ lazysp_incsp_inc_bi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanc
    GoalPredecessorMap goal_predecessor,
    GoalDistanceMap goal_distance, GoalDistanceLookaheadMap goal_distance_lookahead,
    EdgeIndexMap edge_index_map, EdgeVectorMap edge_vector_map,
-   typename boost::property_traits<WMap>::value_type goal_margin)
+   typename boost::property_traits<WMap>::value_type goal_margin,
+   IncBiVisitor vis)
 {
-   return lazysp_incsp_inc_bi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap>(
-      g, v_start, v_goal, w_map, start_predecessor, start_distance, start_distance_lookahead, goal_predecessor, goal_distance, goal_distance_lookahead, edge_index_map, edge_vector_map, goal_margin);
+   return lazysp_incsp_inc_bi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,IncBiVisitor>(
+      g, v_start, v_goal, w_map, start_predecessor, start_distance, start_distance_lookahead, goal_predecessor, goal_distance, goal_distance_lookahead, edge_index_map, edge_vector_map, goal_margin, vis);
 }
 
 } // namespace pr_bgl

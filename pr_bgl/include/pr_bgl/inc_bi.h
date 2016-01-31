@@ -25,7 +25,8 @@ template <typename Graph,
    typename WeightMap,
    typename VertexIndexMap, typename EdgeIndexMap,
    typename CompareFunction, typename CombineFunction,
-   typename CostInf, typename CostZero>
+   typename CostInf, typename CostZero,
+   typename IncBiVisitor>
 class inc_bi
 {
 public:
@@ -81,6 +82,7 @@ public:
    CostInf inf;
    CostZero zero;
    weight_type goal_margin;
+   IncBiVisitor vis;
    
    HeapIndexed< weight_type > start_queue;
    HeapIndexed< weight_type > goal_queue;
@@ -101,7 +103,8 @@ public:
       EdgeIndexMap edge_index_map,
       CompareFunction compare, CombineFunction combine,
       CostInf inf, CostZero zero,
-      weight_type goal_margin):
+      weight_type goal_margin,
+      IncBiVisitor vis):
       g(g), v_start(v_start), v_goal(v_goal),
       start_predecessor(start_predecessor),
       start_distance(start_distance),
@@ -114,7 +117,8 @@ public:
       edge_index_map(edge_index_map),
       compare(compare), combine(combine),
       inf(inf), zero(zero),
-      goal_margin(goal_margin)
+      goal_margin(goal_margin),
+      vis(vis)
    {
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
@@ -127,7 +131,9 @@ public:
       put(start_distance_lookahead, v_start, zero);
       put(goal_distance_lookahead, v_goal, zero);
       start_queue.insert(get(vertex_index_map,v_start), zero);
+      vis.start_queue_insert(v_start);
       goal_queue.insert(get(vertex_index_map,v_goal), zero);
+      vis.goal_queue_insert(v_goal);
    }
    
    inline weight_type start_calculate_key(Vertex u)
@@ -165,7 +171,10 @@ public:
       if (!is_valid)
       {
          if (conn_queue.contains(eidx))
+         {
             conn_queue.remove(eidx);
+            vis.conn_queue_remove(e);
+         }
       }
       else
       {
@@ -173,9 +182,15 @@ public:
          weight_type pathlen = combine(combine(get(start_distance,va), elen), get(goal_distance,vb));
          conn_key new_key(pathlen, get(start_distance,va), get(goal_distance,vb));
          if (conn_queue.contains(eidx))
+         {
             conn_queue.update(eidx, new_key);
+            vis.conn_queue_update(e);
+         }
          else
+         {
             conn_queue.insert(eidx, new_key);
+            vis.conn_queue_insert(e);
+         }
       }
    }
    
@@ -206,6 +221,7 @@ public:
          if (start_queue.contains(u_idx))
          {
             start_queue.remove(u_idx);
+            vis.start_queue_remove(u);
             // we're newly consistent, so insert any new conn_queue edges from us
             if (u_dist != inf)
             {
@@ -216,11 +232,12 @@ public:
                   size_t idx_target = get(vertex_index_map, v_target);
                   
                   weight_type goaldist_target = get(goal_distance,v_target);
-                  if (!goal_queue.contains(idx_target) && goaldist_target != inf)
+                  if (!goal_queue.contains(idx_target) && goaldist_target != inf && get(weight,*ei) != inf)
                   {
                      conn_key new_key(combine(combine(u_dist, get(weight,*ei)), goaldist_target),
                         u_dist, goaldist_target);
                      conn_queue.insert(get(edge_index_map,*ei), new_key);
+                     vis.conn_queue_insert(*ei);
                   }
                }
             }
@@ -229,17 +246,24 @@ public:
       else // not consistent
       {
          if (start_queue.contains(u_idx))
+         {
             start_queue.update(u_idx, start_calculate_key(u));
+            vis.start_queue_update(u);
+         }
          else
          {
             start_queue.insert(u_idx, start_calculate_key(u));
+            vis.start_queue_insert(u);
             // we're newly inconsistent, so remove any conn_queue edges from us
             OutEdgeIter ei, ei_end;
             for (boost::tie(ei,ei_end)=out_edges(u,g); ei!=ei_end; ei++)
             {
                size_t edge_index = get(edge_index_map,*ei);
                if (conn_queue.contains(edge_index))
+               {
                   conn_queue.remove(edge_index);
+                  vis.conn_queue_remove(*ei);
+               }
             }
          }
       }
@@ -272,6 +296,7 @@ public:
          if (goal_queue.contains(u_idx))
          {
             goal_queue.remove(u_idx);
+            vis.goal_queue_remove(u);
             // we're newly consistent, so insert any new conn_queue edges to us
             if (u_dist != inf)
             {
@@ -282,11 +307,12 @@ public:
                   size_t idx_source = get(vertex_index_map, v_source);
                   
                   weight_type startdist_source = get(start_distance,v_source);
-                  if (!start_queue.contains(idx_source) && startdist_source != inf)
+                  if (!start_queue.contains(idx_source) && startdist_source != inf && get(weight,*ei) != inf)
                   {
                      conn_key new_key(combine(combine(startdist_source, get(weight,*ei)), u_dist),
                         startdist_source, u_dist);
                      conn_queue.insert(get(edge_index_map,*ei), new_key);
+                     vis.conn_queue_insert(*ei);
                   }
                }
             }
@@ -295,17 +321,24 @@ public:
       else // not consistent
       {
          if (goal_queue.contains(u_idx))
+         {
             goal_queue.update(u_idx, goal_calculate_key(u));
+            vis.goal_queue_update(u);
+         }
          else
          {
             goal_queue.insert(u_idx, goal_calculate_key(u));
+            vis.goal_queue_insert(u);
             // we're newly inconsistent, so remove any conn_queue edges to us
             InEdgeIter ei, ei_end;
             for (boost::tie(ei,ei_end)=in_edges(u,g); ei!=ei_end; ei++)
             {
                size_t edge_index = get(edge_index_map,*ei);
                if (conn_queue.contains(edge_index))
+               {
                   conn_queue.remove(edge_index);
+                  vis.conn_queue_remove(*ei);
+               }
             }
          }
       }
@@ -337,7 +370,10 @@ public:
             size_t u_idx = start_queue.top_idx();
             Vertex u = vertex(u_idx, g);
             
+            vis.examine_vertex_start(u);
+            
             start_queue.remove_min();
+            vis.start_queue_remove(u);
             if (get(start_distance,u) > get(start_distance_lookahead,u))
             {
                weight_type u_dist = get(start_distance_lookahead,u);
@@ -355,11 +391,12 @@ public:
                   start_update_vertex(v_target);
                   
                   weight_type goaldist_target = get(goal_distance,v_target);
-                  if (u_dist != inf && !goal_queue.contains(idx_target) && goaldist_target != inf)
+                  if (u_dist != inf && !goal_queue.contains(idx_target) && goaldist_target != inf && get(weight,*ei) != inf)
                   {
                      conn_key new_key(combine(combine(u_dist, get(weight,*ei)), goaldist_target),
                         u_dist, goaldist_target);
                      conn_queue.insert(get(edge_index_map,*ei), new_key);
+                     vis.conn_queue_insert(*ei);
                   }
                }
             }
@@ -377,7 +414,10 @@ public:
             size_t u_idx = goal_queue.top_idx();
             Vertex u = vertex(u_idx, g);
             
+            vis.examine_vertex_goal(u);
+            
             goal_queue.remove_min();
+            vis.goal_queue_remove(u);
             if (get(goal_distance,u) > get(goal_distance_lookahead,u))
             {
                weight_type u_dist = get(goal_distance_lookahead,u);
@@ -395,11 +435,12 @@ public:
                   goal_update_vertex(v_source);
                   
                   weight_type startdist_source = get(start_distance,v_source);
-                  if (u_dist != inf && !start_queue.contains(idx_source) && startdist_source != inf)
+                  if (u_dist != inf && !start_queue.contains(idx_source) && startdist_source != inf && get(weight,*ei) != inf)
                   {
                      conn_key new_key(combine(combine(startdist_source, get(weight,*ei)), u_dist),
                         startdist_source, u_dist);
                      conn_queue.insert(get(edge_index_map,*ei), new_key);
+                     vis.conn_queue_insert(*ei);
                   }
                }
             }
@@ -425,12 +466,13 @@ template <typename Graph,
    typename WeightMap,
    typename VertexIndexMap, typename EdgeIndexMap,
    typename CompareFunction, typename CombineFunction,
-   typename CostInf, typename CostZero>
+   typename CostInf, typename CostZero,
+   typename IncBiVisitor>
 inc_bi<Graph,
    StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,
    GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,
    WeightMap,VertexIndexMap,EdgeIndexMap,
-   CompareFunction,CombineFunction,CostInf,CostZero>
+   CompareFunction,CombineFunction,CostInf,CostZero,IncBiVisitor>
 make_inc_bi(
    const Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
@@ -444,19 +486,40 @@ make_inc_bi(
    EdgeIndexMap edge_index_map,
    CompareFunction compare, CombineFunction combine,
    CostInf inf, CostZero zero,
-   typename boost::property_traits<WeightMap>::value_type goal_margin)
+   typename boost::property_traits<WeightMap>::value_type goal_margin,
+   IncBiVisitor vis)
 {
    return inc_bi<
          Graph,
          StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,
          GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,
          WeightMap,VertexIndexMap,EdgeIndexMap,
-         CompareFunction,CombineFunction,CostInf,CostZero>(
+         CompareFunction,CombineFunction,CostInf,CostZero,
+         IncBiVisitor>(
       g,v_start,v_goal,
       start_predecessor,start_distance,start_distance_lookahead,
       goal_predecessor,goal_distance,goal_distance_lookahead,
       weight,vertex_index_map,edge_index_map,
-      compare,combine,inf,zero,goal_margin);
+      compare,combine,inf,zero,goal_margin,vis);
 }
+
+template <class Graph>
+class inc_bi_null_visitor
+{
+public:
+   typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
+   typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
+   inline void examine_vertex_start(Vertex v) {}
+   inline void examine_vertex_goal(Vertex v) {}
+   inline void start_queue_insert(Vertex v) {}
+   inline void start_queue_update(Vertex v) {}
+   inline void start_queue_remove(Vertex v) {}
+   inline void goal_queue_insert(Vertex v) {}
+   inline void goal_queue_update(Vertex v) {}
+   inline void goal_queue_remove(Vertex v) {}
+   inline void conn_queue_insert(Edge e) {}
+   inline void conn_queue_update(Edge e) {}
+   inline void conn_queue_remove(Edge e) {}
+};
 
 } // namespace pr_bgl
