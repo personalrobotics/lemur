@@ -1,24 +1,27 @@
 `ompl_lemur`
-===============
+============
 
 Core planner implementation for the [Open Motion Planning Library (OMPL)][ompl].  Uses [Boost Graph][bgl] for the implementation.  Uses helpers for Boost Graph from the `pr_bgl` package.
 
 Planners
 --------
 
-The primary planner is the `LEMUR`, a derived class of `ompl::base::Planner`.  It takes the following arguments:
+The primary planner is `LEMUR`, a derived class of `ompl::base::Planner`.  It takes the following arguments:
 
 * `const ompl::base::SpaceInformationPtr & si`
 * `ompl_lemur::EffortModel & effort_model`,
-* `ompl_lemur::TagCache & tag_cache`,
-* `const RoadmapPtr roadmap_gen`,
-* `unsigned int num_batches_init`
+* `ompl_lemur::TagCache & tag_cache`
 
-The roadmap input is an instance of a roadmap type which subclasses `ompl_lemur::Roadmap`.  Some of the classes implemented are described in the [Roadmaps](#roadmaps) section below.
+The roadmap to be searched is an instance of a roadmap type which subclasses `ompl_lemur::Roadmap`.  Some of the classes implemented are described in the [Roadmaps](#roadmaps) section below.
 
 ### Parameters
 
 In addition to the construction arguments above, `LEMUR` takes the following parameters:
+
+#### Roadmap
+
+* `roadmap_type` (see `LEMUR::registerRoadmapType`)
+* `roadmap.<roadmap_param>`: delegated to roadmap instance
 
 #### Optimization coefficients
 
@@ -34,6 +37,8 @@ This parameter specifies which algorithm is used for the inner search performed 
 
 * `dijkstras` (rooted at start)
 * `astar` (rooted at start)
+* `lpastar` (rooted at start)
+* `incbi`
 
 #### Evaluation selector type: `eval_type` (string)
 
@@ -44,11 +49,15 @@ This parameter specifies which edge selector is used to select edges for evaluat
 * `alt`
 * `bisect`
 * `fwd_eval`
+* `partition_all`
+* `sp_indicator_probability`
 
-#### Timing: `do_timing` (bool)
+#### Other parameters
 
-Set to `true` to have the planner profile and report time spent during search and during edge evaluation.
-
+* `do_timing` (bool): Set to `true` to have the planner profile and report time spent during search and during edge evaluation.
+* `persist_roots` (bool): Set to `true` to keep vertices and edges from previous problem definitions
+* `num_batches_init` (int): number of batches to generate before proceeding with search
+* `max_batches` (int): planner terminates after search fails over this number of batches generated
 
 Roadmaps
 --------

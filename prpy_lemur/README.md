@@ -1,7 +1,7 @@
 `prpy_lemur`
 ===============
 
-`prpy` bindings for Chris Dellin's planner (aka multiset, e8, or family planner).  For now, only a few features are supported.  For example, caching between calls (within a single planner instance, or through cached files) is not yet supported.
+`prpy` bindings for Chris Dellin's LEMUR planner (aka multiset, e8, or family planner).  For now, only a few features are supported.  For example, caching between calls (within a single planner instance, or through cached files) is not yet supported.
 
 Usage
 -----

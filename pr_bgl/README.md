@@ -14,7 +14,7 @@ BGL uses [Boost property maps][property-map] heavily to provide access to proper
 
 ### `compose_property_map.hpp`
 
-`compose_property_map` was written by Guillaume Pinot, owned by Eurodecision (2013), and released in Boost 1.54 under the Boost Software License v1.0.  It's copied here to users of older versions of Boost.
+`compose_property_map` was written by Guillaume Pinot, owned by Eurodecision (2013), and released in Boost 1.54 under the Boost Software License v1.0.  It's copied here for users of older versions of Boost.
 
 Test coverage: No.
 
@@ -33,6 +33,14 @@ Test coverage: No.
 ### `string_map.h`
 
 The `StringMap` class implements a read-write map which wraps an existing property by allowing converting its values to and from the `std::string` instances.  It requires that the free functions `stringify_from_x()` and `stringify_to_x()` for any custom values.
+
+TODO: this may duplicate functionality from `boost::lexical_cast`.
+
+Test coverage: No.
+
+### `throw_map.h`
+
+The `throw_map` implements a read-write map which throws immediately on `get()` or `set()`.  Useful as an assertion that an instantiation of an algorithm never uses a particular input map.
 
 Test coverage: No.
 
@@ -66,13 +74,13 @@ Test coverage: No.
 Pathfinding Algorithms
 ----------------------
 
-### `incbi.h`
+### `inc_bi.h`
 
-The `IncBi` class implements incremental bidirectional
+The `inc_bi` class implements incremental bidirectional
 Dijkstra's search over a graph for the single-source
 single-sink shortest path problem.
 
-Test coverage: Yes (not yet converted to `gtest`).
+Test coverage: No.
 
 ### `lazysp.h`
 
@@ -80,6 +88,8 @@ The `lazy_shortest_path` function implements the Lazy Shortest Path algorithm fo
 
 Related code:
 
+* `lazysp_inc_bi.h` - adaptor to use incremental bidirectional algorithm for inner search
+* `lazysp_lifelong_planning_astar.h` - adaptor to use LPA* for inner search
 * `lazysp_partition_all.h` - selector using partition functions
 * `lazysp_sp_indicator_probability.h` - selector using sp indicator probability
 
@@ -122,6 +132,8 @@ Other Data Structures
 ### `heap_indexed.h`
 
 The `HeapIndexed` class implements a binary min-heap with index lookups.  Elements are identified with an index value (e.g. [0,num_vertices)).  The heap also maintains a vector backing, wich each element at a particular location.
+
+TODO: this may duplicate functionality implemented in BGL.
 
 Test coverage: Yes.
 
