@@ -4,6 +4,8 @@
  * License: BSD
  */
 
+/* original implemetation from 2015-04 */
+
 namespace pr_bgl
 {
 
