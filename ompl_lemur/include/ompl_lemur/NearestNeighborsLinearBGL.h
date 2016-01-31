@@ -26,8 +26,6 @@ public:
       for (unsigned int ui=0; ui<num_vertices(g); ui++)
       {
          Vertex v_other = vertex(ui, g);
-         if (v_other == v_new)
-            continue;
          double dist = this->space->distance(
             get(state_map, v_new),
             get(state_map, v_other));

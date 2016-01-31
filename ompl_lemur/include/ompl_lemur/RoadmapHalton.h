@@ -118,7 +118,6 @@ public:
                * ompl_lemur::util::halton(
                   ompl_lemur::util::get_prime(ui), v_index);
          }
-         this->nn->add(v_new);
                   
          // allocate new undirected edges
          std::vector<Vertex> vs_near;
@@ -130,6 +129,8 @@ public:
             put(this->distance_map, e, this->space->distance(v_state,vnear_state));
             put(this->edge_batch_map, e, this->num_batches_generated);
          }
+         
+         this->nn->add(v_new);
       }
       this->num_batches_generated++;
    }
