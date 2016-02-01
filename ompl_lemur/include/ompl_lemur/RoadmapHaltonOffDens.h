@@ -156,19 +156,20 @@ public:
                value -= (_bounds.high[ui] - _bounds.low[ui]);
             values[ui] = value;
          }
+         this->nn->add(v_new);
                   
          // allocate new undirected edges
          std::vector<Vertex> vs_near;
          this->nn->nearestR(v_new, radius, vs_near);
          for (unsigned int ui=0; ui<vs_near.size(); ui++)
          {
+            if (vs_near[ui] == v_new)
+               continue;
             Edge e = add_edge(v_new, vs_near[ui], this->g).first;
             ompl::base::State * vnear_state = get(this->state_map,vs_near[ui]);
             put(this->distance_map, e, this->space->distance(v_state,vnear_state));
             put(this->edge_batch_map, e, this->num_batches_generated);
          }
-         
-         this->nn->add(v_new);
       }
       this->num_batches_generated++;
    }

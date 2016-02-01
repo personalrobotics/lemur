@@ -108,6 +108,7 @@ public:
          put(this->state_map, v_new, this->space->allocState());
          ompl::base::State * v_state = get(this->state_map, v_new);
          double * values = v_state->as<ompl::base::RealVectorStateSpace::StateType>()->values;
+         this->nn->add(v_new);
          
          std::size_t ivert_used = ivert;
          std::size_t dim_stride = 1;
@@ -130,8 +131,6 @@ public:
             ivert_used /= dim_numverts[idim];
             dim_stride *= dim_numverts[idim];
          }
-         
-         this->nn->add(v_new);
       }
       this->num_batches_generated++;
    }
