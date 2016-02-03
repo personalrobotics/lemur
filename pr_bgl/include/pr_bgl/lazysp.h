@@ -73,22 +73,32 @@ bool lazy_shortest_path(Graph & g,
 
       // determine edges to evaluate
       std::vector<Edge> to_evaluate;
+      visitor.selector_begin();
       evalstrategy.get_to_evaluate(g, eepath, to_evaluate);
+      visitor.selector_end();
       BOOST_ASSERT(to_evaluate.size());
 
       // perform the evaluations
-      visitor.eval_begin();
+      
       for (unsigned int ui=0; ui<to_evaluate.size(); ui++)
       {
          Edge & e = to_evaluate[ui];
          weight_type e_weight_old = get(wlazymap, e);
+         
+         visitor.eval_begin();
          weight_type e_weight = get(wmap,e);
+         visitor.eval_end();
+         
          visitor.edge_evaluate(e, e_weight);
          put(wlazymap, e, e_weight);
+         
          incsp.update_notify(e);
+         
+         visitor.selector_notify_begin();
          evalstrategy.update_notify(e, e_weight_old);
+         visitor.selector_notify_end();
       }
-      visitor.eval_end();
+      
    }
 }
 
@@ -116,6 +126,12 @@ public:
    
    template <class Edge>
    inline void edge_evaluate(Edge & e, double e_weight) {}
+   
+   inline void selector_begin() {}
+   inline void selector_end() {}
+   
+   inline void selector_notify_begin() {}
+   inline void selector_notify_end() {}
 };
 
 template <class A, class B>
@@ -177,6 +193,31 @@ public:
       visA.edge_evaluate(e, e_weight);
       visB.edge_evaluate(e, e_weight);
    }
+   
+   inline void selector_begin()
+   {
+      visA.selector_begin();
+      visB.selector_begin();
+   }
+   
+   inline void selector_end()
+   {
+      visA.selector_end();
+      visB.selector_end();
+   }
+   
+   inline void selector_notify_begin()
+   {
+      visA.selector_notify_begin();
+      visB.selector_notify_begin();
+   }
+   
+   inline void selector_notify_end()
+   {
+      visA.selector_notify_end();
+      visB.selector_notify_end();
+   }
+   
 };
 
 template <class A, class B>

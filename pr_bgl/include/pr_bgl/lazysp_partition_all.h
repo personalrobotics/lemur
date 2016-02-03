@@ -7,7 +7,21 @@
 namespace pr_bgl
 {
 
+// adaptor to use partition_all to select edges
+// for a lazysp query between a particular v_start and v_goal
+// 
 // for now, this assumes g is an undirected graph
+//
+// we include a do_fake_roots parameter (default: false)
+// when this parameter is set,
+// then edges TO the start and edges FROM the goal are IGNORED
+// (this way, the oppposite edges can have 0 weight)
+// (this is accounted for on both initial add and incremental updates)
+//
+// also, if do_fake_roots is set,
+// then the first and last edges on the path are always
+// scored 1.0 (highest) and will therefore always be evaluated first
+// 
 template <class Graph, class WLazyMap>
 class lazysp_partition_all
 {

@@ -602,7 +602,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
                   get(boost::vertex_index, g),
                   get(&EProps::index, g),
                   *os_alglog),
-               LazySPTimingVisitor(_dur_search, _dur_eval))
+               LazySPTimingVisitor(_dur_search, _dur_eval, _dur_selector, _dur_selector_notify))
             );
       }
       else
@@ -616,7 +616,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
             epath,
             incsp,
             evalstrategy,
-            LazySPTimingVisitor(_dur_search, _dur_eval));
+            LazySPTimingVisitor(_dur_search, _dur_eval, _dur_selector, _dur_selector_notify));
       }
    }
    else // no timing
@@ -1147,6 +1147,8 @@ ompl_lemur::LEMUR::solve(
       _dur_lazysp = boost::chrono::high_resolution_clock::duration();
       _dur_search = boost::chrono::high_resolution_clock::duration();
       _dur_eval = boost::chrono::high_resolution_clock::duration();
+      _dur_selector = boost::chrono::high_resolution_clock::duration();
+      _dur_selector_notify = boost::chrono::high_resolution_clock::duration();
       time_total_begin = boost::chrono::high_resolution_clock::now();
    }
    
@@ -1523,6 +1525,16 @@ double ompl_lemur::LEMUR::getDurSearch()
 double ompl_lemur::LEMUR::getDurEval()
 {
    return boost::chrono::duration<double>(_dur_eval).count();
+}
+
+double ompl_lemur::LEMUR::getDurSelector()
+{
+   return boost::chrono::duration<double>(_dur_selector).count();
+}
+
+double ompl_lemur::LEMUR::getDurSelectorNotify()
+{
+   return boost::chrono::duration<double>(_dur_selector_notify).count();
 }
 
 void ompl_lemur::LEMUR::overlay_apply()

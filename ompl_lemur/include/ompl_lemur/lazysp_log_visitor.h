@@ -83,11 +83,16 @@ class LazySPTimingVisitor : public pr_bgl::lazysp_null_visitor
 public:
    boost::chrono::high_resolution_clock::duration & dur_search;
    boost::chrono::high_resolution_clock::duration & dur_eval;
+   boost::chrono::high_resolution_clock::duration & dur_selector;
+   boost::chrono::high_resolution_clock::duration & dur_selector_notify;
    boost::chrono::high_resolution_clock::time_point time_begin;
    LazySPTimingVisitor(
       boost::chrono::high_resolution_clock::duration & dur_search,
-      boost::chrono::high_resolution_clock::duration & dur_eval):
-      dur_search(dur_search), dur_eval(dur_eval)
+      boost::chrono::high_resolution_clock::duration & dur_eval,
+      boost::chrono::high_resolution_clock::duration & dur_selector,
+      boost::chrono::high_resolution_clock::duration & dur_selector_notify):
+      dur_search(dur_search), dur_eval(dur_eval),
+      dur_selector(dur_selector), dur_selector_notify(dur_selector_notify)
    {
    }
    inline void search_begin()
@@ -105,6 +110,26 @@ public:
    inline void eval_end()
    {
       dur_eval += boost::chrono::high_resolution_clock::now() - time_begin;
+   }
+   
+   inline void selector_begin()
+   {
+      time_begin = boost::chrono::high_resolution_clock::now();
+   }
+   
+   inline void selector_end()
+   {
+      dur_selector += boost::chrono::high_resolution_clock::now() - time_begin;
+   }
+   
+   inline void selector_notify_begin()
+   {
+      time_begin = boost::chrono::high_resolution_clock::now();
+   }
+   
+   inline void selector_notify_end()
+   {
+      dur_selector_notify += boost::chrono::high_resolution_clock::now() - time_begin;
    }
 };
 
