@@ -165,4 +165,105 @@ public:
    }
 };
 
+template <class Graph, class WLazyMap>
+class lazysp_partition_all_matrix
+{
+public:
+   typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
+   typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
+   
+   
+   const Graph & g;
+   WLazyMap w_lazy_map;
+   const double len_ref;
+   const Vertex v_start;
+   const Vertex v_goal;
+   const bool do_fake_roots;
+   
+   pr_bgl::partition_all_matrix & solver;
+   
+   lazysp_partition_all_matrix(
+      const Graph & g,
+      WLazyMap w_lazy_map, double len_ref,
+      Vertex v_start, Vertex v_goal,
+      bool do_fake_roots,
+      pr_bgl::partition_all_matrix & solver):
+      g(g), w_lazy_map(w_lazy_map), len_ref(len_ref),
+      v_start(v_start), v_goal(v_goal),
+      do_fake_roots(do_fake_roots),
+      solver(solver)
+   {
+   }
+
+   void get_to_evaluate(
+      const Graph & g,
+      const std::vector< std::pair<Edge,bool> > & path,
+      std::vector<Edge> & to_evaluate)
+   {
+      double coupling_withall = solver.Z(v_start, v_goal);
+      //printf("start-goal coupling: %e\n", coupling_withall);
+      
+      double score_best = 0.0;
+      Edge e_best;
+      bool found_best = false;
+      for (unsigned int ui=0; ui<path.size(); ui++)
+      {
+         Edge e = path[ui].first;
+         if (path[ui].second)
+            continue;
+         
+         double score;
+         if (do_fake_roots && (ui==0 || ui==path.size()-1))
+            score = 1.0;
+         else
+         {
+            double weight_frac = get(w_lazy_map,e)/len_ref;
+            double coupling_without = solver.without_undirected(
+               v_start, v_goal, source(e,g), target(e,g), weight_frac);
+            
+            //printf("  path[%u] edge coupling without: %e\n", ui, coupling_without);
+            score = 1.0 - coupling_without/coupling_withall;
+         }
+         
+         // is it better?
+         if (score_best <= score)
+         {
+            e_best = e;
+            score_best = score;
+            found_best = true;
+         }
+      }
+      if (!found_best)
+         throw std::runtime_error("no best edge found!");
+      to_evaluate.push_back(e_best);
+   }
+   
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old)
+   {
+      //printf("accommodating updated edge ...\n");
+      double e_weight_new = get(w_lazy_map, e);
+      if (e_weight_new == e_weight_old)
+         return;
+      
+      // remove in both directions (assume above check skips fake roots)
+      Vertex va = source(e, g);
+      Vertex vb = target(e, g);
+      
+      // remove in both directions
+      double weight_frac_old = e_weight_old / len_ref;
+      if (!do_fake_roots || (vb != v_start && va != v_goal))
+         solver.remove_edge(va, vb, weight_frac_old);
+      if (!do_fake_roots || (va != v_start && vb != v_goal))
+         solver.remove_edge(vb, va, weight_frac_old);
+      
+      // add in both directions
+      double weight_frac = get(w_lazy_map, e) / len_ref;
+      if (!do_fake_roots || (vb != v_start && va != v_goal))
+         solver.add_edge(va, vb, weight_frac);
+      if (!do_fake_roots || (va != v_start && vb != v_goal))
+         solver.add_edge(vb, va, weight_frac);
+   }
+};
+
 } // namespace pr_bgl

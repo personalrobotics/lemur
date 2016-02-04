@@ -351,6 +351,7 @@ bool or_lemur::LEMUR::GetTimes(std::ostream & sout, std::istream & sin) const
    sout << " e8_dur_lazysp " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurLazySP();
    sout << " e8_dur_search " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSearch();
    sout << " e8_dur_eval " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurEval();
+   sout << " e8_dur_selector_init " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorInit();
    sout << " e8_dur_selector " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelector();
    sout << " e8_dur_selector_notify " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorNotify();
    return true;

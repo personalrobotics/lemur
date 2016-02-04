@@ -12,6 +12,8 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/graph/astar_search.hpp>
 #include <boost/graph/filtered_graph.hpp>
+#include <boost/numeric/ublas/matrix.hpp>
+#include <boost/numeric/ublas/matrix_proxy.hpp>
 
 #include <ompl/base/Planner.h>
 #include <ompl/base/StateSpace.h>
@@ -72,7 +74,7 @@ void remove_vertex(ompl_lemur::LEMUR::Vertex v, ompl_lemur::LEMUR::Graph & g)
    g.m_vertices.pop_back();
 }
 
-} // anonymous namespace
+} // boost namespace
 
 /*
  * ok, how does the overlay graph relate to the core graph?
@@ -768,7 +770,28 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
                pr_bgl::LazySpEvalFwdExpand(),
                epath);
-         case EVAL_TYPE_PARTITION_ALL:
+         case EVAL_TYPE_PARTITION_ALL: 
+         {
+            double len_ref = 1.0/3.0;
+            
+            boost::chrono::high_resolution_clock::time_point time_selector_init_begin
+               = boost::chrono::high_resolution_clock::now();
+            printf("computing partition_all from scratch ...\n");
+            pr_bgl::partition_all_matrix solver(num_vertices(g));
+            // add all edges (both directions)
+            std::pair<EdgeIter,EdgeIter> ep=edges(g);
+            for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
+            {
+               double weight_frac = g[*ei].w_lazy / len_ref;
+               Vertex va = source(*ei,g);
+               Vertex vb = target(*ei,g);
+               if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
+                  solver.add_edge(va, vb, weight_frac); // add forward edge a->b
+               if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
+                  solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
+            }
+            _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
+         
             return do_lazysp_b(g,
                pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
                   boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
@@ -776,13 +799,15 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_partition_all<MyGraph,EPWlazyMap>(
+               pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
                   g, get(&EProps::w_lazy,g),
-                  1.0/3.0, // len_ref
+                  len_ref,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
-                  true),
+                  true,
+                  solver),
                epath);
+         }
          case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
             return do_lazysp_b(g,
                pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
@@ -876,6 +901,27 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                pr_bgl::LazySpEvalFwdExpand(),
                epath);
          case EVAL_TYPE_PARTITION_ALL:
+         {
+            double len_ref = 1.0/3.0;
+            
+            boost::chrono::high_resolution_clock::time_point time_selector_init_begin
+               = boost::chrono::high_resolution_clock::now();
+            printf("computing partition_all from scratch ...\n");
+            pr_bgl::partition_all_matrix solver(num_vertices(g));
+            // add all edges (both directions)
+            std::pair<EdgeIter,EdgeIter> ep=edges(g);
+            for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
+            {
+               double weight_frac = g[*ei].w_lazy / len_ref;
+               Vertex va = source(*ei,g);
+               Vertex vb = target(*ei,g);
+               if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
+                  solver.add_edge(va, vb, weight_frac); // add forward edge a->b
+               if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
+                  solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
+            }
+            _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
+            
             return do_lazysp_b(g,
                pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
                   og[ov_singlestart].core_vertex,
@@ -886,13 +932,15 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                   boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                   1.0e-9),
-               pr_bgl::lazysp_partition_all<MyGraph,EPWlazyMap>(
+               pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
                   g, get(&EProps::w_lazy,g),
                   1.0/3.0, // len_ref
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
-                  true),
+                  true,
+                  solver),
                epath);
+         }
          case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
             return do_lazysp_b(g,
                pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
@@ -958,17 +1006,40 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             pr_bgl::LazySpEvalFwdExpand(),
             epath);
       case EVAL_TYPE_PARTITION_ALL:
+      {
+         double len_ref = 1.0/3.0;
+         
+         boost::chrono::high_resolution_clock::time_point time_selector_init_begin
+            = boost::chrono::high_resolution_clock::now();
+         printf("computing partition_all from scratch ...\n");
+         pr_bgl::partition_all_matrix solver(num_vertices(g));
+         // add all edges (both directions)
+         std::pair<EdgeIter,EdgeIter> ep=edges(g);
+         for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
+         {
+            double weight_frac = g[*ei].w_lazy / len_ref;
+            Vertex va = source(*ei,g);
+            Vertex vb = target(*ei,g);
+            if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
+               solver.add_edge(va, vb, weight_frac); // add forward edge a->b
+            if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
+               solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
+         }
+         _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
+      
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_partition_all<MyGraph,EPWlazyMap>(
+            pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
                g, get(&EProps::w_lazy,g),
                1.0/3.0, // len_ref
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
-               true),
+               true,
+               solver),
             epath);
+      }
       case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
@@ -1081,6 +1152,27 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             pr_bgl::LazySpEvalFwdExpand(),
             epath);
       case EVAL_TYPE_PARTITION_ALL:
+      {
+         double len_ref = 1.0/3.0;
+         
+         boost::chrono::high_resolution_clock::time_point time_selector_init_begin
+            = boost::chrono::high_resolution_clock::now();
+         printf("computing partition_all from scratch ...\n");
+         pr_bgl::partition_all_matrix solver(num_vertices(g));
+         // add all edges (both directions)
+         std::pair<EdgeIter,EdgeIter> ep=edges(g);
+         for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
+         {
+            double weight_frac = g[*ei].w_lazy / len_ref;
+            Vertex va = source(*ei,g);
+            Vertex vb = target(*ei,g);
+            if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
+               solver.add_edge(va, vb, weight_frac); // add forward edge a->b
+            if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
+               solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
+         }
+         _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
+         
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
@@ -1095,13 +1187,15 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
                pr_bgl::inc_bi_null_visitor<Graph>()),
-            pr_bgl::lazysp_partition_all<MyGraph,EPWlazyMap>(
+            pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
                g, get(&EProps::w_lazy,g),
                1.0/3.0, // len_ref
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
-               true),
+               true,
+               solver),
             epath);
+      }
       case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
@@ -1147,6 +1241,7 @@ ompl_lemur::LEMUR::solve(
       _dur_lazysp = boost::chrono::high_resolution_clock::duration();
       _dur_search = boost::chrono::high_resolution_clock::duration();
       _dur_eval = boost::chrono::high_resolution_clock::duration();
+      _dur_selector_init = boost::chrono::high_resolution_clock::duration();
       _dur_selector = boost::chrono::high_resolution_clock::duration();
       _dur_selector_notify = boost::chrono::high_resolution_clock::duration();
       time_total_begin = boost::chrono::high_resolution_clock::now();
@@ -1247,9 +1342,12 @@ ompl_lemur::LEMUR::solve(
          if (num_batches < _roadmap->num_batches_generated)
          {
             printf("doing filtered lazy search ...\n");
+            abort();
+#if 0
             filter_num_batches filter(get(&EProps::batch,g), num_batches);
             boost::filtered_graph<Graph,filter_num_batches> fg(g, filter);
             success = do_lazysp_a(fg, epath);
+#endif
          }
          else
          {
@@ -1525,6 +1623,11 @@ double ompl_lemur::LEMUR::getDurSearch()
 double ompl_lemur::LEMUR::getDurEval()
 {
    return boost::chrono::duration<double>(_dur_eval).count();
+}
+
+double ompl_lemur::LEMUR::getDurSelectorInit()
+{
+   return boost::chrono::duration<double>(_dur_selector_init).count();
 }
 
 double ompl_lemur::LEMUR::getDurSelector()

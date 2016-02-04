@@ -220,4 +220,68 @@ double partition_all_without_edge(
    }
 }
 
+class partition_all_matrix
+{
+public:
+   boost::numeric::ublas::matrix<double> Z;
+   boost::numeric::ublas::vector<double> Z_xa;
+   boost::numeric::ublas::vector<double> Z_by;
+
+   partition_all_matrix(size_t num_vertices):
+      Z(num_vertices,num_vertices),
+      Z_xa(num_vertices), Z_by(num_vertices)
+   {
+      Z = boost::numeric::ublas::identity_matrix<double>(num_vertices);
+   }
+   
+   inline void add_edge(size_t va, size_t vb, double weight_frac)
+   {
+      double denom = exp(weight_frac) - Z(vb, va);
+      if (denom <= 0.0)
+         throw std::runtime_error("divergent!");
+      // copy in a-th column and b-th row
+      Z_xa = column(Z, va);
+      Z_by = row(Z, vb);
+      // do outer product
+      Z += (1.0/denom) * outer_prod(Z_xa, Z_by);
+   }
+   
+   inline void remove_edge(size_t va, size_t vb, double weight_frac)
+   {
+      double denom = exp(weight_frac) + Z(vb, va);
+      // copy in a-th column and b-th row
+      Z_xa = column(Z, va);
+      Z_by = row(Z, vb);
+      // do outer product
+      Z -= (1.0/denom) * outer_prod(Z_xa, Z_by);
+   }
+   
+   inline double without_undirected(size_t vx, size_t vy, size_t va, size_t vb, double weight_frac)
+   {
+      // lets do a two-step backup
+
+      // original (double-prime) values
+      double cpp_xy = Z(vx, vy);
+      double cpp_xs = Z(vx, va);
+      double cpp_xt = Z(vx, vb);
+      double cpp_sy = Z(va, vy);
+      double cpp_ss = Z(va, va);
+      double cpp_st = Z(va, vb);
+      double cpp_ty = Z(vb, vy);
+      double cpp_ts = Z(vb, va);
+      double cpp_tt = Z(vb, vb);
+      
+      // first, remove the edge from s(a) --> t(b)
+      // calculate some intermediate results we'll need later
+      double cp_xy = cpp_xy - (cpp_xs * cpp_ty)/(exp(weight_frac) + cpp_ts);
+      double cp_xt = cpp_xt - (cpp_xs * cpp_tt)/(exp(weight_frac) + cpp_ts);
+      double cp_sy = cpp_sy - (cpp_ss * cpp_ty)/(exp(weight_frac) + cpp_ts);
+      double cp_st = cpp_st - (cpp_ss * cpp_tt)/(exp(weight_frac) + cpp_ts);
+      
+      // next, remove the edge from b(s) --> a(t)
+      double c_xy = cp_xy - (cp_xt * cp_sy)/(exp(weight_frac) + cp_st);
+      return c_xy;
+   }
+};
+
 } // namespace pr_bgl

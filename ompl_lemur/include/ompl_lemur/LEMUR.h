@@ -227,6 +227,7 @@ private:
    boost::chrono::high_resolution_clock::duration _dur_lazysp;
    boost::chrono::high_resolution_clock::duration _dur_search;
    boost::chrono::high_resolution_clock::duration _dur_eval;
+   boost::chrono::high_resolution_clock::duration _dur_selector_init;
    boost::chrono::high_resolution_clock::duration _dur_selector;
    boost::chrono::high_resolution_clock::duration _dur_selector_notify;
    
@@ -301,6 +302,7 @@ public:
    double getDurLazySP();
    double getDurSearch();
    double getDurEval();
+   double getDurSelectorInit();
    double getDurSelector();
    double getDurSelectorNotify();
    
