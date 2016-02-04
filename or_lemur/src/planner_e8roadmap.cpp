@@ -163,61 +163,75 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
    robot = inrobot;
    robot_adofs = inrobot->GetActiveDOFIndices();
    
-   // set up ompl space
-   ompl_space.reset(new ompl::base::RealVectorStateSpace(robot_adofs.size()));
-   ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
-   ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / ompl_space->getMaximumExtent());
-   ompl_space->setup();
+   bool persist_planner = false;
+   if (params->has_persist_roots && params->persist_roots)
+      persist_planner = true;
    
-   // set up si / checker
-   ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
+   if (persist_planner)
+      RAVELOG_WARN("Warning, persisting the planner is experimental and does not check for consistency!\n");
+   
+   if (!ompl_planner || !persist_planner)
+   {
+      // set up ompl space
+      ompl_space.reset(new ompl::base::RealVectorStateSpace(robot_adofs.size()));
+      ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
+      ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / ompl_space->getMaximumExtent());
+      ompl_space->setup();
+      
+      // set up si / checker
+      ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
+   }
+   
    ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size()));
    ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_checker));
    ompl_si->setup();
-   
-   // set up planner
-   double check_cost;
-   if (params->has_check_cost)
-      check_cost = params->check_cost;
-   else
+      
+   if (!ompl_planner || !persist_planner)
    {
-      check_cost = ompl_space->getLongestValidSegmentLength();
-      printf("using simple effort model with default check_cost=%f\n", check_cost);
+      // set up planner
+      double check_cost;
+      if (params->has_check_cost)
+         check_cost = params->check_cost;
+      else
+      {
+         check_cost = ompl_space->getLongestValidSegmentLength();
+         printf("using simple effort model with default check_cost=%f\n", check_cost);
+      }
+      sem.reset(new ompl_lemur::SimpleEffortModel(ompl_si, check_cost));
+      tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
+      ompl_planner.reset(new ompl_lemur::LEMUR(ompl_space, *sem, *tag_cache));
+      
+      // register known roadmap types
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonDens>("HaltonDens");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonOffDens>("HaltonOffDens");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGG>("RGG");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDens>("RGGDens");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDensConst>("RGGDensConst");
+      ompl_planner->registerRoadmapType("CachedAAGrid",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapAAGrid>()));
+      ompl_planner->registerRoadmapType("CachedHalton",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHalton>()));
+      ompl_planner->registerRoadmapType("CachedHaltonDens",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonDens>()));
+      ompl_planner->registerRoadmapType("CachedHaltonOffDens",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonOffDens>()));
+      ompl_planner->registerRoadmapType("CachedRGG",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGG>()));
+      ompl_planner->registerRoadmapType("CachedRGGDens",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDens>()));
+      ompl_planner->registerRoadmapType("CachedRGGDensConst",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDensConst>()));
    }
-   sem.reset(new ompl_lemur::SimpleEffortModel(ompl_si, check_cost));
-   tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
-   ompl_planner.reset(new ompl_lemur::LEMUR(ompl_space, *sem, *tag_cache));
-   
-   // register known roadmap types
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonDens>("HaltonDens");
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonOffDens>("HaltonOffDens");
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGG>("RGG");
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDens>("RGGDens");
-   ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDensConst>("RGGDensConst");
-   ompl_planner->registerRoadmapType("CachedAAGrid",
-      or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
-         ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapAAGrid>()));
-   ompl_planner->registerRoadmapType("CachedHalton",
-      or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
-         ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHalton>()));
-   ompl_planner->registerRoadmapType("CachedHaltonDens",
-      or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
-         ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonDens>()));
-   ompl_planner->registerRoadmapType("CachedHaltonOffDens",
-      or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
-         ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonOffDens>()));
-   ompl_planner->registerRoadmapType("CachedRGG",
-      or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
-         ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGG>()));
-   ompl_planner->registerRoadmapType("CachedRGGDens",
-      or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
-         ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDens>()));
-   ompl_planner->registerRoadmapType("CachedRGGDensConst",
-      or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
-         ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDensConst>()));
    
    // planner params
    if (params->has_roadmap_type)
