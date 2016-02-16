@@ -72,7 +72,7 @@ public:
       lazysp_incsp_inc_bi_edge_index_adaptor<Graph,EdgeIndexMap>,
       std::less<weight_type>, boost::closed_plus<weight_type>,
       weight_type, weight_type,
-      IncBiVisitor
+      IncBiVisitor, inc_bi_balancer_distance<Vertex,weight_type>
    > incbi;
    
    lazysp_incsp_inc_bi(
@@ -103,7 +103,7 @@ public:
          std::numeric_limits<weight_type>::max(),
          weight_type(),
          goal_margin,
-         vis)
+         vis, inc_bi_balancer_distance<Vertex,weight_type>())
    {
    }
    

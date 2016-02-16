@@ -28,7 +28,7 @@ template <typename Graph,
    typename VertexIndexMap, typename EdgeIndexMap,
    typename CompareFunction, typename CombineFunction,
    typename CostInf, typename CostZero,
-   typename IncBiVisitor>
+   typename IncBiVisitor, typename IncBiBalancer>
 class inc_bi
 {
 public:
@@ -85,6 +85,7 @@ public:
    CostZero zero;
    weight_type goal_margin;
    IncBiVisitor vis;
+   IncBiBalancer balancer;
    
    HeapIndexed< weight_type > start_queue;
    HeapIndexed< weight_type > goal_queue;
@@ -106,7 +107,8 @@ public:
       CompareFunction compare, CombineFunction combine,
       CostInf inf, CostZero zero,
       weight_type goal_margin,
-      IncBiVisitor vis):
+      IncBiVisitor vis,
+      IncBiBalancer balancer):
       g(g), v_start(v_start), v_goal(v_goal),
       start_predecessor(start_predecessor),
       start_distance(start_distance),
@@ -120,7 +122,7 @@ public:
       compare(compare), combine(combine),
       inf(inf), zero(zero),
       goal_margin(goal_margin),
-      vis(vis)
+      vis(vis), balancer(balancer)
    {
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
@@ -279,14 +281,14 @@ public:
       if (u != v_goal)
       {
          weight_type rhs = inf;
-         InEdgeIter ei, ei_end;
-         for (boost::tie(ei,ei_end)=in_edges(u,g); ei!=ei_end; ei++)
+         OutEdgeIter ei, ei_end;
+         for (boost::tie(ei,ei_end)=out_edges(u,g); ei!=ei_end; ei++)
          {
-            weight_type val = combine(get(goal_distance,source(*ei,g)), get(weight,*ei));
+            weight_type val = combine(get(weight,*ei), get(goal_distance,target(*ei,g)));
             if (val < rhs)
             {
                rhs = val;
-               put(goal_predecessor, u, source(*ei,g));
+               put(goal_predecessor, u, target(*ei,g));
             }
          }
          put(goal_distance_lookahead, u, rhs);
@@ -367,8 +369,16 @@ public:
          }
          while (0);
          
-         if (start_top < goal_top)
+         bool do_goal =
+            start_queue.contains(v_start) ? false :
+            goal_queue.contains(v_goal) ? true :
+            balancer(start_top,goal_top);
+         
+         if (do_goal == false)
          {
+            if (!start_queue.size())
+               return std::make_pair(0, false);
+            
             size_t u_idx = start_queue.top_idx();
             Vertex u = vertex(u_idx, g);
             
@@ -413,6 +423,9 @@ public:
          }
          else
          {
+            if (!goal_queue.size())
+               return std::make_pair(0, false);
+            
             size_t u_idx = goal_queue.top_idx();
             Vertex u = vertex(u_idx, g);
             
@@ -460,51 +473,6 @@ public:
 
 };
 
-template <typename Graph,
-   typename StartPredecessorMap,
-   typename StartDistanceMap, typename StartDistanceLookaheadMap,
-   typename GoalPredecessorMap,
-   typename GoalDistanceMap, typename GoalDistanceLookaheadMap,
-   typename WeightMap,
-   typename VertexIndexMap, typename EdgeIndexMap,
-   typename CompareFunction, typename CombineFunction,
-   typename CostInf, typename CostZero,
-   typename IncBiVisitor>
-inc_bi<Graph,
-   StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,
-   GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,
-   WeightMap,VertexIndexMap,EdgeIndexMap,
-   CompareFunction,CombineFunction,CostInf,CostZero,IncBiVisitor>
-make_inc_bi(
-   const Graph & g,
-   typename boost::graph_traits<Graph>::vertex_descriptor v_start,
-   typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
-   StartPredecessorMap start_predecessor,
-   StartDistanceMap start_distance, StartDistanceLookaheadMap start_distance_lookahead,
-   GoalPredecessorMap goal_predecessor,
-   GoalDistanceMap goal_distance, GoalDistanceLookaheadMap goal_distance_lookahead,
-   WeightMap weight,
-   VertexIndexMap vertex_index_map,
-   EdgeIndexMap edge_index_map,
-   CompareFunction compare, CombineFunction combine,
-   CostInf inf, CostZero zero,
-   typename boost::property_traits<WeightMap>::value_type goal_margin,
-   IncBiVisitor vis)
-{
-   return inc_bi<
-         Graph,
-         StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,
-         GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,
-         WeightMap,VertexIndexMap,EdgeIndexMap,
-         CompareFunction,CombineFunction,CostInf,CostZero,
-         IncBiVisitor>(
-      g,v_start,v_goal,
-      start_predecessor,start_distance,start_distance_lookahead,
-      goal_predecessor,goal_distance,goal_distance_lookahead,
-      weight,vertex_index_map,edge_index_map,
-      compare,combine,inf,zero,goal_margin,vis);
-}
-
 template <class Graph>
 class inc_bi_null_visitor
 {
@@ -522,6 +490,16 @@ public:
    inline void conn_queue_insert(Edge e) {}
    inline void conn_queue_update(Edge e) {}
    inline void conn_queue_remove(Edge e) {}
+};
+
+/* true = expand from goal side */
+template <typename Vertex, typename weight_type>
+struct inc_bi_balancer_distance
+{
+   bool operator()(weight_type start_top, weight_type goal_top) const
+   {
+      return (goal_top < start_top);
+   }
 };
 
 } // namespace pr_bgl

@@ -81,7 +81,8 @@ TEST(IncBiTestCase, IncBiTest)
       boost::closed_plus<double>, // combine
       double,
       double,
-      pr_bgl::inc_bi_null_visitor<Graph>
+      pr_bgl::inc_bi_null_visitor<Graph>,
+      pr_bgl::inc_bi_balancer_distance<Vertex,double>
       > myincbi(
          g, 0, 4,
          start_predecessor_map, start_dist_map, start_dist_lookahead_map,
@@ -93,7 +94,8 @@ TEST(IncBiTestCase, IncBiTest)
          std::numeric_limits<double>::max(),
          double(),
          0.0,
-         pr_bgl::inc_bi_null_visitor<Graph>());
+         pr_bgl::inc_bi_null_visitor<Graph>(),
+         pr_bgl::inc_bi_balancer_distance<Vertex,double>());
    
    printf("computing shortest path ...\n");
    std::pair<size_t,bool> ret = myincbi.compute_shortest_path();

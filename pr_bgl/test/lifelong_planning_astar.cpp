@@ -280,7 +280,7 @@ TEST(LifelongPlanningAstarTestCase, LifelongPlanningAstarTest)
       lpastar.update_vertex(target(*it,g));
    }
    printf("found %lu changed edges!\n", edel.size());
-   ASSERT_EQ(23, edel.size());
+   ASSERT_EQ(29, edel.size());
    
     // run search
    num_expansions = 0;
