@@ -372,7 +372,7 @@ public:
          bool do_goal =
             start_queue.contains(v_start) ? false :
             goal_queue.contains(v_goal) ? true :
-            balancer(start_top,goal_top);
+            balancer(start_top,goal_top,start_queue.size(),goal_queue.size());
          
          if (do_goal == false)
          {
@@ -496,9 +496,23 @@ public:
 template <typename Vertex, typename weight_type>
 struct inc_bi_balancer_distance
 {
-   bool operator()(weight_type start_top, weight_type goal_top) const
+   bool operator()(
+      weight_type start_top, weight_type goal_top,
+      size_t start_queuesize, size_t goal_queuesize) const
    {
       return (goal_top < start_top);
+   }
+};
+
+/* true = expand from goal side */
+template <typename Vertex, typename weight_type>
+struct inc_bi_balancer_cardinality
+{
+   bool operator()(
+      weight_type start_top, weight_type goal_top,
+      size_t start_queuesize, size_t goal_queuesize) const
+   {
+      return (goal_queuesize < start_queuesize);
    }
 };
 
