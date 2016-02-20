@@ -16,6 +16,7 @@
 
 #include <pr_bgl/flag_set_map.h>
 #include <pr_bgl/lazysp.h>
+#include <pr_bgl/lazysp_incsp_dijkstra.h>
 
 #include <gtest/gtest.h>
 
@@ -69,7 +70,7 @@ TEST(LazySPTestCase, LazySPTest)
    std::vector<Vertex> v_startpreds(num_vertices(g));
    std::vector<double> v_startdist(num_vertices(g));
    
-   bool success = pr_bgl::lazy_shortest_path(
+   bool success = pr_bgl::lazysp(
       g, vertex(17,g), vertex(22,g),
       pr_bgl::make_flag_set_map(
          boost::make_assoc_property_map(dist), 
@@ -80,8 +81,8 @@ TEST(LazySPTestCase, LazySPTest)
       pr_bgl::make_lazysp_incsp_dijkstra< Graph, boost::associative_property_map< std::map<Edge,double> > >(
          boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
          boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-      pr_bgl::LazySpEvalAlt(),
-      pr_bgl::lazysp_null_visitor());
+      pr_bgl::lazysp_selector_alt(),
+      pr_bgl::lazysp_visitor_null());
    ASSERT_EQ(true, success);
    
    // validate path

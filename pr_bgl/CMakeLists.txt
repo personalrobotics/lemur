@@ -16,22 +16,22 @@ set(CMAKE_BUILD_TYPE Release)
 
 if (CATKIN_ENABLE_TESTING)
    
-   catkin_add_gtest(test_heap_indexed test/heap_indexed.cpp)
+   catkin_add_gtest(test_heap_indexed test/test_heap_indexed.cpp)
    
-   catkin_add_gtest(test_lazysp test/lazysp.cpp)
+   catkin_add_gtest(test_incbi test/test_incbi.cpp)
+   
+   catkin_add_gtest(test_lazysp test/test_lazysp.cpp)
    set_target_properties(test_lazysp PROPERTIES
       COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
    target_link_libraries(test_lazysp ${Boost_LIBRARIES})
    
-   catkin_add_gtest(test_lifelong_planning_astar test/lifelong_planning_astar.cpp)
-   set_target_properties(test_lifelong_planning_astar PROPERTIES
+   catkin_add_gtest(test_lpastar test/test_lpastar.cpp)
+   set_target_properties(test_lpastar PROPERTIES
       COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
-   target_link_libraries(test_lifelong_planning_astar ${Boost_LIBRARIES})
+   target_link_libraries(test_lpastar ${Boost_LIBRARIES})
    
-   catkin_add_gtest(test_inc_bi test/inc_bi.cpp)
+   catkin_add_gtest(test_partition_all test/test_partition_all.cpp)
    
-   catkin_add_gtest(test_partition_all test/partition_all.cpp)
-   
-   catkin_add_gtest(test_partition_simple test/partition_simple.cpp)
+   catkin_add_gtest(test_partition_simple test/test_partition_simple.cpp)
 
 endif ()

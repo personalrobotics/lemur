@@ -1,8 +1,13 @@
-/* File: partition_simple.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file partition_simple.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Function (pr_bgl::partition_simple) for calculate the
+ *        edge-weight partition function over all simple paths between
+ *        every pair of vertices on a graph.
  */
+
  
 namespace pr_bgl
 {
@@ -20,9 +25,18 @@ struct partition_simple_el
       v(v), len(len), es(es), score(0) {}
 };
 
-// WeightMap: edges to weights (double?)
-// DistanceMap: vertices to distances
-// ScoreMap: edges to scores
+/*!
+ * The partition_simple function calculates an approximation to the
+ * edge-weight partition function over all simple paths between two
+ * given vertices. The implementation returns the value over all simple
+ * paths with total length below a given parameter.
+ * 
+\verbatim
+WeightMap: edges to weights (double?)
+DistanceMap: vertices to distances
+ScoreMap: edges to scores
+\endverbatim
+ */
 template <class Graph, class WeightMap, class DistanceMap, class ScoreMap, class IsUsedMap>
 double partition_simple(
    const Graph & g,

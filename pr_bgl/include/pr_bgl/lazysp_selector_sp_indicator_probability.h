@@ -1,16 +1,25 @@
-/* File: lazysp_sp_indicator_probability.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file lazysp_selector_sp_indicator_probability.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Indicator probability selector
+ *        (pr_bgl::lazysp_selector_sp_indicator_probability)
  */
 
 namespace pr_bgl
 {
 
-// this selector simply invalidates non-evaluated edges
-// with some probability
+/*! \brief Shortest-path indicator probability selector
+ *         for pr_bgl::lazysp.
+ *
+ * This selector simply invalidates non-evaluated edges with some
+ * probability, runs a shortest-path search on the resulting graph,
+ * and scores edges based on how often they are on the resulting
+ * shortest path.
+ */
 template <class Graph, class WLazyMap, class IsEvaledMap>
-class lazysp_sp_indicator_probability
+class lazysp_selector_sp_indicator_probability
 {
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -25,7 +34,7 @@ public:
    boost::uniform_01<> rand_dist;
    boost::variate_generator<boost::mt19937&, boost::uniform_01<> > rand_var;
    
-   lazysp_sp_indicator_probability(WLazyMap w_lazy_map, IsEvaledMap is_evaled_map,
+   lazysp_selector_sp_indicator_probability(WLazyMap w_lazy_map, IsEvaledMap is_evaled_map,
          int nsamps, Vertex v_start, Vertex v_goal, unsigned int seed):
       w_lazy_map(w_lazy_map), is_evaled_map(is_evaled_map),
       nsamps(nsamps), v_start(v_start), v_goal(v_goal),

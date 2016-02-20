@@ -96,7 +96,7 @@ TEST(PartitionSimpleTestCase, PartitionSimpleTest)
       boost::make_assoc_property_map(goaldist),
       pr_bgl::make_compose_property_map(
          boost::make_assoc_property_map(weights),
-         pr_bgl::RevEdgeMap<Graph>(rg)),
+         pr_bgl::rev_edge_map<Graph>(rg)),
       boost::get(boost::vertex_index, g),
       std::less<double>(), // compare
       boost::closed_plus<double>(std::numeric_limits<double>::max()), // combine

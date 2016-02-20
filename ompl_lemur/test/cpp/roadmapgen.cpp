@@ -59,7 +59,7 @@ typedef boost::property_map<Graph, int EdgeProperties::*>::type EdgeBatchMap;
 typedef boost::property_map<Graph, bool VertexProperties::*>::type IsShadowMap;
 typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
-typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
+typedef pr_bgl::edge_indexed_graph<Graph, EdgeIndexMap> EdgeIndexedGraph;
 typedef ompl_lemur::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
 typedef ompl_lemur::RoadmapArgs<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,EdgeVectorMap,NN> RoadmapArgs;
 typedef boost::shared_ptr< ompl_lemur::RoadmapRGG<RoadmapArgs> > RoadmapPtr;
@@ -71,7 +71,7 @@ TEST(RoadmapRRGTestCase, FixedExampleTest)
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
    
    Graph g;
-   pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
+   pr_bgl::edge_indexed_graph<Graph, EdgeIndexMap>
       eig(g, get(&EdgeProperties::index, g));
    
    // generate a graph

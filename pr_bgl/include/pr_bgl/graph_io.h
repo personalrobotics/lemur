@@ -1,13 +1,21 @@
-/* File: graph_io.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file graph_io.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Contains functions for working with graphio, a custom graph
+ *        serialization format.
  */
 
 namespace pr_bgl
 {
 
-
+/*! \brief Write a graph's structure to the custom graphio format.
+ * 
+ * This function implements serializing and deserializing a graph to a
+ * custom textual graph format, which stores vertices,
+ * edges and properties one per line.
+ */
 template<typename Graph, typename VertexIndexMap, typename EdgeIndexMap>
 void
 write_graphio_graph(std::ostream & out, const Graph & g,
@@ -33,7 +41,12 @@ write_graphio_graph(std::ostream & out, const Graph & g,
    }
 }
 
-
+/*! \brief Write a graph's properties to the custom graphio format.
+ * 
+ * This function implements serializing and deserializing a graph to a
+ * custom textual graph format, which stores vertices,
+ * edges and properties one per line.
+ */
 template<typename Graph, typename VertexIndexMap, typename EdgeIndexMap>
 void
 write_graphio_properties(std::ostream & out, const Graph & g,
@@ -70,7 +83,6 @@ write_graphio_properties(std::ostream & out, const Graph & g,
    }
 }
 
-
 #if 0
 void load_properties(std::istream & is)
 {
@@ -98,6 +110,5 @@ void load_properties(std::istream & is)
    }
 }
 #endif
-
 
 } // namespace pr_bgl

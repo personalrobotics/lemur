@@ -1,4 +1,4 @@
-/* File: inc_bi.cpp
+/* File: incbi.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -11,7 +11,7 @@
 #include <boost/graph/adjacency_list.hpp>
 
 #include <pr_bgl/heap_indexed.h>
-#include <pr_bgl/inc_bi.h>
+#include <pr_bgl/incbi.h>
 
 #include <gtest/gtest.h>
 
@@ -72,7 +72,7 @@ TEST(IncBiTestCase, IncBiTest)
    VertexWeightMap goal_dist_lookahead_map(goal_dist_lookahead.begin(), get(boost::vertex_index,g));
    
    // create incbi instance
-   pr_bgl::inc_bi<Graph,
+   pr_bgl::incbi<Graph,
       VertexVertexMap,VertexWeightMap,VertexWeightMap,
       VertexVertexMap,VertexWeightMap,VertexWeightMap,
       EdgeWeightMap,
@@ -81,8 +81,8 @@ TEST(IncBiTestCase, IncBiTest)
       boost::closed_plus<double>, // combine
       double,
       double,
-      pr_bgl::inc_bi_null_visitor<Graph>,
-      pr_bgl::inc_bi_balancer_distance<Vertex,double>
+      pr_bgl::incbi_visitor_null<Graph>,
+      pr_bgl::incbi_balancer_distance<Vertex,double>
       > myincbi(
          g, 0, 4,
          start_predecessor_map, start_dist_map, start_dist_lookahead_map,
@@ -94,8 +94,8 @@ TEST(IncBiTestCase, IncBiTest)
          std::numeric_limits<double>::max(),
          double(),
          0.0,
-         pr_bgl::inc_bi_null_visitor<Graph>(),
-         pr_bgl::inc_bi_balancer_distance<Vertex,double>());
+         pr_bgl::incbi_visitor_null<Graph>(),
+         pr_bgl::incbi_balancer_distance<Vertex,double>());
    
    printf("computing shortest path ...\n");
    std::pair<size_t,bool> ret = myincbi.compute_shortest_path();

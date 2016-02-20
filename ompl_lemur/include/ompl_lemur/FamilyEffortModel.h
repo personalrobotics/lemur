@@ -291,7 +291,7 @@ public:
          throw std::runtime_error("target references unknown subset!");
       
       // do manual reverse dijkstra's algorithm
-      pr_bgl::HeapIndexed<double> heap;
+      pr_bgl::heap_indexed<double> heap;
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {

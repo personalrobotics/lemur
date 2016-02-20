@@ -36,12 +36,14 @@
 #include <pr_bgl/heap_indexed.h>
 #include <pr_bgl/pair_index_map.h>
 #include <pr_bgl/partition_all.h>
-#include <pr_bgl/lazysp_partition_all.h>
-#include <pr_bgl/lazysp_sp_indicator_probability.h>
-#include <pr_bgl/lifelong_planning_astar.h>
-#include <pr_bgl/inc_bi.h>
-#include <pr_bgl/lazysp_lifelong_planning_astar.h>
-#include <pr_bgl/lazysp_inc_bi.h>
+#include <pr_bgl/lazysp_selector_partition_all.h>
+#include <pr_bgl/lazysp_selector_sp_indicator_probability.h>
+#include <pr_bgl/lpastar.h>
+#include <pr_bgl/incbi.h>
+#include <pr_bgl/lazysp_incsp_dijkstra.h>
+#include <pr_bgl/lazysp_incsp_astar.h>
+#include <pr_bgl/lazysp_incsp_lpastar.h>
+#include <pr_bgl/lazysp_incsp_incbi.h>
 
 #include <ompl_lemur/aborting_space_information.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
@@ -590,7 +592,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
    {
       if (os_alglog)
       {
-         return pr_bgl::lazy_shortest_path(g,
+         return pr_bgl::lazysp(g,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -599,7 +601,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
             epath,
             incsp,
             evalstrategy,
-            pr_bgl::make_lazysp_null_visitor_pair(
+            pr_bgl::make_lazysp_visitor_pair(
                ompl_lemur::make_lazysp_log_visitor(
                   get(boost::vertex_index, g),
                   get(&EProps::index, g),
@@ -609,7 +611,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
       }
       else
       {
-         return pr_bgl::lazy_shortest_path(g,
+         return pr_bgl::lazysp(g,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -625,7 +627,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
    {
       if (os_alglog)
       {
-         return pr_bgl::lazy_shortest_path(g,
+         return pr_bgl::lazysp(g,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -641,7 +643,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
       }
       else
       {
-         return pr_bgl::lazy_shortest_path(g,
+         return pr_bgl::lazysp(g,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -650,7 +652,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
             epath,
             incsp,
             evalstrategy,
-            pr_bgl::lazysp_null_visitor());
+            pr_bgl::lazysp_visitor_null());
       }
    }
 }
@@ -728,7 +730,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalFwd(),
+               pr_bgl::lazysp_selector_fwd(),
                epath);
          case EVAL_TYPE_REV:
             return do_lazysp_b(g,
@@ -738,7 +740,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalRev(),
+               pr_bgl::lazysp_selector_rev(),
                epath);
          case EVAL_TYPE_ALT:
             return do_lazysp_b(g,
@@ -748,7 +750,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalAlt(),
+               pr_bgl::lazysp_selector_alt(),
                epath);
          case EVAL_TYPE_BISECT:
             return do_lazysp_b(g,
@@ -758,7 +760,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalBisect(),
+               pr_bgl::lazysp_selector_bisect(),
                epath);
          case EVAL_TYPE_FWD_EXPAND:
             return do_lazysp_b(g,
@@ -768,7 +770,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::LazySpEvalFwdExpand(),
+               pr_bgl::lazysp_selector_fwdexpand(),
                epath);
          case EVAL_TYPE_PARTITION_ALL: 
          {
@@ -816,7 +818,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                   boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
+               pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
                   get(&EProps::w_lazy,g),
                   ompl_lemur::IsEvaledMap(*this),
                   1000, // nsamps
@@ -837,7 +839,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          {
          case EVAL_TYPE_FWD:
             return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
+               pr_bgl::make_lazysp_incsp_lpastar(g,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   get(&EProps::w_lazy,g),
@@ -846,11 +848,11 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                   boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                   1.0e-9),
-               pr_bgl::LazySpEvalFwd(),
+               pr_bgl::lazysp_selector_fwd(),
                epath);
          case EVAL_TYPE_REV:
             return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
+               pr_bgl::make_lazysp_incsp_lpastar(g,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   get(&EProps::w_lazy,g),
@@ -859,11 +861,11 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                   boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                   1.0e-9),
-               pr_bgl::LazySpEvalRev(),
+               pr_bgl::lazysp_selector_rev(),
                epath);
          case EVAL_TYPE_ALT:
             return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
+               pr_bgl::make_lazysp_incsp_lpastar(g,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   get(&EProps::w_lazy,g),
@@ -872,11 +874,11 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                   boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                   1.0e-9),
-               pr_bgl::LazySpEvalAlt(),
+               pr_bgl::lazysp_selector_alt(),
                epath);
          case EVAL_TYPE_BISECT:
             return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
+               pr_bgl::make_lazysp_incsp_lpastar(g,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   get(&EProps::w_lazy,g),
@@ -885,11 +887,11 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                   boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                   1.0e-9),
-               pr_bgl::LazySpEvalBisect(),
+               pr_bgl::lazysp_selector_bisect(),
                epath);
          case EVAL_TYPE_FWD_EXPAND:
             return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
+               pr_bgl::make_lazysp_incsp_lpastar(g,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   get(&EProps::w_lazy,g),
@@ -898,7 +900,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                   boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                   1.0e-9),
-               pr_bgl::LazySpEvalFwdExpand(),
+               pr_bgl::lazysp_selector_fwdexpand(),
                epath);
          case EVAL_TYPE_PARTITION_ALL:
          {
@@ -923,7 +925,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
             
             return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
+               pr_bgl::make_lazysp_incsp_lpastar(g,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   get(&EProps::w_lazy,g),
@@ -943,7 +945,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          }
          case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
             return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lifelong_planning_astar(g,
+               pr_bgl::make_lazysp_incsp_lpastar(g,
                   og[ov_singlestart].core_vertex,
                   og[ov_singlegoal].core_vertex,
                   get(&EProps::w_lazy,g),
@@ -952,7 +954,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                   boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                   1.0e-9),
-               pr_bgl::lazysp_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
+               pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
                   get(&EProps::w_lazy,g),
                   ompl_lemur::IsEvaledMap(*this),
                   1000, // nsamps
@@ -975,35 +977,35 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::LazySpEvalFwd(),
+            pr_bgl::lazysp_selector_fwd(),
             epath);
       case EVAL_TYPE_REV:
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::LazySpEvalRev(),
+            pr_bgl::lazysp_selector_rev(),
             epath);
       case EVAL_TYPE_ALT:
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::LazySpEvalAlt(),
+            pr_bgl::lazysp_selector_alt(),
             epath);
       case EVAL_TYPE_BISECT:
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::LazySpEvalBisect(),
+            pr_bgl::lazysp_selector_bisect(),
             epath);
       case EVAL_TYPE_FWD_EXPAND:
          return do_lazysp_b(g,
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::LazySpEvalFwdExpand(),
+            pr_bgl::lazysp_selector_fwdexpand(),
             epath);
       case EVAL_TYPE_PARTITION_ALL:
       {
@@ -1045,7 +1047,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
+            pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
                get(&EProps::w_lazy,g),
                ompl_lemur::IsEvaledMap(*this),
                1000, // nsamps
@@ -1068,7 +1070,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       {
       case EVAL_TYPE_FWD:
          return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
+            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -1080,12 +1082,12 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
-               pr_bgl::inc_bi_null_visitor<Graph>()),
-            pr_bgl::LazySpEvalFwd(),
+               pr_bgl::incbi_visitor_null<Graph>()),
+            pr_bgl::lazysp_selector_fwd(),
             epath);
       case EVAL_TYPE_REV:
          return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
+            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -1097,12 +1099,12 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
-               pr_bgl::inc_bi_null_visitor<Graph>()),
-            pr_bgl::LazySpEvalRev(),
+               pr_bgl::incbi_visitor_null<Graph>()),
+            pr_bgl::lazysp_selector_rev(),
             epath);
       case EVAL_TYPE_ALT:
          return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
+            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -1114,12 +1116,12 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
-               pr_bgl::inc_bi_null_visitor<Graph>()),
-            pr_bgl::LazySpEvalAlt(),
+               pr_bgl::incbi_visitor_null<Graph>()),
+            pr_bgl::lazysp_selector_alt(),
             epath);
       case EVAL_TYPE_BISECT:
          return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
+            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -1131,12 +1133,12 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
-               pr_bgl::inc_bi_null_visitor<Graph>()),
-            pr_bgl::LazySpEvalBisect(),
+               pr_bgl::incbi_visitor_null<Graph>()),
+            pr_bgl::lazysp_selector_bisect(),
             epath);
       case EVAL_TYPE_FWD_EXPAND:
          return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
+            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -1148,8 +1150,8 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
-               pr_bgl::inc_bi_null_visitor<Graph>()),
-            pr_bgl::LazySpEvalFwdExpand(),
+               pr_bgl::incbi_visitor_null<Graph>()),
+            pr_bgl::lazysp_selector_fwdexpand(),
             epath);
       case EVAL_TYPE_PARTITION_ALL:
       {
@@ -1174,7 +1176,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
          
          return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
+            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -1186,7 +1188,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
-               pr_bgl::inc_bi_null_visitor<Graph>()),
+               pr_bgl::incbi_visitor_null<Graph>()),
             pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
                g, get(&EProps::w_lazy,g),
                1.0/3.0, // len_ref
@@ -1198,7 +1200,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       }
       case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
          return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_inc_bi<MyGraph,EPWlazyMap>(g,
+            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -1210,8 +1212,8 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
                get(&EProps::index, g), eig.edge_vector_map,
                1.0e-9,
-               pr_bgl::inc_bi_null_visitor<Graph>()),
-            pr_bgl::lazysp_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
+               pr_bgl::incbi_visitor_null<Graph>()),
+            pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
                get(&EProps::w_lazy,g),
                ompl_lemur::IsEvaledMap(*this),
                1000, // nsamps

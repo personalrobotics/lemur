@@ -1,7 +1,10 @@
-/* File: path_generator.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file path_generator.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Generates all simple paths in non-decreasing order of length
+ *        (pr_bgl::path_generator).
  */
 
 /* requires:
@@ -17,9 +20,10 @@
 namespace pr_bgl
 {
 
-// returns all simple paths in non-decreasing order of length!
+/*! \brief Generates all simple paths in non-decreasing order of length.
+ */
 template <class Graph, class WeightMap>
-class PathGenerator
+class path_generator
 {
 private:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -36,18 +40,18 @@ private:
    const Vertex v_goal;
    const WeightMap weight_map;
    
-   // state
+   /*! \brief state */
    std::map<Vertex,double> goaldist;
-   // this is append-only, both the open and close lists
+   /*! \brief this is append-only, both the open and close lists */
    std::vector< Path > paths;
-   // this indexes into paths, is the open list
-   pr_bgl::HeapIndexed< Key > queue;
+   /*! \brief this indexes into paths, is the open list */
+   pr_bgl::heap_indexed< Key > queue;
    
-   // 1-size buffer, for peeking
+   /*! \brief 1-size buffer, for peeking */
    Path next_path_buffer;
       
 public:
-   PathGenerator(const Graph & g, Vertex v_start, Vertex v_goal, WeightMap weight_map):
+   path_generator(const Graph & g, Vertex v_start, Vertex v_goal, WeightMap weight_map):
       g(g), v_start(v_start), v_goal(v_goal), weight_map(weight_map)
    {
       // find optimal actual path cost
@@ -62,7 +66,7 @@ public:
          boost::make_assoc_property_map(goaldist),
          pr_bgl::make_compose_property_map(
             weight_map,
-            pr_bgl::RevEdgeMap<Graph>(rg)),
+            pr_bgl::rev_edge_map<Graph>(rg)),
          boost::get(boost::vertex_index, g),
          std::less<double>(), // compare
          boost::closed_plus<double>(std::numeric_limits<double>::max()), // combine
@@ -95,7 +99,7 @@ public:
    }
    
 private:
-   // returns an empty path if no more exist!
+   /*! \brief returns an empty path if no more exist! */
    Path generate_path()
    {
       unsigned int ui;

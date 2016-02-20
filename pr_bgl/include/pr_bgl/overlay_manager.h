@@ -1,19 +1,37 @@
-/* File: overlay_manager.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file overlay_manager.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Class which maintains an overlay graph
+ *        (pr_bgl::overlay_manager).
  */
 
 namespace pr_bgl
 {
 
-// ok, so we want to maintain a second graph
-// with persistent vertex descriptors (e.g. using linked lists)
-// doesnt handle properties (you do this all yourself)
-// eventually, should i have it auto-copy them somehow?
-// applied_vertices does not include anchor vertices!
+/*! \brief Class which maintains an overlay graph.
+ * 
+ * The overlay_manager class maintains a graph overlay. In other words,
+ * given a core graph and an overlay graph, the manager can temporarily
+ * "apply" the overlay onto the core graph, copying the appropriate
+ * vertices and edges from the overlay to the core graph. It then
+ * remembers the applied vertices and edges, so that they can be
+ * "unapplied" later (removed from the core graph in reverse order).
+ * It is conjectured that this operation is safe on a core implemented
+ * as an adjacency list without invalidating vertex descriptors on the
+ * core graph (see mailing list [0]).
+ * 
+ * [0] http://lists.boost.org/boost-users/2015/08/84850.php
+ * 
+ * ok, so we want to maintain a second graph
+ * with persistent vertex descriptors (e.g. using linked lists)
+ * doesnt handle properties (you do this all yourself)
+ * eventually, should i have it auto-copy them somehow?
+ * applied_vertices does not include anchor vertices!
+ */
 template <class GCore, class GOver, class OverVertexMap, class OverEdgeMap>
-class OverlayManager
+class overlay_manager
 {
 public:
 
@@ -23,7 +41,7 @@ public:
    OverEdgeMap over_edge_map;
    bool is_applied;
    
-   OverlayManager(
+   overlay_manager(
          GCore & gcore,
          GOver & gover,
          OverVertexMap over_vertex_map,

@@ -1,7 +1,9 @@
-/* File: string_map.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file string_map.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Wraps a property as a string map (pr_bgl::string_map).
  */
 
 namespace pr_bgl
@@ -81,9 +83,17 @@ inline void stringify_to_x(const std::string & repr, bool & val)
 }
 
 
-// turns values from doubles to strings
+/*! \brief Wraps a property as a string map.
+ *
+ * The string_map class implements a read-write map which wraps an
+ * existing property by allowing converting its values to and from
+ * the std::string instances. It requires that the free functions
+ * stringify_from_x() and stringify_to_x() for any custom values.
+ *
+ * \todo this may duplicate functionality from boost::lexical_cast.
+ */
 template <class PropMap>
-class StringMap
+class string_map
 {
 public:
    typedef typename boost::property_traits<PropMap>::category category;
@@ -91,18 +101,18 @@ public:
    typedef std::string value_type;
    typedef std::string reference;
    PropMap prop_map;
-   StringMap(PropMap prop_map) : prop_map(prop_map) {}
+   string_map(PropMap prop_map) : prop_map(prop_map) {}
 };
 
 template <class PropMap>
-StringMap<PropMap> make_string_map(PropMap prop_map)
+string_map<PropMap> make_string_map(PropMap prop_map)
 {
-   return StringMap<PropMap>(prop_map);
+   return string_map<PropMap>(prop_map);
 }
 
 template <class PropMap>
 inline std::string
-get(const StringMap<PropMap> & map, const typename StringMap<PropMap>::key_type & k)
+get(const string_map<PropMap> & map, const typename string_map<PropMap>::key_type & k)
 {
    std::string repr;
    stringify_from_x(repr, get(map.prop_map,k));
@@ -111,7 +121,7 @@ get(const StringMap<PropMap> & map, const typename StringMap<PropMap>::key_type 
 
 template <class PropMap>
 inline void
-put(const StringMap<PropMap> & map, const typename StringMap<PropMap>::key_type & k, const std::string repr)
+put(const string_map<PropMap> & map, const typename string_map<PropMap>::key_type & k, const std::string repr)
 {
    typename boost::property_traits<PropMap>::value_type val;
    stringify_to_x(repr, val);

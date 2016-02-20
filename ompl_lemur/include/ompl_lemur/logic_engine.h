@@ -134,7 +134,7 @@ public:
    {
       // open and closed list
       std::vector<SearchVertex> generated;
-      pr_bgl::HeapIndexed<double> heap;
+      pr_bgl::heap_indexed<double> heap;
       
       SearchVertex v_start;
       v_start.cost_sofar = 0.0;

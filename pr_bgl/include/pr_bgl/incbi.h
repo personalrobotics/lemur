@@ -1,35 +1,41 @@
-/* File: inc_bi.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file incbi.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Incremental bidirectional Dijkstra's search (pr_bgl::incbi).
  */
-
-/* original implemetation from 2015-04 */
 
 namespace pr_bgl
 {
 
-// for now, we assume an undirected graph
-// (that is, update_edge will attempt an upate in both directions)
-// we assume that everything is constant (graph structure)
-// rhs = one-step-lookahead (based on d/g)
-// d (DynamicSWSF-FP) = g (LPA*) value = distance map
-// rhs (DynamicSWSF-FP) = rhs (LPA*) = distance_lookahead_map
-//
-// see "Efficient Point-to-Point Shortest Path Algorithms"
-// by Andrew V. Goldberg et. al
-// for correct bidirection Dijkstra's termination condition
-template <typename Graph,
-   typename StartPredecessorMap,
-   typename StartDistanceMap, typename StartDistanceLookaheadMap,
-   typename GoalPredecessorMap,
-   typename GoalDistanceMap, typename GoalDistanceLookaheadMap,
-   typename WeightMap,
-   typename VertexIndexMap, typename EdgeIndexMap,
+/*! \brief This class implements incremental bidirectional Dijkstra's
+ *         search for the single-pair shortest path problem.
+ * 
+ * for now, we assume an undirected graph
+ * (that is, update_edge will attempt an upate in both directions)
+ * we assume that everything is constant (graph structure)
+ * rhs = one-step-lookahead (based on d/g)
+ * d (DynamicSWSF-FP) = g (LPA*) value = distance map
+ * rhs (DynamicSWSF-FP) = rhs (LPA*) = distance_lookahead_map
+ *
+ * see "Efficient Point-to-Point Shortest Path Algorithms"
+ * by Andrew V. Goldberg et. al
+ * for correct bidirection Dijkstra's termination condition
+ * 
+ * original implemetation from 2015-04
+ */
+template <class Graph,
+   class StartPredecessorMap,
+   class StartDistanceMap, class StartDistanceLookaheadMap,
+   class GoalPredecessorMap,
+   class GoalDistanceMap, class GoalDistanceLookaheadMap,
+   class WeightMap,
+   class VertexIndexMap, class EdgeIndexMap,
    typename CompareFunction, typename CombineFunction,
    typename CostInf, typename CostZero,
-   typename IncBiVisitor, typename IncBiBalancer>
-class inc_bi
+   class IncBiVisitor, class IncBiBalancer>
+class incbi
 {
 public:
    
@@ -87,14 +93,14 @@ public:
    IncBiVisitor vis;
    IncBiBalancer balancer;
    
-   HeapIndexed< weight_type > start_queue;
-   HeapIndexed< weight_type > goal_queue;
+   heap_indexed< weight_type > start_queue;
+   heap_indexed< weight_type > goal_queue;
    
    // contains the indices of all edges connecting one start-tree vertex to one goal-tree vertex
    // that are both consistent, sorted by start_distance + edge_weight + goal_distance
-   HeapIndexed< conn_key > conn_queue;
+   heap_indexed< conn_key > conn_queue;
    
-   inc_bi(
+   incbi(
       const Graph & g,
       Vertex v_start, Vertex v_goal,
       StartPredecessorMap start_predecessor,
@@ -474,7 +480,7 @@ public:
 };
 
 template <class Graph>
-class inc_bi_null_visitor
+class incbi_visitor_null
 {
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -492,9 +498,11 @@ public:
    inline void conn_queue_remove(Edge e) {}
 };
 
-/* true = expand from goal side */
+/*! \brief Balance expansions to the side with the shortest distance.
+ * 
+ * true = expand from goal side */
 template <typename Vertex, typename weight_type>
-struct inc_bi_balancer_distance
+struct incbi_balancer_distance
 {
    bool operator()(
       weight_type start_top, weight_type goal_top,
@@ -504,9 +512,12 @@ struct inc_bi_balancer_distance
    }
 };
 
-/* true = expand from goal side */
+/*! \brief Balance expansions to the side with the smallest OPEN set
+ *         cardinality.
+ * 
+ * true = expand from goal side */
 template <typename Vertex, typename weight_type>
-struct inc_bi_balancer_cardinality
+struct incbi_balancer_cardinality
 {
    bool operator()(
       weight_type start_top, weight_type goal_top,

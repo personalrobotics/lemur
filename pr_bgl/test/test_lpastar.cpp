@@ -1,4 +1,4 @@
-/* File: lifelong_planning_astar.cpp
+/* File: lpastar.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -14,7 +14,7 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 
 #include <pr_bgl/heap_indexed.h>
-#include <pr_bgl/lifelong_planning_astar.h>
+#include <pr_bgl/lpastar.h>
 
 #include <gtest/gtest.h>
 
@@ -163,7 +163,7 @@ void print_gridworld(
 TEST(LifelongPlanningAstarTestCase, LifelongPlanningAstarTest)
 {
    grid_reader grid(
-      XSTR(DATADIR) "/lifelong_planning_astar_fig1.txt");
+      XSTR(DATADIR) "/lpastar_fig1.txt");
    ASSERT_EQ(15, grid.nrows);
    ASSERT_EQ(20, grid.ncols);
    
@@ -231,7 +231,7 @@ TEST(LifelongPlanningAstarTestCase, LifelongPlanningAstarTest)
    // create algorithm instance
    std::set<Vertex> vs_expanded;
    int num_expansions = 0;
-   pr_bgl::lifelong_planning_astar<Graph,
+   pr_bgl::lpastar<Graph,
       grid_heuristic<Graph,MapVII>,
       counting_visitor<Graph>,
       MapVV, MapVI, MapVI, MapEI,

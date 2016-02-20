@@ -1,12 +1,20 @@
-/* File: throw_map.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file throw_map.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Throws instantly on access (pr_bgl::throw_map).
  */
 
 namespace pr_bgl
 {
 
+/*! \brief Throws instantly on access.
+ *
+ * The throw_map implements a read-write map which throws immediately
+ * on get() or put(). Useful as an assertion that an instantiation of
+ * an algorithm never uses a particular input map.
+ */
 template <typename key_type_, typename value_type_>
 class throw_map
 {

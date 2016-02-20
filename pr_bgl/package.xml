@@ -6,6 +6,8 @@
       Implementations of graph algorithms for the Boost Graph Library
    </description>
    
+   <url>https://github.com/personalrobotics/lemur</url>
+   
    <author email="cdellin@gmail.com">Chris Dellin</author>
    <maintainer email="cdellin@gmail.com">Chris Dellin</maintainer>
    <license>BSD</license>

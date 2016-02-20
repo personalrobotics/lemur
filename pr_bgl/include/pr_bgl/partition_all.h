@@ -1,20 +1,16 @@
-/* File: partition_all.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file partition_all.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Functions for calculate the edge-weight partition function
+ *        over all paths between every pair of vertices on a graph.
  */
 
 /* requires:
 #include <boost/type_traits/is_base_and_derived.hpp>
 #include <boost/type_traits/is_same.hpp>
 */
-
-// WeightMap: edges to weights (double?)
-// DistanceMap: vertices to distances
-// ScoreMap: edges to scores
-
-// turns out this is a vector outer product (x yT)!
-// use a matrix library?
 
 namespace pr_bgl
 {
@@ -136,7 +132,13 @@ void partition_all_init(
    }
 }
 
-// initializes the coupling_map, and goes over all edges
+/*! The partition_all functions calculate the edge-weight partition
+ * function over all paths between every pair of vertices on a graph,
+ * via a recursive formulation which is linear in the number of edges
+ * in the graph. 
+ * 
+ * This function initializes the coupling_map, and goes over all edges.
+ */
 template <class Graph, class WeightMap, class CouplingMap, class TempMap>
 void partition_all(
    const Graph & g,

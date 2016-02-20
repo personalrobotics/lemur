@@ -1,25 +1,37 @@
-/* File: lifelong_planning_astar.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file lpastar.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Lifelong Planning A* (pr_bgl::lpastar).
  */
 
 namespace pr_bgl
 {
 
-// for now, we assume an undirected graph
-// (that is, update_edge will attempt an upate in both directions)
-// we assume that everything is constant (graph structure)
-// rhs = one-step-lookahead (based on d/g)
-// d (DynamicSWSF-FP) = g (LPA*) value = distance map
-// rhs (DynamicSWSF-FP) = rhs (LPA*) = distance_lookahead_map
+/*! \brief Implements the Lifelong Planning A* incremental search
+ *         algorithm.
+ * 
+ * Sven Koenig, Maxim Likhachev, and David Furcy. 2004.
+ * Lifelong planning A*. Artif. Intell. 155, 1-2 (May 2004), 93-146.
+ * DOI=http://dx.doi.org/10.1016/j.artint.2003.12.001
+ * 
+ * for now, we assume an undirected graph
+ * (that is, update_edge will attempt an upate in both directions)
+ * we assume that everything is constant (graph structure)
+\verbatim
+rhs = one-step-lookahead (based on d/g)
+d (DynamicSWSF-FP) = g (LPA*) value = distance map
+rhs (DynamicSWSF-FP) = rhs (LPA*) = distance_lookahead_map
+\endverbatim
+ */
 template <typename Graph, typename AStarHeuristic,
    typename LPAStarVisitor, typename PredecessorMap,
    typename DistanceMap, typename DistanceLookaheadMap,
    typename WeightMap, typename VertexIndexMap,
    typename CompareFunction, typename CombineFunction,
    typename CostInf, typename CostZero>
-class lifelong_planning_astar
+class lpastar
 {
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -45,9 +57,9 @@ public:
    CostZero zero;
    weight_type goal_margin;
    
-   HeapIndexed< std::pair<weight_type,weight_type> > queue;
+   heap_indexed< std::pair<weight_type,weight_type> > queue;
    
-   lifelong_planning_astar(
+   lpastar(
       const Graph & g,
       Vertex v_start, Vertex v_goal,
       AStarHeuristic h,

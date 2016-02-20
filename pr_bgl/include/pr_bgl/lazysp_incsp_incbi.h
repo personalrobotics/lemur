@@ -1,14 +1,17 @@
-/* File: lazysp_inc_bi.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file lazysp_incsp_incbi.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Adaptor to use pr_bgl::incbi as the inner sp algorithm for
+ *        pr_bgl::lazysp.
  */
 
 namespace pr_bgl
 {
 
 template<class Graph, class EdgeIndexMap>
-class lazysp_incsp_inc_bi_edge_index_adaptor
+class lazysp_incsp_incbi_edge_index_adaptor
 {
 public:
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
@@ -18,7 +21,7 @@ public:
    typedef size_t reference;
    Graph & g;
    EdgeIndexMap edge_index_map;
-   lazysp_incsp_inc_bi_edge_index_adaptor(Graph & g, EdgeIndexMap edge_index_map):
+   lazysp_incsp_incbi_edge_index_adaptor(Graph & g, EdgeIndexMap edge_index_map):
       g(g), edge_index_map(edge_index_map)
    {
    }
@@ -26,26 +29,35 @@ public:
 
 template<class Graph, class EdgeIndexMap>
 inline const size_t get(
-   const lazysp_incsp_inc_bi_edge_index_adaptor<Graph,EdgeIndexMap> & map,
+   const lazysp_incsp_incbi_edge_index_adaptor<Graph,EdgeIndexMap> & map,
    const typename boost::graph_traits<Graph>::edge_descriptor & e)
 {
    return (get(map.edge_index_map,e) << 1)
       + ((source(e,map.g)<target(e,map.g)) ? 0 : 1);
 }
 
-// solve returns weight_type::max if no path is found
-// solve is always called with the same g,v_start,v_goal
-//
-// the edge indices that the inner incbi thinks its working with are adapted:
-// the heap index that's used is the edge index << 1
-// with the lsb=0: lower vertex index is start-side
-//       or lsb=1: lower vertex index is goal-side
+
+/*! \brief Adaptor to use pr_bgl::incbi as the inner sp algorithm for
+ *         pr_bgl::lazysp.
+ * 
+ * solve returns weight_type::max if a non-infinite path is found
+ * 
+ * solve is always called with the same g,v_start,v_goal
+ * 
+ * the edge indices that the inner incbi thinks its working with are
+ * adapted:
+\verbatim
+the heap index that's used is the edge index << 1
+with the lsb=0: lower vertex index is start-side
+      or lsb=1: lower vertex index is goal-side
+\endverbatim
+ */
 template <class Graph, class WMap,
    class StartPredecessorMap, class StartDistanceMap, class StartDistanceLookaheadMap,
    class GoalPredecessorMap, class GoalDistanceMap, class GoalDistanceLookaheadMap,
    class EdgeIndexMap, class EdgeVectorMap,
    class IncBiVisitor>
-class lazysp_incsp_inc_bi
+class lazysp_incsp_incbi
 {
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -63,19 +75,19 @@ public:
    GoalDistanceMap goal_distance;
    EdgeVectorMap edge_vector_map;
    
-   // inc_bi instance
-   pr_bgl::inc_bi<Graph,
+   // incbi instance
+   pr_bgl::incbi<Graph,
       StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,
       GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,
       WMap,
       VIndexMap,
-      lazysp_incsp_inc_bi_edge_index_adaptor<Graph,EdgeIndexMap>,
+      lazysp_incsp_incbi_edge_index_adaptor<Graph,EdgeIndexMap>,
       std::less<weight_type>, boost::closed_plus<weight_type>,
       weight_type, weight_type,
-      IncBiVisitor, inc_bi_balancer_distance<Vertex,weight_type>
+      IncBiVisitor, incbi_balancer_distance<Vertex,weight_type>
    > incbi;
    
-   lazysp_incsp_inc_bi(
+   lazysp_incsp_incbi(
       Graph & g, Vertex v_start, Vertex v_goal, WMap w_map,
       StartPredecessorMap start_predecessor,
       StartDistanceMap start_distance, StartDistanceLookaheadMap start_distance_lookahead,
@@ -97,13 +109,13 @@ public:
          goal_predecessor, goal_distance, goal_distance_lookahead,
          w_map,
          get(boost::vertex_index, g), // vertex_index_map
-         lazysp_incsp_inc_bi_edge_index_adaptor<Graph,EdgeIndexMap>(g, edge_index_map),
+         lazysp_incsp_incbi_edge_index_adaptor<Graph,EdgeIndexMap>(g, edge_index_map),
          std::less<weight_type>(), // compare
          boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
          std::numeric_limits<weight_type>::max(),
          weight_type(),
          goal_margin,
-         vis, inc_bi_balancer_distance<Vertex,weight_type>())
+         vis, incbi_balancer_distance<Vertex,weight_type>())
    {
    }
    
@@ -180,8 +192,8 @@ template <class Graph, class WMap,
    class StartPredecessorMap, class StartDistanceMap, class StartDistanceLookaheadMap,
    class GoalPredecessorMap, class GoalDistanceMap, class GoalDistanceLookaheadMap,
    class EdgeIndexMap, class EdgeVectorMap, class IncBiVisitor>
-lazysp_incsp_inc_bi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,IncBiVisitor>
-make_lazysp_incsp_inc_bi(
+lazysp_incsp_incbi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,IncBiVisitor>
+make_lazysp_incsp_incbi(
    Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
@@ -194,7 +206,7 @@ make_lazysp_incsp_inc_bi(
    typename boost::property_traits<WMap>::value_type goal_margin,
    IncBiVisitor vis)
 {
-   return lazysp_incsp_inc_bi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,IncBiVisitor>(
+   return lazysp_incsp_incbi<Graph,WMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,IncBiVisitor>(
       g, v_start, v_goal, w_map, start_predecessor, start_distance, start_distance_lookahead, goal_predecessor, goal_distance, goal_distance_lookahead, edge_index_map, edge_vector_map, goal_margin, vis);
 }
 

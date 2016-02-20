@@ -1,7 +1,9 @@
-/* File: heap_indexed.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file heap_indexed.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Contains pr_bgl::heap_indexed.
  */
 
 /* requires:
@@ -11,17 +13,25 @@
 namespace pr_bgl
 {
 
-// this is an implementation of a binary min-heap with idx lookups
-// elements are identified with an index value (e.g. [0,num_vertices))
-// the heap also maintains a vector backing, wich each element at a location
-//
-// KeyType, e.g. double
-//
-// for example:
-// backing: [ (??,?), (0.3,3), (0.5,7), (0.7,2), (0.6,1) ]
-// locs: [0, 4, 3, 1, 0, 0, 0, 2]
-template <class KeyType>
-class HeapIndexed
+/*! \brief Binary min-heap with index lookups.
+ * 
+ * The HeapIndexed class implements a binary min-heap with index
+ * lookups. Elements are identified with an index value
+ * (e.g. [0,num_vertices)). The heap also maintains a vector backing,
+ * wich each element at a particular location.
+ *
+ * \todo this may duplicate functionality implemented in BGL.
+ * 
+ * KeyType: e.g. double
+ *
+\verbatim
+for example:
+backing: [ (??,?), (0.3,3), (0.5,7), (0.7,2), (0.6,1) ]
+locs: [0, 4, 3, 1, 0, 0, 0, 2]
+\endverbatim
+ */
+template <typename KeyType>
+class heap_indexed
 {
    struct element
    {
@@ -33,7 +43,7 @@ class HeapIndexed
    std::vector<size_t> locs; // indexed by idx, 0=not in heap
    
 public:
-   HeapIndexed(): backing(1,element(KeyType(),0)), locs(0) {}
+   heap_indexed(): backing(1,element(KeyType(),0)), locs(0) {}
    
    // simple queries
    size_t size()

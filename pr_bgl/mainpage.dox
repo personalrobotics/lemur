@@ -1,0 +1,14 @@
+/*! \mainpage pr_bgl
+ *
+ * \htmlinclude manifest.html
+ * 
+ * The pr_bgl package contains implemtations of various algorithms and
+ * utilities that build atop the Boost Graph Library (BGL). As is
+ * customary with BGL, almost everything is implemented generically in
+ * headers.
+ *
+ * Author: Chris Dellin <cdellin@gmail.com>
+ * 
+ * Dependencies: boost
+ *
+ */

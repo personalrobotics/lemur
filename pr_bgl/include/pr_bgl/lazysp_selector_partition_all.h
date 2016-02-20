@@ -1,29 +1,31 @@
-/* File: lazysp_partition_all.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file lazysp_selector_partition_all.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Adaptors to use partition_all as a LazySP selector
  */
 
 namespace pr_bgl
 {
 
-// adaptor to use partition_all to select edges
-// for a lazysp query between a particular v_start and v_goal
-// 
-// for now, this assumes g is an undirected graph
-//
-// we include a do_fake_roots parameter (default: false)
-// when this parameter is set,
-// then edges TO the start and edges FROM the goal are IGNORED
-// (this way, the oppposite edges can have 0 weight)
-// (this is accounted for on both initial add and incremental updates)
-//
-// also, if do_fake_roots is set,
-// then the first and last edges on the path are always
-// scored 1.0 (highest) and will therefore always be evaluated first
-// 
+/*! \brief Adaptor to use non-matrix partition_all functions
+ *         as a selector for pr_bgl::lazysp.
+ * 
+ * for now, this assumes g is an undirected graph
+ *
+ * we include a do_fake_roots parameter (default: false)
+ * when this parameter is set,
+ * then edges TO the start and edges FROM the goal are IGNORED
+ * (this way, the oppposite edges can have 0 weight)
+ * (this is accounted for on both initial add and incremental updates)
+ *
+ * also, if do_fake_roots is set,
+ * then the first and last edges on the path are always
+ * scored 1.0 (highest) and will therefore always be evaluated first
+ */ 
 template <class Graph, class WLazyMap>
-class lazysp_partition_all
+class lazysp_selector_partition_all
 {
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -31,7 +33,7 @@ public:
    typedef typename boost::graph_traits<Graph>::edge_iterator EdgeIter;
    
    typedef typename boost::property_map<Graph, boost::vertex_index_t>::type VerIndexMap;
-   typedef pr_bgl::PairIndexMap<Vertex,VerIndexMap> VerPairIndexMap;
+   typedef pr_bgl::pair_index_map<Vertex,VerIndexMap> VerPairIndexMap;
    typedef boost::vector_property_map<double,VerIndexMap> VerVector;
    typedef boost::vector_property_map<double,VerPairIndexMap> VerPairVector;
    
@@ -47,7 +49,7 @@ public:
    VerVector temp2;
    VerPairVector coupling_map;
    
-   lazysp_partition_all(
+   lazysp_selector_partition_all(
       const Graph & g,
       WLazyMap w_lazy_map, double len_ref,
       Vertex v_start, Vertex v_goal,
@@ -165,6 +167,9 @@ public:
    }
 };
 
+/*! \brief Adaptor to use matrix partition_all functions
+ *         as a LazySP selector
+ */
 template <class Graph, class WLazyMap>
 class lazysp_partition_all_matrix
 {

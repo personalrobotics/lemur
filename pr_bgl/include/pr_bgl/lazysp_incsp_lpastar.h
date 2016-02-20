@@ -1,16 +1,24 @@
-/* File: lazysp_lifelong_planning_astar.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file lazysp_incsp_lpastar.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Adaptor to use pr_bgl::lpastar as the inner sp algorithm for
+ *        pr_bgl::lazysp.
  */
 
 namespace pr_bgl
 {
 
-// solve returns weight_type::max if no path is found
-// solve is always called with the same g,v_start,v_goal
+/*! \brief Adaptor to use pr_bgl::lpastar as the inner sp algorithm for
+ *         pr_bgl::lazysp.
+ * 
+ * solve returns weight_type::max if a non-infinite path is found
+ * 
+ * solve is always called with the same g,v_start,v_goal
+ */
 template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class DistanceLookaheadMap>
-class lazysp_incsp_lifelong_planning_astar
+class lazysp_incsp_lpastar
 {
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
@@ -36,7 +44,7 @@ public:
    DistanceMap distance_map;
    
    // lpa* instance
-   pr_bgl::lifelong_planning_astar<Graph,
+   pr_bgl::lpastar<Graph,
       map_heuristic,
       boost::astar_visitor<boost::null_visitor>,
       PredecessorMap,
@@ -48,7 +56,7 @@ public:
       weight_type, weight_type
    > lpastar;
    
-   lazysp_incsp_lifelong_planning_astar(
+   lazysp_incsp_lpastar(
       Graph & g, Vertex v_start, Vertex v_goal, WMap w_map,
       HeuristicMap heuristic_map,
       PredecessorMap predecessor_map, DistanceMap distance_map,
@@ -106,8 +114,8 @@ public:
 };
 
 template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class DistanceLookaheadMap>
-lazysp_incsp_lifelong_planning_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap>
-make_lazysp_incsp_lifelong_planning_astar(
+lazysp_incsp_lpastar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap>
+make_lazysp_incsp_lpastar(
    Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
@@ -116,7 +124,7 @@ make_lazysp_incsp_lifelong_planning_astar(
    DistanceLookaheadMap distance_lookahead_map,
    typename boost::property_traits<WMap>::value_type goal_margin)
 {
-   return lazysp_incsp_lifelong_planning_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap>(
+   return lazysp_incsp_lpastar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap>(
       g, v_start, v_goal, w_map, heuristic_map, predecessor_map, distance_map, distance_lookahead_map, goal_margin);
 }
 

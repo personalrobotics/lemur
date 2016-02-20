@@ -1,27 +1,42 @@
-/* File: lazysp.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file lazysp.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Lazy shortest path search (pr_bgl::lazysp).
  */
 
 namespace pr_bgl
 {
 
-// lazy shortest path algorithm
-// NOT ompl-specific
-//
-// eventually this should also be templated on
-// the inner SP algorithm type
-//
-// WMap is NOT assumed to be cached
-// (i.e. it's ok if it's expensive to evaluate each time)
-//
-// also, should this be a class?
-// (do we construct anything each iteration?)
+/*! \brief Invoke the Lazy Shortest Path graph search algorithm
+ *
+ * The lazysp function implements the Lazy Shortest Path algorithm for
+ * the single-pair shortest path problem. It takes as an argument an
+ * EvalStrategy object which determins for the candidate path found at
+ * each iteration which edge(s) to select for evaluation.
+ * 
+ * Related code:
+ *
+ * - lazysp_incsp_astar.h - adaptor to use A* for inner search
+ * - lazysp_incsp_dijkstra.h - adaptor to use Dijkstra's algorithm for
+ *   inner search
+ * - lazysp_incsp_incbi.h - adaptor to use incremental bidirectional
+ *   algorithm for inner search
+ * - lazysp_incsp_lpastar.h - adaptor to use LPA* for inner
+ *   search
+ * - lazysp_selector_partition_all.h - selector using partition
+ *   functions
+ * - lazysp_selector_sp_indicator_probability.h - selector using sp
+ *   indicator probability
+ * 
+ * WMap is NOT assumed to be cached
+ * (i.e. it's ok if it's expensive to evaluate each time)
+ */
 template <class Graph,
    class WMap, class WLazyMap, class IsEvaledMap,
    class IncSP, class EvalStrategy, class LazySPVisitor>
-bool lazy_shortest_path(Graph & g,
+bool lazysp(Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
    typename boost::graph_traits<Graph>::vertex_descriptor v_goal,
    WMap wmap, WLazyMap wlazymap, IsEvaledMap isevaledmap,
@@ -102,11 +117,13 @@ bool lazy_shortest_path(Graph & g,
    }
 }
 
-class lazysp_null_visitor
+/*! \brief Null visitor for pr_bgl::lazysp.
+ */
+class lazysp_visitor_null
 {
 public:
    
-   lazysp_null_visitor() {}
+   lazysp_visitor_null() {}
    
    template <class Vertex, class Edge>
    inline void lazy_path(double length,
@@ -134,13 +151,16 @@ public:
    inline void selector_notify_end() {}
 };
 
+
+/*! \brief Pair visitor for pr_bgl::lazysp.
+ */
 template <class A, class B>
-class lazysp_null_visitor_pair
+class lazysp_visitor_pair
 {
 public:
    A visA;
    B visB;
-   lazysp_null_visitor_pair(A visA, B visB): visA(visA), visB(visB) {}
+   lazysp_visitor_pair(A visA, B visB): visA(visA), visB(visB) {}
    
    template <class Vertex, class Edge>
    inline void lazy_path(double length,
@@ -221,13 +241,15 @@ public:
 };
 
 template <class A, class B>
-lazysp_null_visitor_pair<A,B> make_lazysp_null_visitor_pair(A visA, B visB)
+lazysp_visitor_pair<A,B>
+make_lazysp_visitor_pair(A visA, B visB)
 {
-   return lazysp_null_visitor_pair<A,B>(visA, visB);
+   return lazysp_visitor_pair<A,B>(visA, visB);
 }
 
-
-class LazySpEvalFwd
+/*! \brief Forward selector for pr_bgl::lazysp.
+ */
+class lazysp_selector_fwd
 {
 public:
    template <class Graph>
@@ -247,7 +269,9 @@ public:
    void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
-class LazySpEvalRev
+/*! \brief Reverse selector for pr_bgl::lazysp.
+ */
+class lazysp_selector_rev
 {
 public:
    template <class Graph>
@@ -267,13 +291,15 @@ public:
    void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
-class LazySpEvalAlt
+/*! \brief Alternate selector for pr_bgl::lazysp.
+ */
+class lazysp_selector_alt
 {
 public:
-   LazySpEvalFwd fwd;
-   LazySpEvalRev rev;
+   lazysp_selector_fwd fwd;
+   lazysp_selector_rev rev;
    bool do_fwd;
-   LazySpEvalAlt(): do_fwd(true) {}
+   lazysp_selector_alt(): do_fwd(true) {}
    template <class Graph>
    void get_to_evaluate(
       const Graph & g,
@@ -290,7 +316,9 @@ public:
    void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
-class LazySpEvalBisect
+/*! \brief Bisect selector for pr_bgl::lazysp.
+ */
+class lazysp_selector_bisect
 {
 public:
    template <class Graph>
@@ -351,7 +379,9 @@ public:
    void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
-class LazySpEvalFwdExpand
+/*! \brief FwdExpand selector for pr_bgl::lazysp.
+ */
+class lazysp_selector_fwdexpand
 {
 public:
    template <class Graph>
@@ -373,203 +403,5 @@ public:
    template <class Edge, class WeightType>
    void update_notify(Edge e, WeightType e_weight_old) {}
 };
-
-// solve returns weight_type::max if a non-infinite path is found
-// solve is always called with the same g,v_start,v_goal
-template <class Graph, class WMap, class PredecessorMap, class DistanceMap>
-class lazysp_incsp_dijkstra
-{
-public:
-   typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
-   typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
-   typedef typename boost::property_traits<WMap>::value_type weight_type;
-   
-   struct throw_visitor_exception {};
-   class throw_visitor
-   {
-   public:
-      Vertex v_throw;
-      throw_visitor(Vertex v_throw): v_throw(v_throw) {}
-      inline void initialize_vertex(Vertex u, const Graph & g) {}
-      inline void examine_vertex(Vertex u, const Graph & g)
-      {
-         if (u == v_throw)
-            throw throw_visitor_exception();
-      }
-      inline void examine_edge(Edge e, const Graph & g) {}
-      inline void discover_vertex(Vertex u, const Graph & g) {}
-      inline void edge_relaxed(Edge e, const Graph & g) {}
-      inline void edge_not_relaxed(Edge e, const Graph & g) {}
-      inline void finish_vertex(Vertex u, const Graph & g) {}
-   };
-   
-   PredecessorMap predecessor_map;
-   DistanceMap distance_map;
-   
-   lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map):
-      predecessor_map(predecessor_map), distance_map(distance_map)
-   {
-   }
-   
-   weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
-      WMap wmap, std::vector<Edge> & path)
-   {
-      try
-      {
-         boost::dijkstra_shortest_paths(
-            g,
-            v_start,
-            predecessor_map,
-            distance_map,
-            wmap,
-            get(boost::vertex_index, g), // implicit vertex index map
-            std::less<weight_type>(), // compare
-            boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
-            std::numeric_limits<weight_type>::max(), // cost inf
-            weight_type(), // cost zero
-            throw_visitor(v_goal)
-            //boost::make_dijkstra_visitor(boost::null_visitor())
-         );
-      }
-      catch (const throw_visitor_exception & ex)
-      {
-      }
-         
-      if (get(distance_map,v_goal) == std::numeric_limits<weight_type>::max())
-         return std::numeric_limits<weight_type>::max();
-      
-      // get path
-      path.clear();
-      for (Vertex v_walk=v_goal; v_walk!=v_start;)
-      {
-         Vertex v_pred = get(predecessor_map, v_walk);
-         std::pair<Edge,bool> ret = edge(v_pred, v_walk, g);
-         BOOST_ASSERT(ret.second);
-         path.push_back(ret.first);
-         v_walk = v_pred;
-      }
-      std::reverse(path.begin(),path.end());
-      
-      return get(distance_map, v_goal);
-   }
-   
-   void update_notify(Edge e)
-   {
-   }
-};
-
-template <class Graph, class WMap, class PredecessorMap, class DistanceMap>
-lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap>
-make_lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map)
-{
-   return lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap>(predecessor_map, distance_map);
-}
-
-// solve returns weight_type::max if a non-infinite path is found
-// solve is always called with the same g,v_start,v_goal
-template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class CostMap, class ColorMap>
-class lazysp_incsp_astar
-{
-public:
-   typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
-   typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
-   typedef typename boost::property_traits<WMap>::value_type weight_type;
-   
-   struct throw_visitor_exception {};
-   class throw_visitor
-   {
-   public:
-      Vertex v_throw;
-      throw_visitor(Vertex v_throw): v_throw(v_throw) {}
-      inline void initialize_vertex(Vertex u, const Graph & g) {}
-      inline void discover_vertex(Vertex u, const Graph & g) {}
-      inline void examine_vertex(Vertex u, const Graph & g)
-      {
-         if (u == v_throw)
-            throw throw_visitor_exception();
-      }
-      inline void examine_edge(Edge e, const Graph & g) {}
-      inline void edge_relaxed(Edge e, const Graph & g) {}
-      inline void edge_not_relaxed(Edge e, const Graph & g) {}
-      inline void black_target(Edge e, const Graph & g) {}
-      inline void finish_vertex(Vertex u, const Graph & g) {}
-   };
-   
-   class map_heuristic
-   {
-   public:
-      HeuristicMap heuristic_map;
-      map_heuristic(HeuristicMap heuristic_map): heuristic_map(heuristic_map) {}
-      inline weight_type operator()(Vertex u)
-      {
-         return get(heuristic_map, u);
-      } 
-   };
-   
-   HeuristicMap heuristic_map;
-   PredecessorMap predecessor_map;
-   DistanceMap distance_map;
-   CostMap cost_map;
-   ColorMap color_map;
-   
-   lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map, CostMap cost_map, ColorMap color_map):
-      heuristic_map(heuristic_map), predecessor_map(predecessor_map), distance_map(distance_map), cost_map(cost_map), color_map(color_map)
-   {}
-   
-   weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
-      WMap wmap, std::vector<Edge> & path)
-   {
-      try
-      {
-         astar_search(
-            g,
-            v_start,
-            map_heuristic(heuristic_map), // AStarHeuristic h
-            throw_visitor(v_goal), // AStarVisitor vis
-            predecessor_map, // PredecessorMap predecessor
-            cost_map, // CostMap cost
-            distance_map, // DistanceMap distance
-            wmap, // WeightMap weight
-            get(boost::vertex_index, g), // VertexIndexMap index_map
-            color_map, // ColorMap color
-            std::less<weight_type>(), // compare
-            boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
-            std::numeric_limits<weight_type>::max(), // cost inf
-            weight_type() // cost zero
-         );
-      }
-      catch (const throw_visitor_exception & ex)
-      {
-      }
-         
-      if (get(distance_map,v_goal) == std::numeric_limits<weight_type>::max())
-         return std::numeric_limits<weight_type>::max();
-      
-      // get path
-      path.clear();
-      for (Vertex v_walk=v_goal; v_walk!=v_start;)
-      {
-         Vertex v_pred = get(predecessor_map, v_walk);
-         std::pair<Edge,bool> ret = edge(v_pred, v_walk, g);
-         BOOST_ASSERT(ret.second);
-         path.push_back(ret.first);
-         v_walk = v_pred;
-      }
-      std::reverse(path.begin(),path.end());
-      
-      return get(distance_map, v_goal);
-   }
-   
-   void update_notify(Edge e)
-   {
-   }
-};
-
-template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class CostMap, class ColorMap>
-lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap>
-make_lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map, CostMap cost_map, ColorMap color_map)
-{
-   return lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap>(heuristic_map, predecessor_map, distance_map, cost_map, color_map);
-}
 
 } // namespace pr_bgl

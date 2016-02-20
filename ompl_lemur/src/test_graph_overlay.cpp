@@ -84,7 +84,7 @@ typedef boost::adjacency_list<
 typedef boost::graph_traits<OverGraph>::vertex_descriptor OverVertex;
 typedef boost::graph_traits<OverGraph>::edge_descriptor OverEdge;
 
-typedef pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap> EdgeIndexedGraph;
+typedef pr_bgl::edge_indexed_graph<Graph, EdgeIndexMap> EdgeIndexedGraph;
 typedef ompl_lemur::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
 typedef ompl_lemur::RoadmapArgs<EdgeIndexedGraph,StateMap,DistanceMap,VertexSubgraphMap,EdgeSubgraphMap,IsShadowMap,EdgeVectorMap,NN> RoadmapArgs;
 typedef boost::shared_ptr< ompl_lemur::RoadmapHalton<RoadmapArgs> > RoadmapPtr;
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
    // graph
    Graph g;
    
-   pr_bgl::EdgeIndexedGraph<Graph, EdgeIndexMap>
+   pr_bgl::edge_indexed_graph<Graph, EdgeIndexMap>
       eig(g, get(&EdgeProperties::index, g));
    
    NN nnlin(eig, get(&VertexProperties::state,g), space);
@@ -142,7 +142,7 @@ int main(int argc, char **argv)
    
    OverGraph og;
 
-   pr_bgl::OverlayManager<
+   pr_bgl::overlay_manager<
          EdgeIndexedGraph,
          OverGraph,
          boost::property_map<OverGraph, Vertex OverVertexProperties::*>::type,

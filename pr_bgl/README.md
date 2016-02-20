@@ -20,19 +20,19 @@ Test coverage: No.
 
 ### `flag_set_map.h`
 
-The `FlagSetMap` class wraps an existing map by putting `true` to an ancillary map (with the same key) whenever the primary wrap is accessed (read or written).
+The `flag_set_map` class wraps an existing map by putting `true` to an ancillary map (with the same key) whenever the primary wrap is accessed (read or written).
 
 Test coverage: No.
 
 ### `pair_index_map.h`
 
-The `PairIndexMap` class is a readable boost property map which maps from a pair of indexable entities to a master index like C row major order 2d matrix indices.
+The `pair_index_map` class is a readable boost property map which maps from a pair of indexable entities to a master index like C row major order 2d matrix indices.
 
 Test coverage: No.
 
 ### `string_map.h`
 
-The `StringMap` class implements a read-write map which wraps an existing property by allowing converting its values to and from the `std::string` instances.  It requires that the free functions `stringify_from_x()` and `stringify_to_x()` for any custom values.
+The `string_map` class implements a read-write map which wraps an existing property by allowing converting its values to and from the `std::string` instances.  It requires that the free functions `stringify_from_x()` and `stringify_to_x()` for any custom values.
 
 TODO: this may duplicate functionality from `boost::lexical_cast`.
 
@@ -49,7 +49,7 @@ Graph Helpers
 
 ### `edge_indexed_graph.h`
 
-The `EdgeIndexedGraph` class wraps an existing graph object, while additionally maintaining incrementing edge indices in supplied property maps.  The behavior is undefined if edges are not removed in the inverse order that they are added.
+The `edge_indexed_graph` class wraps an existing graph object, while additionally maintaining incrementing edge indices in supplied property maps.  The behavior is undefined if edges are not removed in the inverse order that they are added.
 
 Test coverage: No.
 
@@ -61,22 +61,22 @@ Test coverage: No.
 
 ### `overlay_manager.h`
 
-The `OverlayManager` class maintains a graph overlay.  In other words, given a core graph and an overlay graph, the manager can temporarily "apply" the overlay onto the core graph, copying the appropriate vertices and edges from the overlay to the core graph.  It then remembers the applied vertices and edges, so that they can be "unapplied" later (removed from the core graph in reverse order).  It is conjectured that this operation is safe on a core implemented as an adjacency list without invalidating vertex descriptors on the core graph (see [mailing list][bgl-list-remove]).
+The `overlay_manager` class maintains a graph overlay.  In other words, given a core graph and an overlay graph, the manager can temporarily "apply" the overlay onto the core graph, copying the appropriate vertices and edges from the overlay to the core graph.  It then remembers the applied vertices and edges, so that they can be "unapplied" later (removed from the core graph in reverse order).  It is conjectured that this operation is safe on a core implemented as an adjacency list without invalidating vertex descriptors on the core graph (see [mailing list][bgl-list-remove]).
 
 Test coverage: No.
 
 ### `rev_edge_map.h`
 
-The `RevEdgeMap` class is a readable boost property map which maps from reversed edges to original edges in a reversed graph.
+The `rev_edge_map` class is a readable boost property map which maps from reversed edges to original edges in a reversed graph.
 
 Test coverage: No.
 
 Pathfinding Algorithms
 ----------------------
 
-### `inc_bi.h`
+### `incbi.h`
 
-The `inc_bi` class implements incremental bidirectional
+The `incbi` class implements incremental bidirectional
 Dijkstra's search over a graph for the single-source
 single-sink shortest path problem.
 
@@ -84,18 +84,20 @@ Test coverage: No.
 
 ### `lazysp.h`
 
-The `lazy_shortest_path` function implements the Lazy Shortest Path algorithm for the single-source single-sink shortest path problem.  It takes as an argument an `EvalStrategy` object which determins for the candidate path found at each iteration which edge(s) to select for evaluation.
+The `lazysp` function implements the Lazy Shortest Path algorithm for the single-pair shortest path problem.  It takes as an argument an `EvalStrategy` object which determins for the candidate path found at each iteration which edge(s) to select for evaluation.
 
 Related code:
 
-* `lazysp_inc_bi.h` - adaptor to use incremental bidirectional algorithm for inner search
-* `lazysp_lifelong_planning_astar.h` - adaptor to use LPA* for inner search
-* `lazysp_partition_all.h` - selector using partition functions
-* `lazysp_sp_indicator_probability.h` - selector using sp indicator probability
+* `lazysp_incsp_astar.h` - adaptor to use A* for inner search
+* `lazysp_incsp_dijkstra.h` - adaptor to use Dijkstra's for inner search
+* `lazysp_incsp_incbi.h` - adaptor to use incremental bidirectional algorithm for inner search
+* `lazysp_incsp_lpastar.h` - adaptor to use LPA* for inner search
+* `lazysp_selector_partition_all.h` - selector using partition functions
+* `lazysp_selector_sp_indicator_probability.h` - selector using sp indicator probability
 
 Test coverage: Yes.
 
-### `lifelong_planning_astar.h`
+### `lpastar.h`
 
 Implements the Lifelong Planning A* incremental search algorithm.
 
@@ -107,7 +109,7 @@ Test coverage: Yes.
 
 ### `path_generator.h`
 
-The `PathGenerator` class implements a generator of all simple paths solving the single-source single-sink problem in non-decreasing order of length.
+The `path_generator` class implements a generator of all simple paths solving the single-source single-sink problem in non-decreasing order of length.
 
 Test coverage: No.
 
@@ -131,7 +133,7 @@ Other Data Structures
 
 ### `heap_indexed.h`
 
-The `HeapIndexed` class implements a binary min-heap with index lookups.  Elements are identified with an index value (e.g. [0,num_vertices)).  The heap also maintains a vector backing, wich each element at a particular location.
+The `heap_indexed` class implements a binary min-heap with index lookups.  Elements are identified with an index value (e.g. [0,num_vertices)).  The heap also maintains a vector backing, wich each element at a particular location.
 
 TODO: this may duplicate functionality implemented in BGL.
 

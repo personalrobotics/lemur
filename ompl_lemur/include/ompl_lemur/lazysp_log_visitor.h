@@ -8,7 +8,7 @@ namespace ompl_lemur
 {
 
 template <class VertexIndexMap, class EdgeIndexMap>
-class LazySPLogVisitor : public pr_bgl::lazysp_null_visitor
+class LazySPLogVisitor : public pr_bgl::lazysp_visitor_null
 {
 public:
    
@@ -78,7 +78,7 @@ make_lazysp_log_visitor(
 
 
 
-class LazySPTimingVisitor : public pr_bgl::lazysp_null_visitor
+class LazySPTimingVisitor : public pr_bgl::lazysp_visitor_null
 {
 public:
    boost::chrono::high_resolution_clock::duration & dur_search;

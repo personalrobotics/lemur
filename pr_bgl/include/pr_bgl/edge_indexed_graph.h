@@ -1,14 +1,23 @@
-/* File: edge_indexed_graph.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file edge_indexed_graph.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Contains pr_bgl::edge_indexed_graph.
  */
 
 namespace pr_bgl
 {
 
+/*! \brief Graph wrapper which maintains an edge index.
+ * 
+ * The EdgeIndexedGraph class wraps an existing graph object, while
+ * additionally maintaining incrementing edge indices in supplied
+ * property maps. The behavior is undefined if edges are not removed
+ * in the inverse order that they are added.
+ */
 template <class Graph, class EdgeIndexMap>
-class EdgeIndexedGraph
+class edge_indexed_graph
 {
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor vertex_descriptor;
@@ -32,7 +41,7 @@ public:
    EdgeIndexMap edge_index_map;
    EdgeVectorMap edge_vector_map;
    
-   EdgeIndexedGraph(Graph & g, EdgeIndexMap edge_index_map):
+   edge_indexed_graph(Graph & g, EdgeIndexMap edge_index_map):
       m_g(g),
       edge_count(0),
       edge_index_map(edge_index_map),
@@ -49,14 +58,14 @@ public:
 
 template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::vertices_size_type
-num_vertices(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+num_vertices(const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    return num_vertices(g.m_g);
 }
 
 template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::edges_size_type
-num_edges(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+num_edges(const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    //return num_edges(g.m_g);
    return g.edge_count;
@@ -64,42 +73,42 @@ num_edges(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
 
 template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::vertex_descriptor
-vertex(typename boost::graph_traits<Graph>::vertices_size_type n, const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+vertex(typename boost::graph_traits<Graph>::vertices_size_type n, const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    return vertex(n, g.m_g);
 }
 
 template <class Graph, class EdgeIndexMap>
 inline std::pair<typename boost::graph_traits<Graph>::vertex_iterator, typename boost::graph_traits<Graph>::vertex_iterator>
-vertices(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+vertices(const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    return vertices(g.m_g);
 }
 
 template <class Graph, class EdgeIndexMap>
 inline std::pair<typename boost::graph_traits<Graph>::edge_iterator, typename boost::graph_traits<Graph>::edge_iterator>
-edges(const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+edges(const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    return edges(g.m_g);
 }
 
 template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::vertex_descriptor
-source(typename boost::graph_traits<Graph>::edge_descriptor e, const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+source(typename boost::graph_traits<Graph>::edge_descriptor e, const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    return source(e, g.m_g);
 }
 
 template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::vertex_descriptor
-target(typename boost::graph_traits<Graph>::edge_descriptor e, const EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+target(typename boost::graph_traits<Graph>::edge_descriptor e, const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    return target(e, g.m_g);
 }
 
 template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::vertex_descriptor
-add_vertex(EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+add_vertex(edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    return add_vertex(g.m_g);
 }
@@ -109,7 +118,7 @@ inline std::pair<typename boost::graph_traits<Graph>::edge_descriptor, bool>
 add_edge(
    typename boost::graph_traits<Graph>::vertex_descriptor u,
    typename boost::graph_traits<Graph>::vertex_descriptor v,
-   EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+   edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    std::pair<typename boost::graph_traits<Graph>::edge_descriptor, bool>
       res = add_edge(u, v, g.m_g);
@@ -126,7 +135,7 @@ template <class Graph, class EdgeIndexMap>
 inline void
 remove_vertex(
    typename boost::graph_traits<Graph>::vertex_descriptor u,
-   EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+   edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    remove_vertex(u, g.m_g);
 }
@@ -135,7 +144,7 @@ template <class Graph, class EdgeIndexMap>
 inline void
 remove_edge(
    typename boost::graph_traits<Graph>::edge_descriptor e,
-   EdgeIndexedGraph<Graph,EdgeIndexMap> & g)
+   edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
    // ensure that we're removing edges in reverse order
    // (we may be able to loosen this requirement a bit!)

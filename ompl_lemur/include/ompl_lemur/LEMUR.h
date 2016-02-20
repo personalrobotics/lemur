@@ -67,7 +67,7 @@ public:
    typedef boost::property_map<Graph, std::vector<size_t> EProps::*>::type EPTagsMap;
    
    // for indexing
-   typedef pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> EdgeIndexedGraph;
+   typedef pr_bgl::edge_indexed_graph<Graph, EPIndexMap> EdgeIndexedGraph;
    typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
    typedef boost::property_map<Graph, std::size_t EProps::*>::type EdgeIndexMap;
    typedef EdgeIndexedGraph::EdgeVectorMap EdgeVectorMap;
@@ -154,7 +154,7 @@ private:
    double check_radius; // this is half the standard resolution
 
    Graph g;
-   pr_bgl::EdgeIndexedGraph<Graph, EPIndexMap> eig;
+   pr_bgl::edge_indexed_graph<Graph, EPIndexMap> eig;
    OverGraph og;
    
    OverVertex ov_singlestart;
@@ -168,7 +168,7 @@ private:
    // for overlay anchors
    std::map<Vertex, OverVertex> map_to_overlay;
    
-   pr_bgl::OverlayManager<EdgeIndexedGraph, OverGraph,
+   pr_bgl::overlay_manager<EdgeIndexedGraph, OverGraph,
          boost::property_map<OverGraph, Vertex OverVProps::*>::type,
          boost::property_map<OverGraph, Edge OverEProps::*>::type>
       overlay_manager;
