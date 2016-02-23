@@ -1,6 +1,8 @@
 LEMUR
 =====
 
+[![Documentation](https://readthedocs.org/projects/lemur-planning/badge/?version=latest)](http://lemur-planning.readthedocs.org/en/latest/?badge=latest)
+
 This repository holds Chris Dellin's experimental motion planner LEMUR: **Lazily Evaluated Marginal Utility Roadmaps**.  This code was written at the [Personal Robotics Lab][pr] at the [Robotics Institute][ri] at [Carnegie Mellon University][cmu], and was released on Apr 9, 2015 under a BSD license.  It is currently under active development.  Previous versions of this planner were known as the multiset planner, E8, or family planner.
 
 Packages
