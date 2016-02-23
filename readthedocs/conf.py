@@ -1,6 +1,16 @@
 import os
 import subprocess
 
+tagfiles = {}
+
+# attempt to retrieve ompl tagfile
+try:
+   tagfile = '_build/ompl.tag'
+   subprocess.check_call(['curl','--output',tagfile,'http://ompl.kavrakilab.org/core/ompl.tag'])
+   tagfiles = {tagfile:'http://ompl.kavrakilab.org/'}
+except subprocess.CalledProcessError as ex:
+   print('got error {} when trying to connect to ompl website for tag file, ignoring ...'.format(ex))
+
 def multisplit(s, *needles):
    ret = []
    for needle in needles:
@@ -14,14 +24,14 @@ def multisplit(s, *needles):
 pkgs = ['pr_bgl','ompl_lemur','or_lemur','prpy_lemur']
 for ipkg,pkg in enumerate(pkgs):
    
-   # previous tagfiles
-   tagfiles=' '.join(['_build/html/{p}.tag=../{p}'.format(p=p) for p in pkgs[:ipkg]])
-   
    # doxygen files
    fn_config = 'config.txt'
    fn_header = 'header.html'
    fn_footer = 'footer.html'
    fn_style = 'style.css'
+   
+   tagfile = '_build/html/{pkg}.tag'.format(**locals())
+   str_tagfiles = ' '.join(['{}={}'.format(k,v) for k,v in tagfiles.items()])
    
    # doxygen config file
    fp = open(fn_config,'w')
@@ -36,8 +46,8 @@ HTML_OUTPUT = .
 HTML_HEADER = {fn_header}
 HTML_FOOTER = {fn_footer}
 HTML_STYLESHEET = {fn_style}
-TAGFILES = {tagfiles}
-GENERATE_TAGFILE = _build/html/{pkg}.tag
+TAGFILES = {str_tagfiles}
+GENERATE_TAGFILE = {tagfile}
 '''.format(**locals()))
    fp.close()
    
@@ -108,6 +118,9 @@ margin-left:5px;
    
    print('calling doxygen {} ...'.format(fn_config))
    subprocess.check_call(['doxygen',fn_config])
+   
+   # update tagfiles
+   tagfiles[tagfile] = '../{}'.format(pkg)
    
    os.remove(fn_config)
    os.remove(fn_header)
