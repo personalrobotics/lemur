@@ -1,6 +1,15 @@
 import os
 import subprocess
 
+def multisplit(s, *needles):
+   ret = []
+   for needle in needles:
+      pre,s = s.split(needle,1)
+      ret.append(pre)
+      ret.append(needle)
+   ret.append(s)
+   return ret
+
 # in dependency order
 pkgs = ['pr_bgl','ompl_lemur','or_lemur','prpy_lemur']
 for ipkg,pkg in enumerate(pkgs):
@@ -73,10 +82,9 @@ margin-left:5px;
    
    # modify header html to add custom top bar
    headerhtml = open(fn_header).read()
-   a,_ = headerhtml.split('<!--BEGIN TITLEAREA-->')
-   _,b = headerhtml.split('<!--END TITLEAREA-->')
+   a,b,_,d,e = multisplit(headerhtml,'<!--BEGIN TITLEAREA-->','<!--END TITLEAREA-->')
    fp = open(fn_header,'w')
-   fp.write(a)
+   fp.write(a + b)
    fp.write('''<div id="titlearea" class="mytitlearea"><span class="mytitlelabel">LEMUR Packages:</span>\n''')
    for otherpkg in sorted(pkgs):
       if otherpkg == pkg:
@@ -84,7 +92,18 @@ margin-left:5px;
       else:
          fp.write('<a href="../{}/index.html" class="mybtn">{}</a>\n'.format(otherpkg,otherpkg))
    fp.write('''<br style="clear:left;" /></div>\n''') # titlearea
-   fp.write(b)
+   fp.write(d + e)
+   fp.close()
+   
+   # modify footer html to add ReadTheDocs link
+   headerhtml = open(fn_footer).read()
+   a,b,c,d,e = multisplit(headerhtml,'<!--BEGIN !GENERATE_TREEVIEW-->','<!--END !GENERATE_TREEVIEW-->')
+   fp = open(fn_footer,'w')
+   fp.write(a + b)
+   c1,c2,c3 = multisplit(c,'</small></address>')
+   fp.write(c1)
+   fp.write(' using <a href="https://readthedocs.org/"><img src="https://media.readthedocs.com/corporate/img/header-logo.png" alt="Read the Docs" height="31px" class="footer"/></a>')
+   fp.write(c2 + c3 + d + e)
    fp.close()
    
    print('calling doxygen {} ...'.format(fn_config))
