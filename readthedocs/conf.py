@@ -47,6 +47,8 @@ HTML_HEADER = {fn_header}
 HTML_FOOTER = {fn_footer}
 HTML_STYLESHEET = {fn_style}
 TAGFILES = {str_tagfiles}
+EXTERNAL_GROUPS = NO
+EXTERNAL_PAGES = NO
 GENERATE_TAGFILE = {tagfile}
 '''.format(**locals()))
    fp.close()
