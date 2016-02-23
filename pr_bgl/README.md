@@ -1,11 +1,14 @@
-`pr_bgl`
-========
+pr_bgl: Algorithms for Boost Graph {#mainpage}
+==================================
 
 Author: Chris Dellin `<cdellin@gmail.com>`
 
 Dependencies: `boost`
 
 The `pr_bgl` package contains implemtations of various algorithms and utilities that build atop the [Boost Graph Library (BGL)][bgl].  As is customary with BGL, almost everything is implemented generically in headers.
+
+* Source code is on [GitHub][github-sourcecode].
+* Documentation is on [ReadTheDocs][rtd-documentation].
 
 Property Map Helpers
 --------------------
@@ -140,5 +143,7 @@ TODO: this may duplicate functionality implemented in BGL.
 Test coverage: Yes.
 
 [bgl]: http://boost.org/doc/libs/release/libs/graph/
-[property-map]: http://www.boost.org/doc/libs/1_59_0/libs/property_map/
 [bgl-list-remove]: http://lists.boost.org/boost-users/2015/08/84850.php
+[github-sourcecode]: https://github.com/personalrobotics/lemur/tree/master/pr_bgl/
+[property-map]: http://www.boost.org/doc/libs/1_59_0/libs/property_map/
+[rtd-documentation]: http://lemur-planning.readthedocs.org/en/latest/pr_bgl/

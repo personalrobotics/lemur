@@ -19,7 +19,6 @@ for ipkg,pkg in enumerate(pkgs):
    fp.write('''
 PROJECT_NAME = "{pkg}"
 INPUT = ../{pkg}
-EXCLUDE = ../{pkg}/README.md
 RECURSIVE = YES
 GENERATE_LATEX = NO
 GENERATE_HTML = YES

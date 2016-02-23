@@ -1,7 +1,9 @@
-/* File: BisectPerm.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file BisectPerm.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Bisection permutation solver (ompl_lemur::BisectPerm)
  */
  
 namespace ompl_lemur
@@ -12,12 +14,16 @@ class BisectPerm
 public:
    BisectPerm() {}
   
-   // from calc_order_endgood
-   // output is a vector
-   // first element is from 0 to n-1 (which one to check)
-   // second element is distance to nearest already-evaluated thing
-   // (assuming the ends are already evaluated)
-   // TODO: back with a vector for faster indexing!
+   /*! 
+\verbatim
+from calc_order_endgood
+output is a vector
+first element is from 0 to n-1 (which one to check)
+second element is distance to nearest already-evaluated thing
+(assuming the ends are already evaluated)
+\endverbatim
+    * \todo back with a vector for faster indexing!
+    */
    const std::vector< std::pair<int,int> > & get(int n)
    {
       // look it up in the cache

@@ -1,12 +1,15 @@
-`ompl_lemur`
-============
+ompl_lemur: LEMUR for OMPL {#mainpage}
+==========================
 
 Core planner implementation for the [Open Motion Planning Library (OMPL)][ompl].  Uses [Boost Graph][bgl] for the implementation.  Uses helpers for Boost Graph from the `pr_bgl` package.
+
+* Source code is on [GitHub][github-sourcecode].
+* Documentation is on [ReadTheDocs][rtd-documentation].
 
 Planners
 --------
 
-The primary planner is `LEMUR`, a derived class of `ompl::base::Planner`.  It takes the following arguments:
+The primary planner is `ompl_lemur::LEMUR`, a derived class of `ompl::base::Planner`.  It takes the following arguments:
 
 * `const ompl::base::SpaceInformationPtr & si`
 * `ompl_lemur::EffortModel & effort_model`,
@@ -89,4 +92,6 @@ Random geometric graphs.  One level.  Arguments: `n=30 radius=0.3 seed=1`.
 ![roadmap-rgg-n30-radius0.3-seed1](img/roadmap-rgg-n30-radius0.3-seed1.png)
 
 [bgl]: http://www.boost.org/doc/libs/release/libs/graph/
+[github-sourcecode]: https://github.com/personalrobotics/lemur/tree/master/ompl_lemur/
+[rtd-documentation]: http://lemur-planning.readthedocs.org/en/latest/ompl_lemur/
 [ompl]: http://ompl.kavrakilab.org/

@@ -1,7 +1,9 @@
-/* File: aborting_space_information.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file aborting_space_information.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
+ * 
+ * \brief Aborting StateValidityChecker and SpaceInformation
  */
 
 namespace ompl_lemur

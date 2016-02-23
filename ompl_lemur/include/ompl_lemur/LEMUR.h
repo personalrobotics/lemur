@@ -1,15 +1,20 @@
-/* File: LEMUR.h
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file LEMUR.h
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
  */
 
 namespace ompl_lemur
 {
 
-// for now, this does HARD BATCHING with SUBGRAPH COSTS
-// the core roadmap states are owned by the core roadmap
-// the overlay roots and edges own their states (except anchors)
+/*! \brief This uses pr_bgl::lazysp() and pr_bgl::incbi !
+ * 
+ * for now, this does HARD BATCHING with SUBGRAPH COSTS
+ * 
+ * the core roadmap states are owned by the core roadmap
+ * 
+ * the overlay roots and edges own their states (except anchors)
+ */
 class LEMUR : public ompl::base::Planner
 {
 public:
