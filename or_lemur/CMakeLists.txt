@@ -33,11 +33,8 @@ add_definitions("-Wall -Werror")
 add_definitions("-fno-strict-aliasing")
 
 add_library(${PROJECT_NAME}
-   src/inter_link_checks.cpp
    src/module_family.cpp
-   src/module_subset_manager.cpp
    src/parse_args.cpp
-   src/planner_multiset_prm.cpp
    src/planner_lemur.cpp
    src/planner_family.cpp
    src/planner_cctimer.cpp

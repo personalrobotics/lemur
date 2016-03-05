@@ -44,7 +44,7 @@ public:
       boost::shared_ptr<ompl_lemur::Family> ompl_family;
       ompl_lemur::FamilyUtilityCheckerPtr ompl_family_checker;
       boost::shared_ptr< ompl_lemur::TagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> > ompl_tag_cache;
-      boost::shared_ptr<ompl_lemur::LEMUR> ompl_planner;
+      boost::shared_ptr<ompl_lemur::LEMUR> ompl_lemur;
       
       // put this here for now
       FamilyParametersConstPtr params_last;

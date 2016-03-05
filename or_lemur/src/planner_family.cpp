@@ -54,9 +54,6 @@
 #include <ompl_lemur/LEMUR.h>
 
 #include <or_lemur/RoadmapCached.h>
-#include <or_lemur/inter_link_checks.h>
-#include <or_lemur/module_subset_manager.h>
-#include <or_lemur/or_checker.h>
 #include <or_lemur/params_lemur.h>
 #include <or_lemur/params_family.h>
 #include <or_lemur/module_family.h>
@@ -179,7 +176,7 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & p
    or_lemur::FamilyParametersPtr params(new or_lemur::FamilyParameters());
    params_ser >> *params;
    params->Validate();
-   return this->InitPlan(robot, params);
+   return InitPlan(robot, params);
 }
 
 bool
@@ -203,7 +200,7 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
    boost::shared_ptr<or_lemur::FamilyModule> mod_family;
    if (!_current_family)
    {
-      boost::shared_ptr<CurrentFamily> new_family(new CurrentFamily);
+      boost::shared_ptr<CurrentFamily> fam(new CurrentFamily);
       
       // find the family module
       if (!params->has_family_module)
@@ -230,98 +227,98 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
          RAVELOG_ERROR("No matching family module passed!\n");
          return false;
       }
-      new_family->mod_family = mod_family; // set weak_ptr
+      fam->mod_family = mod_family; // set weak_ptr
       
       // set robot data
-      new_family->robot = robot;
-      new_family->active_dofs = robot->GetActiveDOFIndices();
+      fam->robot = robot;
+      fam->active_dofs = robot->GetActiveDOFIndices();
       
       // construct ompl space
-      new_family->ompl_space.reset(new ompl::base::RealVectorStateSpace(new_family->active_dofs.size()));
-      new_family->ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
-      new_family->ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / new_family->ompl_space->getMaximumExtent());
-      new_family->ompl_space->setup();
+      fam->ompl_space.reset(new ompl::base::RealVectorStateSpace(fam->active_dofs.size()));
+      fam->ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
+      fam->ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / fam->ompl_space->getMaximumExtent());
+      fam->ompl_space->setup();
       
       // begin working on spaceinfo
-      new_family->ompl_si.reset(new ompl::base::SpaceInformation(new_family->ompl_space));
+      fam->ompl_si.reset(new ompl::base::SpaceInformation(fam->ompl_space));
       
       // get current family from mod_family
       // also canonical names
-      new_family->familyspec = mod_family->GetCurrentFamily();
-      new_family->familyspec_names = mod_family->GetCanonicalNames(new_family->familyspec);
+      fam->familyspec = mod_family->GetCurrentFamily();
+      fam->familyspec_names = mod_family->GetCanonicalNames(fam->familyspec);
       
       // construct ompl_family from familyspec
-      new_family->ompl_family.reset(new ompl_lemur::Family);
+      fam->ompl_family.reset(new ompl_lemur::Family);
       
       // convert each subset
       // for now, use an aborting si with a bogus cost
       // (we build a new checker during PlanPath() only!)
       for (std::set<or_lemur::FamilyModule::SetPtr>::iterator
-         it=new_family->familyspec.sets.begin(); it!=new_family->familyspec.sets.end(); it++)
+         it=fam->familyspec.sets.begin(); it!=fam->familyspec.sets.end(); it++)
       {
-         new_family->ompl_family->sets.insert(new_family->familyspec_names[*it]);
+         fam->ompl_family->sets.insert(fam->familyspec_names[*it]);
       }
       
       // convert relations
       for (std::set<or_lemur::FamilyModule::Relation>::iterator
-         it=new_family->familyspec.relations.begin(); it!=new_family->familyspec.relations.end(); it++)
+         it=fam->familyspec.relations.begin(); it!=fam->familyspec.relations.end(); it++)
       {
          std::set<std::string> antecedents;
          for (std::set<or_lemur::FamilyModule::SetPtr>::iterator
             sit=it->first.begin(); sit!=it->first.end(); sit++)
          {
-            antecedents.insert(new_family->familyspec_names[*sit]);
+            antecedents.insert(fam->familyspec_names[*sit]);
          }
-         new_family->ompl_family->relations.insert(std::make_pair(antecedents,new_family->familyspec_names[it->second]));
+         fam->ompl_family->relations.insert(std::make_pair(antecedents,fam->familyspec_names[it->second]));
       }
       
       // create the family effort model
       // (note -- we haven't yet set the target set!)
-      new_family->ompl_family_checker.reset(new ompl_lemur::FamilyUtilityChecker(
-         new_family->ompl_si.get(), *new_family->ompl_family));
+      fam->ompl_family_checker.reset(new ompl_lemur::FamilyUtilityChecker(
+         fam->ompl_si.get(), *fam->ompl_family));
       //fem->set_target(family->subsets.find("targ")->second.si);
       
-      new_family->ompl_si->setStateValidityChecker(
-         ompl::base::StateValidityCheckerPtr(new_family->ompl_family_checker));
-      new_family->ompl_si->setup();
+      fam->ompl_si->setStateValidityChecker(
+         ompl::base::StateValidityCheckerPtr(fam->ompl_family_checker));
+      fam->ompl_si->setup();
       
       // punt on tag cache for now
-      new_family->ompl_tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
+      fam->ompl_tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
       
-      new_family->ompl_planner.reset(new ompl_lemur::LEMUR(new_family->ompl_si, *new_family->ompl_tag_cache));
+      fam->ompl_lemur.reset(new ompl_lemur::LEMUR(fam->ompl_si, *fam->ompl_tag_cache));
       
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonDens>("HaltonDens");
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonOffDens>("HaltonOffDens");
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGG>("RGG");
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDens>("RGGDens");
-      new_family->ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDensConst>("RGGDensConst");
-      new_family->ompl_planner->registerRoadmapType("CachedAAGrid",
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapHaltonDens>("HaltonDens");
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapHaltonOffDens>("HaltonOffDens");
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapRGG>("RGG");
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapRGGDens>("RGGDens");
+      fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapRGGDensConst>("RGGDensConst");
+      fam->ompl_lemur->registerRoadmapType("CachedAAGrid",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapAAGrid>()));
-      new_family->ompl_planner->registerRoadmapType("CachedHalton",
+      fam->ompl_lemur->registerRoadmapType("CachedHalton",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHalton>()));
-      new_family->ompl_planner->registerRoadmapType("CachedHaltonDens",
+      fam->ompl_lemur->registerRoadmapType("CachedHaltonDens",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonDens>()));
-      new_family->ompl_planner->registerRoadmapType("CachedHaltonOffDens",
+      fam->ompl_lemur->registerRoadmapType("CachedHaltonOffDens",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonOffDens>()));
-      new_family->ompl_planner->registerRoadmapType("CachedRGG",
+      fam->ompl_lemur->registerRoadmapType("CachedRGG",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGG>()));
-      new_family->ompl_planner->registerRoadmapType("CachedRGGDens",
+      fam->ompl_lemur->registerRoadmapType("CachedRGGDens",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDens>()));
-      new_family->ompl_planner->registerRoadmapType("CachedRGGDensConst",
+      fam->ompl_lemur->registerRoadmapType("CachedRGGDensConst",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDensConst>()));
       
       // great, everything initialized properly!
-      _current_family = new_family;
+      _current_family = fam;
    }
    else // validate _current_family (don't mutate it)!
    {
@@ -373,33 +370,33 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
    
    // planner params
    if (params->has_roadmap_type)
-      _current_family->ompl_planner->setRoadmapType(params->roadmap_type);
+      _current_family->ompl_lemur->setRoadmapType(params->roadmap_type);
    for (unsigned int ui=0; ui<params->roadmap_params.size(); ui++)
-      _current_family->ompl_planner->params().setParam("roadmap."+params->roadmap_params[ui].first, params->roadmap_params[ui].second);
+      _current_family->ompl_lemur->params().setParam("roadmap."+params->roadmap_params[ui].first, params->roadmap_params[ui].second);
    if (params->has_coeff_distance)
-      _current_family->ompl_planner->setCoeffDistance(params->coeff_distance);
+      _current_family->ompl_lemur->setCoeffDistance(params->coeff_distance);
    if (params->has_coeff_checkcost)
-      _current_family->ompl_planner->setCoeffCheckcost(params->coeff_checkcost);
+      _current_family->ompl_lemur->setCoeffCheckcost(params->coeff_checkcost);
    if (params->has_coeff_batch)
-      _current_family->ompl_planner->setCoeffBatch(params->coeff_batch);
+      _current_family->ompl_lemur->setCoeffBatch(params->coeff_batch);
    if (params->has_do_timing)
-      _current_family->ompl_planner->setDoTiming(params->do_timing);
+      _current_family->ompl_lemur->setDoTiming(params->do_timing);
    if (params->has_persist_roots)
-      _current_family->ompl_planner->setPersistRoots(params->persist_roots);
+      _current_family->ompl_lemur->setPersistRoots(params->persist_roots);
    if (params->has_num_batches_init)
-      _current_family->ompl_planner->setNumBatchesInit(params->num_batches_init);
+      _current_family->ompl_lemur->setNumBatchesInit(params->num_batches_init);
    if (params->has_max_batches)
-      _current_family->ompl_planner->setMaxBatches(params->max_batches);
+      _current_family->ompl_lemur->setMaxBatches(params->max_batches);
    if (params->has_search_type)
-      _current_family->ompl_planner->setSearchType(params->search_type);
+      _current_family->ompl_lemur->setSearchType(params->search_type);
    if (params->has_eval_type)
-      _current_family->ompl_planner->setEvalType(params->eval_type);
+      _current_family->ompl_lemur->setEvalType(params->eval_type);
    
    // problem definition
    ompl::base::ProblemDefinitionPtr ompl_pdef(
       new ompl::base::ProblemDefinition(_current_family->ompl_si));
    ompl_set_roots(ompl_pdef, params);
-   _current_family->ompl_planner->setProblemDefinition(ompl_pdef);
+   _current_family->ompl_lemur->setProblemDefinition(ompl_pdef);
    
    _current_family->params_last = params;
    return true;
@@ -419,44 +416,44 @@ OpenRAVE::PlannerStatus
 or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 {
    // get current family
-   boost::shared_ptr<CurrentFamily> current_family = _current_family;
-   if (!current_family)
+   boost::shared_ptr<CurrentFamily> fam = _current_family;
+   if (!fam)
       throw OpenRAVE::openrave_exception("Plan not initialized!");
 
    // get robot
-   OpenRAVE::RobotBasePtr robot = current_family->robot.lock();
+   OpenRAVE::RobotBasePtr robot = fam->robot.lock();
    if (!robot)
       throw OpenRAVE::openrave_exception("was InitPlan called, or was robot removed from env?");
 
    // get family module
-   boost::shared_ptr<or_lemur::FamilyModule> mod_family = current_family->mod_family.lock();
+   boost::shared_ptr<or_lemur::FamilyModule> mod_family = fam->mod_family.lock();
    if (!mod_family)
       throw OpenRAVE::openrave_exception("Family module no longer exists?");
    
    // get current set
    or_lemur::FamilyModule::SetPtr current_set = mod_family->GetCurrentSet();
-   std::string current_set_name = current_family->familyspec_names[current_set];
+   std::string current_set_name = fam->familyspec_names[current_set];
    RAVELOG_INFO("planning in target set \"%s\" ...\n", current_set_name.c_str());
    
    // get indicators from or family
    std::map< or_lemur::FamilyModule::SetPtr, std::pair<double,or_lemur::FamilyModule::Indicator> >
-      indicators = mod_family->GetIndicators(current_family->familyspec);
+      indicators = mod_family->GetIndicators(fam->familyspec);
    
    // construct an ompl SetChecker for each set
    std::map<std::string, ompl_lemur::FamilyUtilityChecker::SetChecker> set_checkers;
    
    for (std::set<or_lemur::FamilyModule::SetPtr>::iterator
-      it=current_family->familyspec.sets.begin(); it!=current_family->familyspec.sets.end(); it++)
+      it=fam->familyspec.sets.begin(); it!=fam->familyspec.sets.end(); it++)
    {
       ompl::base::StateValidityCheckerPtr checker(new OrIndicatorChecker(
-         current_family->ompl_si, indicators[*it].second));
+         fam->ompl_si, indicators[*it].second));
       set_checkers.insert(std::make_pair(
-         current_family->familyspec_names[*it],
+         fam->familyspec_names[*it],
          std::make_pair(indicators[*it].first,checker)));
    }
    
    // start checking
-   current_family->ompl_family_checker->start_checking(current_set_name, set_checkers);
+   fam->ompl_family_checker->start_checking(current_set_name, set_checkers);
    
    printf("planning ...\n");
    
@@ -466,86 +463,86 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 #endif
 
    std::ofstream fp_alglog;
-   if (current_family->params_last->alglog == "-")
+   if (fam->params_last->alglog == "-")
    {
-      current_family->ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = &std::cout;
+      fam->ompl_lemur->os_alglog = &std::cout;
    }
-   else if (current_family->params_last->alglog != "")
+   else if (fam->params_last->alglog != "")
    {
-      if (current_family->params_last->has_do_alglog_append && current_family->params_last->do_alglog_append)
-         fp_alglog.open(current_family->params_last->alglog.c_str(), std::ios_base::app);
+      if (fam->params_last->has_do_alglog_append && fam->params_last->do_alglog_append)
+         fp_alglog.open(fam->params_last->alglog.c_str(), std::ios_base::app);
       else
-         fp_alglog.open(current_family->params_last->alglog.c_str(), std::ios_base::out);
-      current_family->ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = &fp_alglog;
+         fp_alglog.open(fam->params_last->alglog.c_str(), std::ios_base::out);
+      fam->ompl_lemur->os_alglog = &fp_alglog;
    }
    
    ompl::base::PlannerStatus ompl_status;
    ompl::base::PlannerTerminationCondition ptc(ompl::base::plannerNonTerminatingCondition());
-   if (current_family->params_last->has_time_limit)
-      ptc = ompl::base::timedPlannerTerminationCondition(current_family->params_last->time_limit);
-   ompl_status = current_family->ompl_planner->solve(ptc);
+   if (fam->params_last->has_time_limit)
+      ptc = ompl::base::timedPlannerTerminationCondition(fam->params_last->time_limit);
+   ompl_status = fam->ompl_lemur->solve(ptc);
    printf("planner returned: %s\n", ompl_status.asString().c_str());
 
-   if (current_family->params_last->has_do_roadmap_save && current_family->params_last->do_roadmap_save)
+   if (fam->params_last->has_do_roadmap_save && fam->params_last->do_roadmap_save)
    {
       boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> > cached_roadmap
-         = boost::dynamic_pointer_cast< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >(current_family->ompl_planner->_roadmap);
+         = boost::dynamic_pointer_cast< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >(fam->ompl_lemur->_roadmap);
       if (cached_roadmap)
       {
          printf("saving cached roadmap ...\n");
-         current_family->ompl_planner->_roadmap->as< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >()->save_file();
+         cached_roadmap->save_file();
       }
       else
       {
-         current_family->ompl_family_checker->stop_checking();
+         fam->ompl_family_checker->stop_checking();
          throw OpenRAVE::openrave_exception("asked to save roadmap cache, but non-cached roadmap used!");
       }
    }
 
-   current_family->ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = 0;
+   fam->ompl_lemur->os_alglog = 0;
    fp_alglog.close();
    
-   if (current_family->params_last->graph == "-")
+   if (fam->params_last->graph == "-")
    {
-      current_family->ompl_planner->as<ompl_lemur::LEMUR>()->dump_graph(std::cout);
+      fam->ompl_lemur->dump_graph(std::cout);
    }
-   else if (current_family->params_last->graph != "")
+   else if (fam->params_last->graph != "")
    {
       std::ofstream fp_graph;
-      fp_graph.open(current_family->params_last->graph.c_str());
-      current_family->ompl_planner->as<ompl_lemur::LEMUR>()->dump_graph(fp_graph);
+      fp_graph.open(fam->params_last->graph.c_str());
+      fam->ompl_lemur->dump_graph(fp_graph);
       fp_graph.close();
    }
    
    if (ompl_status != ompl::base::PlannerStatus::EXACT_SOLUTION)
    {
-      current_family->ompl_family_checker->stop_checking();
+      fam->ompl_family_checker->stop_checking();
       return OpenRAVE::PS_Failed;
    }
    
    // convert result
    // (if the planner exited with an exact empty solution, then it's done!)
-   ompl::base::PathPtr path = current_family->ompl_planner->getProblemDefinition()->getSolutionPath();
+   ompl::base::PathPtr path = fam->ompl_lemur->getProblemDefinition()->getSolutionPath();
    if (!path)
    {
-      current_family->ompl_family_checker->stop_checking();
+      fam->ompl_family_checker->stop_checking();
       return OpenRAVE::PS_Failed;
    }
    
    ompl::geometric::PathGeometric * gpath = dynamic_cast<ompl::geometric::PathGeometric*>(path.get());
    if (!gpath)
    {
-      current_family->ompl_family_checker->stop_checking();
+      fam->ompl_family_checker->stop_checking();
       throw OpenRAVE::openrave_exception("ompl path is not geometric for some reason!");
    }
    traj->Init(robot->GetActiveConfigurationSpecification());
    for (unsigned int i=0; i<gpath->getStateCount(); i++)
    {
-      ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s(current_family->ompl_space, gpath->getState(i));
+      ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s(fam->ompl_space, gpath->getState(i));
       traj->Insert(i, std::vector<OpenRAVE::dReal>(&s[0], &s[0]+robot->GetActiveDOF()));
    }
    
-   current_family->ompl_family_checker->stop_checking();
+   fam->ompl_family_checker->stop_checking();
    return OpenRAVE::PS_HasSolution;
 }
 
@@ -558,8 +555,8 @@ bool or_lemur::FamilyPlanner::ResetFamily(std::ostream & sout, std::istream & si
 bool or_lemur::FamilyPlanner::GetTimes(std::ostream & sout, std::istream & sin) const
 {
    // get current family
-   boost::shared_ptr<CurrentFamily> current_family = _current_family;
-   if (!current_family)
+   boost::shared_ptr<CurrentFamily> fam = _current_family;
+   if (!fam)
       throw OpenRAVE::openrave_exception("Plan not initialized!");
 #if 0
    //sout << "checktime " << boost::chrono::duration<double>(ompl_checker->dur_checks).count();
@@ -574,14 +571,14 @@ bool or_lemur::FamilyPlanner::GetTimes(std::ostream & sout, std::istream & sin) 
       }
    }
 #endif
-   sout << " e8_dur_total " << current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurTotal();
-   sout << " e8_dur_roadmapgen " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapGen();
-   sout << " e8_dur_roadmapinit " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapInit();
-   sout << " e8_dur_lazysp " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurLazySP();
-   sout << " e8_dur_search " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurSearch();
-   sout << " e8_dur_eval " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurEval();
-   sout << " e8_dur_selector_init " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorInit();
-   sout << " e8_dur_selector " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelector();
-   sout << " e8_dur_selector_notify " <<  current_family->ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorNotify();
+   sout << " e8_dur_total " << fam->ompl_lemur->getDurTotal();
+   sout << " e8_dur_roadmapgen " <<  fam->ompl_lemur->getDurRoadmapGen();
+   sout << " e8_dur_roadmapinit " <<  fam->ompl_lemur->getDurRoadmapInit();
+   sout << " e8_dur_lazysp " <<  fam->ompl_lemur->getDurLazySP();
+   sout << " e8_dur_search " <<  fam->ompl_lemur->getDurSearch();
+   sout << " e8_dur_eval " <<  fam->ompl_lemur->getDurEval();
+   sout << " e8_dur_selector_init " <<  fam->ompl_lemur->getDurSelectorInit();
+   sout << " e8_dur_selector " <<  fam->ompl_lemur->getDurSelector();
+   sout << " e8_dur_selector_notify " <<  fam->ompl_lemur->getDurSelectorNotify();
    return true;
 }

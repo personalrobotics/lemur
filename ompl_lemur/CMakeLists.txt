@@ -30,12 +30,8 @@ link_libraries(
 add_definitions("-Wall")
 
 add_library(${PROJECT_NAME}
-   src/Cache.cpp
    src/FamilyUtilityChecker.cpp
    src/LEMUR.cpp
-   src/MultiSetPRM.cpp
-   src/MultiSetRoadmapSampledConst.cpp
-   src/MultiSetRoadmapSampledDensified.cpp
    src/SamplerGenMonkeyPatch.cpp
    src/SpaceID.cpp
    src/util.cpp

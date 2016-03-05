@@ -4,6 +4,8 @@
  * License: BSD
  */
 
+#include <algorithm>
+
 #include <boost/chrono.hpp>
 #include <boost/graph/adjacency_list.hpp>
 
@@ -24,10 +26,6 @@
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/heap_indexed.h>
 
-#include <ompl_lemur/MultiSetRoadmap.h>
-#include <ompl_lemur/Cache.h>
-#include <ompl_lemur/MultiSetPRM.h>
-
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
@@ -37,46 +35,58 @@
 #include <ompl_lemur/Family.h>
 #include <ompl_lemur/FamilyUtilityChecker.h>
 
-#include <or_lemur/inter_link_checks.h>
-
-#include <or_lemur/module_family.h>
-#include <or_lemur/module_subset_manager.h>
 #include <or_lemur/or_checker.h>
-#include <or_lemur/planner_multiset_prm.h>
+#include <or_lemur/module_family.h>
 #include <or_lemur/params_lemur.h>
 #include <or_lemur/params_family.h>
 #include <or_lemur/planner_lemur.h>
 #include <or_lemur/planner_family.h>
 #include <or_lemur/planner_cctimer.h>
 
+namespace {
+
+template <class C>
+OpenRAVE::InterfaceBase * make(OpenRAVE::EnvironmentBasePtr env)
+{
+   return new C(env);
+}
+
+struct Type
+{
+   OpenRAVE::InterfaceType ortype;
+   std::string name;
+   OpenRAVE::InterfaceBase *(*make)(OpenRAVE::EnvironmentBasePtr env);
+};
+
+// list of interface types we can construct
+static Type types[] =
+{
+   {OpenRAVE::PT_Module,  "Family",        &make<or_lemur::FamilyModule>},
+   {OpenRAVE::PT_Planner, "LEMUR",         &make<or_lemur::LEMUR>},
+   {OpenRAVE::PT_Planner, "FamilyPlanner", &make<or_lemur::FamilyPlanner>},
+   {OpenRAVE::PT_Planner, "CCTimer",       &make<or_lemur::CCTimer>},
+};
+static int num_types = sizeof(types)/sizeof(types[0]);
+
+} // anonymous namespace
+
 void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {
-   info.interfacenames[OpenRAVE::PT_Planner].push_back("MultiSetPRM");
-   info.interfacenames[OpenRAVE::PT_Planner].push_back("LEMUR");
-   info.interfacenames[OpenRAVE::PT_Planner].push_back("FamilyPlanner");
-   info.interfacenames[OpenRAVE::PT_Planner].push_back("CCTimer");
-   info.interfacenames[OpenRAVE::PT_Module].push_back("Family");
-   info.interfacenames[OpenRAVE::PT_Module].push_back("SubsetManager");
+   for (Type * type=types; type-types<num_types; type++)
+      info.interfacenames[type->ortype].push_back(type->name);
 }
 
 OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
-   OpenRAVE::InterfaceType type,
-   const std::string & interfacename,
-   std::istream& sinput,
-   OpenRAVE::EnvironmentBasePtr penv)
+   OpenRAVE::InterfaceType ortype, const std::string & name,
+   std::istream& sinput, OpenRAVE::EnvironmentBasePtr env)
 {
-   if((type == OpenRAVE::PT_Planner) && (interfacename == "multisetprm"))
-      return OpenRAVE::InterfaceBasePtr(new or_lemur::MultiSetPRM(penv));
-   if((type == OpenRAVE::PT_Planner) && (interfacename == "lemur"))
-      return OpenRAVE::InterfaceBasePtr(new or_lemur::LEMUR(penv));
-   if((type == OpenRAVE::PT_Planner) && (interfacename == "familyplanner"))
-      return OpenRAVE::InterfaceBasePtr(new or_lemur::FamilyPlanner(penv));
-   if((type == OpenRAVE::PT_Planner) && (interfacename == "cctimer"))
-      return OpenRAVE::InterfaceBasePtr(new or_lemur::CCTimer(penv));
-   if((type == OpenRAVE::PT_Module) && (interfacename == "family"))
-      return OpenRAVE::InterfaceBasePtr(new or_lemur::FamilyModule(penv));
-   if((type == OpenRAVE::PT_Module) && (interfacename == "subsetmanager"))
-      return OpenRAVE::InterfaceBasePtr(new or_lemur::ModuleSubsetManager(penv));
+   for (Type * type=types; type-types<num_types; type++)
+   {
+      std::string low = type->name;
+      std::transform(low.begin(), low.end(), low.begin(), ::tolower);
+      if (ortype == type->ortype && name == low)
+         return OpenRAVE::InterfaceBasePtr(type->make(env));
+   }
    return OpenRAVE::InterfaceBasePtr();
 }
 

@@ -141,7 +141,7 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & inparams_
    or_lemur::LEMURParametersPtr inparams(new or_lemur::LEMURParameters());
    inparams_ser >> *inparams;
    inparams->Validate();
-   return this->InitPlan(robot, inparams);
+   return InitPlan(robot, inparams);
 }
 
 bool
@@ -150,10 +150,9 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
    LEMURParametersConstPtr inparams = boost::dynamic_pointer_cast<or_lemur::LEMURParameters const>(inparams_base);
    if (!inparams)
    {
-      RAVELOG_WARN("Warning, LEMUR planner passed an unknown PlannerParameters type! Attempting to serialize ...\n");
       std::stringstream inparams_ser;
       inparams_ser << *inparams_base;
-      return this->InitPlan(inrobot, inparams_ser);
+      return InitPlan(inrobot, inparams_ser);
    }
    if (!inrobot || !inparams_base)
       throw OpenRAVE::openrave_exception("robot/params objects must be passed!");
@@ -338,7 +337,7 @@ or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    
    // convert result
    // (if the planner exited with an exact empty solution, then it's done!)
-   ompl::base::PathPtr path = this->ompl_planner->getProblemDefinition()->getSolutionPath();
+   ompl::base::PathPtr path = ompl_planner->getProblemDefinition()->getSolutionPath();
    if (!path)
       return OpenRAVE::PS_Failed;
    

@@ -26,20 +26,20 @@ link_libraries(
 
 add_definitions("-Wall -Werror")
 
-add_executable(test2d src/test2d.cpp)
+#add_executable(test2d src/test2d.cpp)
 
-add_executable(test2dimg src/test2dimg.cpp)
-target_link_libraries(test2dimg png)
+#add_executable(test2dimg src/test2dimg.cpp)
+#target_link_libraries(test2dimg png)
 
-add_executable(testherb src/testherb.cpp)
-target_link_libraries(testherb)
+#add_executable(testherb src/testherb.cpp)
+#target_link_libraries(testherb)
 
-add_executable(dijk src/dijk.cpp)
+#add_executable(dijk src/dijk.cpp)
 
-add_executable(roadmaps-2d src/roadmaps-2d.cpp)
+#add_executable(roadmaps-2d src/roadmaps-2d.cpp)
 
-install(TARGETS test2d test2dimg testherb dijk
-  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
-  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
-)
+#install(TARGETS test2d test2dimg testherb dijk
+#  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+#  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+#)
