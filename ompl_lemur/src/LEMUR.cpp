@@ -35,9 +35,11 @@
 #include <pr_bgl/lazysp.h>
 #include <pr_bgl/heap_indexed.h>
 #include <pr_bgl/pair_index_map.h>
+#if 0
 #include <pr_bgl/partition_all.h>
 #include <pr_bgl/lazysp_selector_partition_all.h>
 #include <pr_bgl/lazysp_selector_sp_indicator_probability.h>
+#endif
 #include <pr_bgl/lpastar.h>
 #include <pr_bgl/incbi.h>
 #include <pr_bgl/lazysp_incsp_dijkstra.h>
@@ -45,12 +47,12 @@
 #include <pr_bgl/lazysp_incsp_lpastar.h>
 #include <pr_bgl/lazysp_incsp_incbi.h>
 
-#include <ompl_lemur/aborting_space_information.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
-#include <ompl_lemur/EffortModel.h>
+#include <ompl_lemur/TagCache.h>
+#include <ompl_lemur/UtilityChecker.h>
 #include <ompl_lemur/LEMUR.h>
 #include <ompl_lemur/lazysp_log_visitor.h>
 
@@ -95,13 +97,11 @@ void remove_vertex(ompl_lemur::LEMUR::Vertex v, ompl_lemur::LEMUR::Graph & g)
  */
 
 ompl_lemur::LEMUR::LEMUR(
-      const ompl::base::StateSpacePtr & space,
-      EffortModel & effort_model,
+      const ompl::base::SpaceInformationPtr & si,
       TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache):
-   ompl::base::Planner(
-      ompl_lemur::get_aborting_space_information(space), "LEMUR"),
-   effort_model(effort_model),
-   space(space),
+   ompl::base::Planner(si, "LEMUR"),
+   //effort_model(effort_model),
+   space(si->getStateSpace()),
    check_radius(0.5*space->getLongestValidSegmentLength()),
    eig(g, get(&EProps::index,g)),
    overlay_manager(eig,og,
@@ -125,6 +125,14 @@ ompl_lemur::LEMUR::LEMUR(
    m_vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
    m_eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tags,g), eig.edge_vector_map))
 {
+   // get utility checker
+   _utility_checker = boost::dynamic_pointer_cast<UtilityChecker>(si->getStateValidityChecker());
+   if (!_utility_checker)
+   {
+      OMPL_INFORM("LEMUR: StateValidityChecker does not provide utility info, using binary checker with default check cost ...");
+      _utility_checker.reset(new BinaryUtilityChecker(si, si->getStateValidityChecker()));
+   }
+   
    Planner::declareParam<std::string>("roadmap_type", this,
       &ompl_lemur::LEMUR::setRoadmapType,
       &ompl_lemur::LEMUR::getRoadmapType);
@@ -360,10 +368,12 @@ void ompl_lemur::LEMUR::setEvalType(std::string eval_type)
       _eval_type = EVAL_TYPE_BISECT;
    else if (eval_type == "fwd_expand")
       _eval_type = EVAL_TYPE_FWD_EXPAND;
+#if 0
    else if (eval_type == "partition_all")
       _eval_type = EVAL_TYPE_PARTITION_ALL;
    else if (eval_type == "sp_indicator_probability")
       _eval_type = EVAL_TYPE_SP_INDICATOR_PROBABILITY;
+#endif
    else
       throw std::runtime_error("Eval type parameter must be fwd rev alt bisect or fwd_expand.");
 }
@@ -377,8 +387,10 @@ std::string ompl_lemur::LEMUR::getEvalType() const
    case EVAL_TYPE_ALT: return "alt";
    case EVAL_TYPE_BISECT: return "bisect";
    case EVAL_TYPE_FWD_EXPAND: return "fwd_expand";
+#if 0
    case EVAL_TYPE_PARTITION_ALL: return "partition_all";
    case EVAL_TYPE_SP_INDICATOR_PROBABILITY: return "sp_indicator_probability";
+#endif
    default:
       throw std::runtime_error("corrupted _eval_type!");
    }
@@ -564,7 +576,7 @@ void ompl_lemur::LEMUR::setProblemDefinition(
    
    // ompl::base::SpaceInformationPtr si_new = pdef->getSpaceInformation();
    //if (si_new != family_effort_model.si_target)
-   if (effort_model.has_changed())
+   if (_utility_checker->hasChanged())
    {
       overlay_apply();
       
@@ -772,6 +784,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
                pr_bgl::lazysp_selector_fwdexpand(),
                epath);
+#if 0
          case EVAL_TYPE_PARTITION_ALL: 
          {
             double len_ref = 1.0/3.0;
@@ -826,6 +839,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   og[ov_singlegoal].core_vertex,
                   0), // seed
                epath);
+#endif
          }
       }
       else
@@ -902,6 +916,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   1.0e-9),
                pr_bgl::lazysp_selector_fwdexpand(),
                epath);
+#if 0
          case EVAL_TYPE_PARTITION_ALL:
          {
             double len_ref = 1.0/3.0;
@@ -962,6 +977,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                   og[ov_singlegoal].core_vertex,
                   0), // seed
                epath);
+#endif
          }
       }
    }
@@ -1007,6 +1023,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
             pr_bgl::lazysp_selector_fwdexpand(),
             epath);
+#if 0
       case EVAL_TYPE_PARTITION_ALL:
       {
          double len_ref = 1.0/3.0;
@@ -1055,6 +1072,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                og[ov_singlegoal].core_vertex,
                0), // seed
             epath);
+#endif
       }
    }
    else // _search_type == SEARCH_TYPE_INCBI
@@ -1153,6 +1171,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                pr_bgl::incbi_visitor_null<Graph>()),
             pr_bgl::lazysp_selector_fwdexpand(),
             epath);
+#if 0
       case EVAL_TYPE_PARTITION_ALL:
       {
          double len_ref = 1.0/3.0;
@@ -1221,6 +1240,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                og[ov_singlegoal].core_vertex,
                0), // seed
             epath);
+#endif
       }
    }
    OMPL_ERROR("switch error.");
@@ -1343,13 +1363,9 @@ ompl_lemur::LEMUR::solve(
          
          if (num_batches < _roadmap->num_batches_generated)
          {
-            printf("doing filtered lazy search ...\n");
-            abort();
-#if 0
             filter_num_batches filter(get(&EProps::batch,g), num_batches);
             boost::filtered_graph<Graph,filter_num_batches> fg(g, filter);
             success = do_lazysp_a(fg, epath);
-#endif
          }
          else
          {
@@ -1527,8 +1543,8 @@ void ompl_lemur::LEMUR::solve_all()
    printf("solve_all() evaluating vertices ...\n");
    VertexIter vi, vi_end;
    for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-      while (!effort_model.is_evaled(g[*vi].tag))
-         effort_model.eval_partial(g[*vi].tag, g[*vi].state);
+      while (!_utility_checker->isKnown(g[*vi].tag))
+         _utility_checker->isValidPartialEval(g[*vi].tag, g[*vi].state);
    
    printf("solve_all() evaluating edges ...\n");
    unsigned int count = 0;
@@ -1542,10 +1558,9 @@ void ompl_lemur::LEMUR::solve_all()
       // check edges
       for (unsigned ui=0; ui<g[*ei].edge_tags.size(); ui++)
       {
-         while (!effort_model.is_evaled(g[*ei].edge_tags[ui]))
-            effort_model.eval_partial(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]);
-         if (effort_model.x_hat(g[*ei].edge_tags[ui], g[*ei].edge_states[ui])
-            == std::numeric_limits<double>::infinity())
+         while (!_utility_checker->isKnown(g[*ei].edge_tags[ui]))
+            _utility_checker->isValidPartialEval(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]);
+         if (_utility_checker->isKnownInvalid(g[*ei].edge_tags[ui]))
             break;
       }
       count++;
@@ -1748,30 +1763,30 @@ void ompl_lemur::LEMUR::calculate_w_lazy(const Edge & e)
    if (!g[va].state)
    {
       double singleroot_cost = (va == og[ov_singlestart].core_vertex) ? _singlestart_cost : _singlegoal_cost;
-      if (effort_model.x_hat(g[vb].tag, g[vb].state) == std::numeric_limits<double>::infinity())
+      if (_utility_checker->isKnownInvalid(g[vb].tag))
          g[e].w_lazy = std::numeric_limits<double>::infinity();
       else
-         g[e].w_lazy = singleroot_cost + 0.5 * _coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
+         g[e].w_lazy = singleroot_cost + 0.5 * _coeff_checkcost * _utility_checker->getPartialEvalCost(g[vb].tag, g[vb].state);
       return;
    }
    if (!g[vb].state)
    {
       double singleroot_cost = (vb == og[ov_singlestart].core_vertex) ? _singlestart_cost : _singlegoal_cost;
-      if (effort_model.x_hat(g[va].tag, g[va].state) == std::numeric_limits<double>::infinity())
+      if (_utility_checker->isKnownInvalid(g[va].tag))
          g[e].w_lazy = std::numeric_limits<double>::infinity();
       else
-         g[e].w_lazy = singleroot_cost + 0.5 * _coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
+         g[e].w_lazy = singleroot_cost + 0.5 * _coeff_checkcost * _utility_checker->getPartialEvalCost(g[va].tag, g[va].state);
       return;
    }
    // ok, its a non-singleroot edge
    // is it known infeasible?
    unsigned int ui;
    for (ui=0; ui<g[e].edge_tags.size(); ui++)
-      if (effort_model.x_hat(g[e].edge_tags[ui], g[e].edge_states[ui]) == std::numeric_limits<double>::infinity())
+      if (_utility_checker->isKnownInvalid(g[e].edge_tags[ui]))
          break;
    if (ui<g[e].edge_states.size()
-      || effort_model.x_hat(g[va].tag, g[va].state) == std::numeric_limits<double>::infinity()
-      || effort_model.x_hat(g[vb].tag, g[vb].state) == std::numeric_limits<double>::infinity())
+      || _utility_checker->isKnownInvalid(g[va].tag)
+      || _utility_checker->isKnownInvalid(g[vb].tag))
    {
       g[e].w_lazy = std::numeric_limits<double>::infinity();
       return;
@@ -1781,18 +1796,18 @@ void ompl_lemur::LEMUR::calculate_w_lazy(const Edge & e)
    g[e].w_lazy += _coeff_distance * g[e].distance;
    g[e].w_lazy += _coeff_batch * g[e].distance * g[e].batch;
    // half bounary vertices
-   g[e].w_lazy += 0.5 * _coeff_checkcost * effort_model.p_hat(g[va].tag, g[va].state);
-   g[e].w_lazy += 0.5 * _coeff_checkcost * effort_model.p_hat(g[vb].tag, g[vb].state);
+   g[e].w_lazy += 0.5 * _coeff_checkcost * _utility_checker->getPartialEvalCost(g[va].tag, g[va].state);
+   g[e].w_lazy += 0.5 * _coeff_checkcost * _utility_checker->getPartialEvalCost(g[vb].tag, g[vb].state);
    // interior states
    if (g[e].edge_tags.size() == 0)
    {
       // perhaps it's not yet generated?
-      g[e].w_lazy += _coeff_checkcost * g[e].num_edge_states * effort_model.p_hat(0,0);
+      g[e].w_lazy += _coeff_checkcost * g[e].num_edge_states * _utility_checker->getPartialEvalCost(0,0);
    }
    else
    {
       for (ui=0; ui<g[e].edge_tags.size(); ui++)
-         g[e].w_lazy += _coeff_checkcost * effort_model.p_hat(g[e].edge_tags[ui], g[e].edge_states[ui]);
+         g[e].w_lazy += _coeff_checkcost * _utility_checker->getPartialEvalCost(g[e].edge_tags[ui], g[e].edge_states[ui]);
    }
 }
 
@@ -1800,15 +1815,15 @@ bool ompl_lemur::LEMUR::isevaledmap_get(const Edge & e)
 {
    // this directly calls the family effort model (distance not needed!)
    Vertex va = source(e, g);
-   if (g[va].state && !effort_model.is_evaled(g[va].tag))
+   if (g[va].state && !_utility_checker->isKnown(g[va].tag))
       return false;
    Vertex vb = target(e, g);
-   if (g[vb].state && !effort_model.is_evaled(g[vb].tag))
+   if (g[vb].state && !_utility_checker->isKnown(g[vb].tag))
       return false;
    if (g[e].num_edge_states != g[e].edge_states.size())
       return false;
    for (unsigned int ui=0; ui<g[e].edge_tags.size(); ui++)
-      if (!effort_model.is_evaled(g[e].edge_tags[ui]))
+      if (!_utility_checker->isKnown(g[e].edge_tags[ui]))
          return false;
    return true;
 }
@@ -1822,15 +1837,15 @@ double ompl_lemur::LEMUR::wmap_get(const Edge & e)
    // check endpoints first
    do
    {
-      if (g[va].state && !effort_model.is_evaled(g[va].tag))
+      if (g[va].state && !_utility_checker->isKnown(g[va].tag))
       {
-         bool success = effort_model.eval_partial(g[va].tag, g[va].state);
+         bool success = _utility_checker->isValidPartialEval(g[va].tag, g[va].state);
          if (!success)
             break;
       }
-      if (g[vb].state && !effort_model.is_evaled(g[vb].tag))
+      if (g[vb].state && !_utility_checker->isKnown(g[vb].tag))
       {
-         bool success = effort_model.eval_partial(g[vb].tag, g[vb].state);
+         bool success = _utility_checker->isValidPartialEval(g[vb].tag, g[vb].state);
          if (!success)
             break;
       }
@@ -1841,9 +1856,9 @@ double ompl_lemur::LEMUR::wmap_get(const Edge & e)
 
       for (unsigned ui=0; ui<g[e].edge_tags.size(); ui++)
       {
-         if (!effort_model.is_evaled(g[e].edge_tags[ui]))
+         if (!_utility_checker->isKnown(g[e].edge_tags[ui]))
          {
-            bool success = effort_model.eval_partial(g[e].edge_tags[ui], g[e].edge_states[ui]);
+            bool success = _utility_checker->isValidPartialEval(g[e].edge_tags[ui], g[e].edge_states[ui]);
             if (!success)
                break;
          }

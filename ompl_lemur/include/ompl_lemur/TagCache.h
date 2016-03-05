@@ -1,4 +1,4 @@
-/*! \file EffortModel.h
+/*! \file TagCache.h
  * \author Chris Dellin <cdellin@gmail.com>
  * \copyright 2015 Carnegie Mellon University
  * \copyright License: BSD
@@ -6,21 +6,6 @@
 
 namespace ompl_lemur
 {
-
-class EffortModel
-{
-public:
-   // if true, planner must recalculate wlazy for all edges
-   virtual bool has_changed() = 0;
-   
-   virtual double p_hat(size_t tag, const ompl::base::State * state) = 0;
-   virtual double x_hat(size_t tag, const ompl::base::State * state) = 0;
-   
-   // returns true if everything went as planned (so that target is T!)
-   virtual bool eval_partial(size_t & tag, const ompl::base::State * state) = 0;
-   
-   virtual bool is_evaled(size_t tag) = 0;
-};
 
 template <class VTagMap, class ETagsMap>
 class TagCache

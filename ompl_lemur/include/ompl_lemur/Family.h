@@ -17,57 +17,27 @@ namespace ompl_lemur
 // ideally this is the only thing holding si ptrs between calls
 struct Family
 {
-   struct Subset
-   {
-      ompl::base::SpaceInformationPtr si;
-      double check_cost;
-      Subset(ompl::base::SpaceInformationPtr si, double check_cost):
-         si(si), check_cost(check_cost)
-      {
-      }
-   };
-   std::map<std::string, Subset> subsets;
+   std::set<std::string> sets;
    
-   struct Inclusion
-   {
-      std::string subset;
-      std::string superset;
-      Inclusion(std::string subset, std::string superset):
-         subset(subset), superset(superset)
-      {}
-      friend bool operator<(const Inclusion & l, const Inclusion & r)
-      {
-         if (l.subset < r.subset) return true;
-         if (r.subset < l.subset) return false;
-         return l.superset < r.superset;
-      }
-   };
-   std::set<Inclusion> inclusions;
+   // andecedents, consequent
+   typedef std::pair< std::set<std::string>, std::string > Relation;
+   std::set<Relation> relations;
    
-   struct Intersection
+   void add_inclusion(std::string subset, std::string superset)
    {
-      std::string subset;
-      std::set<std::string> supersets;
-      Intersection(std::string subset, std::string superset_a, std::string superset_b):
-         subset(subset)
-      {
-         supersets.insert(superset_a);
-         supersets.insert(superset_b);
-      }
-      Intersection(std::string subset, std::set<std::string> & supersets):
-         subset(subset), supersets(supersets)
-      {
-      }
-      friend bool operator<(const Intersection & l, const Intersection & r)
-      {
-         if (l.subset < r.subset) return true;
-         if (r.subset < l.subset) return false;
-         //if (l.superset_a < r.superset_a) return true;
-         //if (r.superset_a < l.superset_a) return false;
-         return l.supersets < r.supersets;
-      }
-   };
-   std::set<Intersection> intersections;
+      std::set<std::string> subsets;
+      subsets.insert(subset);
+      relations.insert(std::make_pair(subsets, superset));
+   }
+   
+   void add_intersection(std::string subset, std::set<std::string> & supersets)
+   {
+      relations.insert(std::make_pair(supersets, subset));
+      std::set<std::string> subsets;
+      subsets.insert(subset);
+      for (std::set<std::string>::iterator sit=supersets.begin(); sit!=supersets.end(); sit++)
+         relations.insert(std::make_pair(subsets, *sit));
+   }
 };
 
-} // namespace family
+} // namespace ompl_lemur

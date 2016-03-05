@@ -143,7 +143,7 @@ public:
 private:
    // part 2: members
 
-   ompl_lemur::EffortModel & effort_model;
+   ompl_lemur::UtilityCheckerPtr _utility_checker;
 
    std::map<std::string, boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> > _roadmap_registry;
 
@@ -214,8 +214,10 @@ private:
       EVAL_TYPE_ALT,
       EVAL_TYPE_BISECT,
       EVAL_TYPE_FWD_EXPAND,
+#if 0
       EVAL_TYPE_PARTITION_ALL,
       EVAL_TYPE_SP_INDICATOR_PROBABILITY
+#endif
    } _eval_type;
    
 public:
@@ -240,8 +242,7 @@ private:
 
 public:
    LEMUR(
-      const ompl::base::StateSpacePtr & space,
-      ompl_lemur::EffortModel & effort_model,
+      const ompl::base::SpaceInformationPtr & si,
       ompl_lemur::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache);
    
    ~LEMUR(void);

@@ -34,10 +34,11 @@ add_definitions("-fno-strict-aliasing")
 
 add_library(${PROJECT_NAME}
    src/inter_link_checks.cpp
+   src/module_family.cpp
    src/module_subset_manager.cpp
+   src/parse_args.cpp
    src/planner_multiset_prm.cpp
-   src/planner_e8roadmap.cpp
-   #src/planner_e8roadmapselfcc.cpp
+   src/planner_lemur.cpp
    src/planner_family.cpp
    src/planner_cctimer.cpp
    )
@@ -55,27 +56,20 @@ set_target_properties(${PROJECT_NAME}_orplugin PROPERTIES
 
 if (CATKIN_ENABLE_TESTING)
    
-   catkin_add_gtest(test_wam7 test/cpp/wam7.cpp)
+   catkin_add_gtest(test_wam7 test/cpp/test_wam7.cpp)
    target_link_libraries(test_wam7
      ${OpenRAVE_LIBRARIES}
      ${OpenRAVE_CORE_LIBRARIES}
      ${Boost_LIBRARIES}
-    )
-
-   catkin_add_gtest(test_selfcc test/cpp/selfcc.cpp)
-   target_link_libraries(test_selfcc
+   )
+    
+   catkin_add_gtest(test_module_family test/cpp/test_module_family.cpp)
+   target_link_libraries(test_module_family
+     ${PROJECT_NAME}
      ${OpenRAVE_LIBRARIES}
      ${OpenRAVE_CORE_LIBRARIES}
      ${Boost_LIBRARIES}
-    )
-
-   catkin_add_gtest(test_hashes test/cpp/hashes.cpp)
-   set_target_properties(test_hashes PROPERTIES COMPILE_FLAGS -DORDATA="${PROJECT_SOURCE_DIR}/test/ordata")
-   target_link_libraries(test_hashes
-     ${OpenRAVE_LIBRARIES}
-     ${OpenRAVE_CORE_LIBRARIES}
-     ${Boost_LIBRARIES}
-    )
+   )
    
    catkin_add_nosetests(test/python/wam7.py)
    

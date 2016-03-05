@@ -1,4 +1,4 @@
-/*! \file params_e8roadmap.h
+/*! \file params_lemur.h
  * \author Chris Dellin <cdellin@gmail.com>
  * \copyright 2015 Carnegie Mellon University
  * \copyright License: BSD
@@ -101,11 +101,12 @@ public:
    }
    
 private:
-   std::string el_deserializing;
+   std::string lemur_deserializing;
    
-   bool serialize(std::ostream& sout, int options) const
+protected:
+   bool serialize(std::ostream& sout, int options=0) const
    {
-      if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout))
+      if (!OpenRAVE::PlannerBase::PlannerParameters::serialize(sout,options))
          return false;
       if (has_roadmap_type)
          sout << "<roadmap_type>" << roadmap_type << "</roadmap_type>";
@@ -151,7 +152,7 @@ private:
    OpenRAVE::BaseXMLReader::ProcessElement startElement(
       const std::string & name, const OpenRAVE::AttributesList & atts)
    {
-      if (el_deserializing.size())
+      if (lemur_deserializing.size())
          return PE_Ignore;
       // ask base calss
       enum OpenRAVE::BaseXMLReader::ProcessElement base;
@@ -176,7 +177,7 @@ private:
          || name == "search_type"
          || name == "eval_type")
       {
-         el_deserializing = name;
+         lemur_deserializing = name;
          return PE_Support;
       }
       return PE_Pass;
@@ -184,16 +185,16 @@ private:
 
    bool endElement(const std::string & name)
    {
-      if (!el_deserializing.size())
+      if (!lemur_deserializing.size())
          return OpenRAVE::PlannerBase::PlannerParameters::endElement(name);
-      if (name == el_deserializing)
+      if (name == lemur_deserializing)
       {
-         if (el_deserializing == "roadmap_type")
+         if (lemur_deserializing == "roadmap_type")
          {
             roadmap_type = _ss.str();
             has_roadmap_type = true;
          }
-         if (el_deserializing == "roadmap_param")
+         if (lemur_deserializing == "roadmap_param")
          {
             std::string roadmap_param = _ss.str();
             size_t eq = roadmap_param.find('=');
@@ -203,7 +204,7 @@ private:
             else
                RAVELOG_WARN("no = found in roadmap_param!\n");
          }
-         if (el_deserializing == "do_roadmap_save")
+         if (lemur_deserializing == "do_roadmap_save")
          {
             std::ios state(0);
             state.copyfmt(_ss);
@@ -211,17 +212,17 @@ private:
             _ss.copyfmt(state);
             has_do_roadmap_save = true;
          }
-         if (el_deserializing == "num_batches_init")
+         if (lemur_deserializing == "num_batches_init")
          {
             _ss >> num_batches_init;
             has_num_batches_init = true;
          }
-         if (el_deserializing == "alglog")
+         if (lemur_deserializing == "alglog")
          {
             alglog = _ss.str();
             has_alglog = true;
          }
-         if (el_deserializing == "do_alglog_append")
+         if (lemur_deserializing == "do_alglog_append")
          {
             std::ios state(0);
             state.copyfmt(_ss);
@@ -229,32 +230,32 @@ private:
             _ss.copyfmt(state);
             has_do_alglog_append = true;
          }
-         if (el_deserializing == "graph")
+         if (lemur_deserializing == "graph")
          {
             graph = _ss.str();
             has_graph = true;
          }
-         if (el_deserializing == "check_cost")
+         if (lemur_deserializing == "check_cost")
          {
             _ss >> check_cost;
             has_check_cost = true;
          }
-         if (el_deserializing == "coeff_distance")
+         if (lemur_deserializing == "coeff_distance")
          {
             _ss >> coeff_distance;
             has_coeff_distance = true;
          }
-         if (el_deserializing == "coeff_checkcost")
+         if (lemur_deserializing == "coeff_checkcost")
          {
             _ss >> coeff_checkcost;
             has_coeff_checkcost = true;
          }
-         if (el_deserializing == "coeff_batch")
+         if (lemur_deserializing == "coeff_batch")
          {
             _ss >> coeff_batch;
             has_coeff_batch = true;
          }
-         if (el_deserializing == "do_timing")
+         if (lemur_deserializing == "do_timing")
          {
             std::ios state(0);
             state.copyfmt(_ss);
@@ -262,7 +263,7 @@ private:
             _ss.copyfmt(state);
             has_do_timing = true;
          }
-         if (el_deserializing == "persist_roots")
+         if (lemur_deserializing == "persist_roots")
          {
             std::ios state(0);
             state.copyfmt(_ss);
@@ -270,22 +271,22 @@ private:
             _ss.copyfmt(state);
             has_persist_roots = true;
          }
-         if (el_deserializing == "max_batches")
+         if (lemur_deserializing == "max_batches")
          {
             _ss >> max_batches;
             has_max_batches = true;
          }
-         if (el_deserializing == "time_limit")
+         if (lemur_deserializing == "time_limit")
          {
             _ss >> time_limit;
             has_time_limit = true;
          }
-         if (el_deserializing == "search_type")
+         if (lemur_deserializing == "search_type")
          {
             search_type = _ss.str();
             has_search_type = true;
          }
-         if (el_deserializing == "eval_type")
+         if (lemur_deserializing == "eval_type")
          {
             eval_type = _ss.str();
             has_eval_type = true;
@@ -294,7 +295,7 @@ private:
       }
       else
          RAVELOG_WARN("closing tag doesnt match opening tag!\n");
-      el_deserializing.clear();
+      lemur_deserializing.clear();
       return false;
    }
 };

@@ -1,4 +1,4 @@
-/*! \file planner_e8roadmap.h
+/*! \file planner_lemur.h
  * \author Chris Dellin <cdellin@gmail.com>
  * \copyright 2015 Carnegie Mellon University
  * \copyright License: BSD
@@ -22,7 +22,8 @@ public:
    ompl::base::StateSpacePtr ompl_space;
    ompl::base::SpaceInformationPtr ompl_si;
    boost::shared_ptr<or_lemur::OrChecker> ompl_checker;
-   boost::shared_ptr<ompl_lemur::SimpleEffortModel> sem;
+   //boost::shared_ptr<ompl_lemur::SimpleEffortModel> sem;
+   ompl_lemur::BinaryUtilityCheckerPtr ompl_binary_checker;
    boost::shared_ptr< ompl_lemur::TagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> > tag_cache;
    //boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::LEMUR::Roadmap> > roadmapgen;
    boost::shared_ptr<ompl_lemur::LEMUR> ompl_planner;

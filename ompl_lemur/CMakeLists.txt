@@ -31,13 +31,15 @@ add_definitions("-Wall")
 
 add_library(${PROJECT_NAME}
    src/Cache.cpp
-   src/MultiSetPRM.cpp
+   src/FamilyUtilityChecker.cpp
    src/LEMUR.cpp
+   src/MultiSetPRM.cpp
    src/MultiSetRoadmapSampledConst.cpp
    src/MultiSetRoadmapSampledDensified.cpp
    src/SamplerGenMonkeyPatch.cpp
    src/SpaceID.cpp
-   src/util.cpp)
+   src/util.cpp
+   src/UtilityChecker.cpp)
 
 add_executable(generate-unit-roadmap src/generate_unit_roadmap.cpp)
 target_link_libraries(generate-unit-roadmap ${PROJECT_NAME})
@@ -47,19 +49,20 @@ target_link_libraries(test_graph_overlay ${PROJECT_NAME})
 
 if (CATKIN_ENABLE_TESTING)
 
-   catkin_add_gtest(test_roadmapgen test/cpp/roadmapgen.cpp)
+   catkin_add_gtest(test_roadmapgen test/cpp/test_roadmapgen.cpp)
    target_link_libraries(test_roadmapgen ${PROJECT_NAME})
 
-   catkin_add_gtest(test_logic test/cpp/logic.cpp)
+   catkin_add_gtest(test_logic test/cpp/test_logic.cpp)
 
-   catkin_add_gtest(test_family_effort_model test/cpp/family_effort_model.cpp)
+   catkin_add_gtest(test_family_utility_checker test/cpp/test_family_utility_checker.cpp)
+   target_link_libraries(test_family_utility_checker ${PROJECT_NAME})
+   
+   catkin_add_gtest(test_lemur_simple test/cpp/test_lemur_simple.cpp)
+   target_link_libraries(test_lemur_simple ${PROJECT_NAME})
 
-   catkin_add_gtest(test_e8simple test/cpp/e8simple.cpp)
-   target_link_libraries(test_e8simple ${PROJECT_NAME})
-
-   catkin_add_gtest(test_e8fromfile test/cpp/e8fromfile.cpp)
-   set_target_properties(test_e8fromfile PROPERTIES COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
-   target_link_libraries(test_e8fromfile ${PROJECT_NAME})
+   catkin_add_gtest(test_lemur_fromfile test/cpp/test_lemur_fromfile.cpp)
+   set_target_properties(test_lemur_fromfile PROPERTIES COMPILE_FLAGS -DDATADIR="${PROJECT_SOURCE_DIR}/test/data")
+   target_link_libraries(test_lemur_fromfile ${PROJECT_NAME})
 
 endif ()
 

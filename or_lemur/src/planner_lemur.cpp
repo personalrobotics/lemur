@@ -1,4 +1,4 @@
-/* File: planner_e8roadmap.cpp
+/* File: planner_lemur.cpp
  * Author: Chris Dellin <cdellin@gmail.com>
  * Copyright: 2015 Carnegie Mellon University
  * License: BSD
@@ -33,8 +33,8 @@
 
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
-#include <ompl_lemur/EffortModel.h>
-#include <ompl_lemur/SimpleEffortModel.h>
+#include <ompl_lemur/TagCache.h>
+#include <ompl_lemur/UtilityChecker.h>
 #include <ompl_lemur/FnString.h>
 #include <ompl_lemur/SpaceID.h>
 #include <ompl_lemur/SamplerGenMonkeyPatch.h>
@@ -53,8 +53,8 @@
 
 #include <or_lemur/RoadmapCached.h>
 #include <or_lemur/or_checker.h>
-#include <or_lemur/params_e8roadmap.h>
-#include <or_lemur/planner_e8roadmap.h>
+#include <or_lemur/params_lemur.h>
+#include <or_lemur/planner_lemur.h>
 
 
 namespace {
@@ -183,23 +183,24 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
    }
    
    ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size()));
-   ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_checker));
+   
+   double check_cost;
+   if (params->has_check_cost)
+      check_cost = params->check_cost;
+   else
+   {
+      check_cost = ompl_space->getLongestValidSegmentLength();
+      printf("using simple effort model with default check_cost=%f\n", check_cost);
+   }
+   ompl_binary_checker.reset(new ompl_lemur::BinaryUtilityChecker(ompl_si, ompl_checker, check_cost));
+   ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_binary_checker));
    ompl_si->setup();
-      
+   
    if (!ompl_planner || !persist_planner)
    {
       // set up planner
-      double check_cost;
-      if (params->has_check_cost)
-         check_cost = params->check_cost;
-      else
-      {
-         check_cost = ompl_space->getLongestValidSegmentLength();
-         printf("using simple effort model with default check_cost=%f\n", check_cost);
-      }
-      sem.reset(new ompl_lemur::SimpleEffortModel(ompl_si, check_cost));
       tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
-      ompl_planner.reset(new ompl_lemur::LEMUR(ompl_space, *sem, *tag_cache));
+      ompl_planner.reset(new ompl_lemur::LEMUR(ompl_si, *tag_cache));
       
       // register known roadmap types
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");
@@ -258,7 +259,7 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
       ompl_planner->setEvalType(params->eval_type);
    
    // force reeval of wlazy
-   sem->has_changed_called = false;
+   ompl_binary_checker->_has_changed = true;
    
    // problem definition
    ompl_pdef.reset(new ompl::base::ProblemDefinition(ompl_si));

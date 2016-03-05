@@ -1,16 +1,12 @@
-/* File: e8fromfile.cpp
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file test_lemur_simple.cpp
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
  */
-
-#include <fstream>
 
 #include <boost/chrono.hpp>
 #include <boost/shared_ptr.hpp>
-#include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
-#include <boost/graph/graphml.hpp>
 
 #include <ompl/base/ScopedState.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
@@ -26,20 +22,40 @@
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/overlay_manager.h>
 #include <ompl_lemur/util.h>
-#include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
-#include <ompl_lemur/EffortModel.h>
+#include <ompl_lemur/TagCache.h>
+#include <ompl_lemur/UtilityChecker.h>
 #include <ompl_lemur/LEMUR.h>
-#include <ompl_lemur/Family.h>
-#include <ompl_lemur/FamilyEffortModel.h>
-#include <ompl_lemur/RoadmapFromFile.h>
+#include <ompl_lemur/RoadmapHalton.h>
 
 #include <gtest/gtest.h>
 
-#define XSTR(s) STR(s)
-#define STR(s) # s
+class CountingRealVectorStateSpace: public ompl::base::RealVectorStateSpace
+{
+public:
+   mutable unsigned int states_allocated;
+   mutable unsigned int states_freed;
+   CountingRealVectorStateSpace(unsigned int dim = 0):
+      ompl::base::RealVectorStateSpace(dim),
+      states_allocated(0), states_freed(0)
+   {
+   }
+   virtual ~CountingRealVectorStateSpace()
+   {
+   }
+   virtual ompl::base::State * allocState() const
+   {
+      states_allocated++;
+      return ompl::base::RealVectorStateSpace::allocState();
+   }
+   virtual void freeState(ompl::base::State * state) const
+   {
+      states_freed++;
+      ompl::base::RealVectorStateSpace::freeState(state);
+   }
+};
 
 bool isvalid(const ompl::base::State * state)
 {
@@ -72,11 +88,11 @@ get_path_state(boost::shared_ptr<ompl::geometric::PathGeometric> path, size_t id
    return traj_state;
 }
 
-TEST(E8FromFileTestCase, E8FromFileTest)
+TEST(LemurSimpleTestCase, LemurSimpleTest)
 {
    // state space
    boost::shared_ptr<ompl::base::RealVectorStateSpace> space(
-      new ompl::base::RealVectorStateSpace(2));
+      new CountingRealVectorStateSpace(2));
    space->setBounds(0.0, 1.0);
    space->setLongestValidSegmentFraction(
       0.001 / space->getMaximumExtent());
@@ -86,6 +102,9 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    ompl::base::SpaceInformationPtr si(
       new ompl::base::SpaceInformation(space));
    si->setStateValidityChecker(isvalid);
+   si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(
+      new ompl_lemur::BinaryUtilityChecker(si, si->getStateValidityChecker(),
+         space->getLongestValidSegmentLength())));
    si->setup();
    
    // problem definition
@@ -94,27 +113,20 @@ TEST(E8FromFileTestCase, E8FromFileTest)
    pdef->addStartState(make_state(space, 0.25, 0.75));
    pdef->setGoalState(make_state(space, 0.75, 0.25));
    
-   // family
-   ompl_lemur::Family family;
-   family.subsets.insert(std::make_pair("space_si",
-      ompl_lemur::Family::Subset(si, space->getLongestValidSegmentLength())));
-   ompl_lemur::FamilyEffortModel fem(family);
-   fem.set_target(si);
-   
    // cache
    ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> tag_cache;
    
    // planner
-   ompl::base::PlannerPtr planner(new ompl_lemur::LEMUR(space, fem, tag_cache));
+   ompl::base::PlannerPtr planner(new ompl_lemur::LEMUR(si, tag_cache));
    planner->as<ompl_lemur::LEMUR>()->setCoeffDistance(1.);
    planner->as<ompl_lemur::LEMUR>()->setCoeffCheckcost(0.);
    planner->as<ompl_lemur::LEMUR>()->setCoeffBatch(0.);
    
    // roadmap
-   planner->as<ompl_lemur::LEMUR>()->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
-   planner->as<ompl_lemur::LEMUR>()->setRoadmapType("FromFile");
-   planner->params().setParam("roadmap.filename", XSTR(DATADIR) "/halton2d.xml");
-   planner->params().setParam("roadmap.root_radius", "0.3");
+   planner->as<ompl_lemur::LEMUR>()->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
+   planner->as<ompl_lemur::LEMUR>()->setRoadmapType("Halton");
+   planner->params().setParam("roadmap.num", "30");
+   planner->params().setParam("roadmap.radius", "0.3");
    
    // solve
    planner->setProblemDefinition(pdef);
@@ -127,11 +139,17 @@ TEST(E8FromFileTestCase, E8FromFileTest)
       boost::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
       pdef->getSolutionPath());
    ASSERT_TRUE(path);
-   ASSERT_EQ(path->getStateCount(), 4);
-   ASSERT_EQ(get_path_state(path,0), make_state(space, 0.25, 0.75));
-   ASSERT_EQ(get_path_state(path,1), make_state(space, 0.40625, 14./27.));
-   ASSERT_EQ(get_path_state(path,2), make_state(space, 0.68750, 13./27.));
-   ASSERT_EQ(get_path_state(path,3), make_state(space, 0.75, 0.25));
+   ASSERT_EQ(4, path->getStateCount());
+   ASSERT_EQ(make_state(space, 0.25, 0.75),       get_path_state(path,0));
+   ASSERT_EQ(make_state(space, 0.40625, 14./27.), get_path_state(path,1));
+   ASSERT_EQ(make_state(space, 0.68750, 13./27.), get_path_state(path,2));
+   ASSERT_EQ(make_state(space, 0.75, 0.25),       get_path_state(path,3));
+   
+   pdef.reset();
+   planner.reset();
+   path.reset();
+   ASSERT_EQ(1323, space->as<CountingRealVectorStateSpace>()->states_allocated);
+   ASSERT_EQ(1323, space->as<CountingRealVectorStateSpace>()->states_freed);
 }
 
 int main(int argc, char **argv)

@@ -31,20 +31,21 @@
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
-#include <ompl_lemur/EffortModel.h>
+#include <ompl_lemur/TagCache.h>
+#include <ompl_lemur/UtilityChecker.h>
 #include <ompl_lemur/LEMUR.h>
-#include <ompl_lemur/SimpleEffortModel.h>
 #include <ompl_lemur/Family.h>
-#include <ompl_lemur/FamilyEffortModel.h>
+#include <ompl_lemur/FamilyUtilityChecker.h>
 
 #include <or_lemur/inter_link_checks.h>
 
+#include <or_lemur/module_family.h>
 #include <or_lemur/module_subset_manager.h>
 #include <or_lemur/or_checker.h>
 #include <or_lemur/planner_multiset_prm.h>
-#include <or_lemur/params_e8roadmap.h>
-#include <or_lemur/planner_e8roadmap.h>
-//#include <or_lemur/planner_e8roadmapselfcc.h>
+#include <or_lemur/params_lemur.h>
+#include <or_lemur/params_family.h>
+#include <or_lemur/planner_lemur.h>
 #include <or_lemur/planner_family.h>
 #include <or_lemur/planner_cctimer.h>
 
@@ -52,9 +53,9 @@ void GetPluginAttributesValidated(OpenRAVE::PLUGININFO& info)
 {
    info.interfacenames[OpenRAVE::PT_Planner].push_back("MultiSetPRM");
    info.interfacenames[OpenRAVE::PT_Planner].push_back("LEMUR");
-   //info.interfacenames[OpenRAVE::PT_Planner].push_back("LEMURSelfCC");
    info.interfacenames[OpenRAVE::PT_Planner].push_back("FamilyPlanner");
    info.interfacenames[OpenRAVE::PT_Planner].push_back("CCTimer");
+   info.interfacenames[OpenRAVE::PT_Module].push_back("Family");
    info.interfacenames[OpenRAVE::PT_Module].push_back("SubsetManager");
 }
 
@@ -68,12 +69,12 @@ OpenRAVE::InterfaceBasePtr CreateInterfaceValidated(
       return OpenRAVE::InterfaceBasePtr(new or_lemur::MultiSetPRM(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "lemur"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::LEMUR(penv));
-   //if((type == OpenRAVE::PT_Planner) && (interfacename == "e8roadmapselfcc"))
-   //   return OpenRAVE::InterfaceBasePtr(new or_lemur::LEMURSelfCC(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "familyplanner"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::FamilyPlanner(penv));
    if((type == OpenRAVE::PT_Planner) && (interfacename == "cctimer"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::CCTimer(penv));
+   if((type == OpenRAVE::PT_Module) && (interfacename == "family"))
+      return OpenRAVE::InterfaceBasePtr(new or_lemur::FamilyModule(penv));
    if((type == OpenRAVE::PT_Module) && (interfacename == "subsetmanager"))
       return OpenRAVE::InterfaceBasePtr(new or_lemur::ModuleSubsetManager(penv));
    return OpenRAVE::InterfaceBasePtr();
