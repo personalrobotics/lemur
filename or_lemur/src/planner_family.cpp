@@ -198,10 +198,6 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       return InitPlan(robot, params_ser);
    }
    
-   // certainly remove any existing plan
-   if (_current_family)
-      _current_family->ompl_planner->setProblemDefinition(ompl::base::ProblemDefinitionPtr());
-   
    // step 1: compute new_family (may be _current_family if it exists)
    // also store shared_ptr to the family module (we used it later)
    boost::shared_ptr<or_lemur::FamilyModule> mod_family;
