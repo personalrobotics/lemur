@@ -1,7 +1,7 @@
-/* File: wam7.cpp
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file test_wam7.cpp
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
  */
 
 #include <openrave/openrave.h>

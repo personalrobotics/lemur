@@ -1,7 +1,7 @@
-/* File: planner_cctimer.cpp
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file planner_cctimer.cpp
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
  */
 
 #include <openrave/openrave.h>

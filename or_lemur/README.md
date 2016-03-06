@@ -1,4 +1,4 @@
-or_lemur: LEMUR for OpenRAVE {#mainpage}
+or_lemur: LEMUR for OpenRAVE
 ============================
 
 * Source code is on [GitHub][github-sourcecode].

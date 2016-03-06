@@ -1,7 +1,7 @@
-/* File: generate_unit_roadmap.cpp
- * Author: Chris Dellin <cdellin@gmail.com>
- * Copyright: 2015 Carnegie Mellon University
- * License: BSD
+/*! \file generate_unit_roadmap.cpp
+ * \author Chris Dellin <cdellin@gmail.com>
+ * \copyright 2015 Carnegie Mellon University
+ * \copyright License: BSD
  */
 
 #include <algorithm>

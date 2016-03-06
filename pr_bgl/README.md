@@ -1,4 +1,4 @@
-pr_bgl: Algorithms for Boost Graph {#mainpage}
+pr_bgl: Algorithms for Boost Graph
 ==================================
 
 Author: Chris Dellin `<cdellin@gmail.com>`
