@@ -33,7 +33,11 @@ public:
    ~LEMUR();
    
    bool InitPlan(OpenRAVE::RobotBasePtr robot, std::istream & isParameters);
+   
+   /*! \brief Initialize a LEMUR plan.
+    */
    bool InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::PlannerBase::PlannerParametersConstPtr params);
+   
    OpenRAVE::PlannerBase::PlannerParametersConstPtr GetParameters() const;
    
    OpenRAVE::PlannerStatus PlanPath(OpenRAVE::TrajectoryBasePtr);

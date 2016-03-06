@@ -1,4 +1,4 @@
-Roadmaps
+Roadmaps {#ompl-lemur-roadmaps}
 ========
 
 The `ompl_lemur` package includes code for generating roadmaps over

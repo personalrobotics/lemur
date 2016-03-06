@@ -11,12 +11,9 @@ def multisplit(s, *needles):
    ret.append(s)
    return ret
 
-# get doxygen config version
-doxy_version_str = subprocess.check_output(['doxygen','--version']).strip()
-doxy_version = distutils.version.LooseVersion(doxy_version_str)
-
 # track Doxygen-generated tag files
 # tagfiles go in the _build directory
+# tagfiles we generate go in the _build/html directory
 # tagfile -> url
 tagfiles = {}
 
@@ -27,6 +24,8 @@ try:
    tagfiles = {tagfile:'http://ompl.kavrakilab.org/'}
 except subprocess.CalledProcessError as ex:
    print('got error {} when trying to connect to ompl website for tag file, ignoring ...'.format(ex))
+
+# lets try running doxygen from the docs directory, see if the local links work then ...
 
 # in dependency order
 pkgs = ['pr_bgl','ompl_lemur','or_lemur','prpy_lemur']
@@ -52,24 +51,16 @@ for ipkg,pkg in enumerate(pkgs):
    fp.write('RECURSIVE = YES\n')
    fp.write('STRIP_FROM_PATH = {}\n'.format(os.path.abspath('..')))
    
-   # handle readme file as mainpage
-   if distutils.version.LooseVersion('1.8.3') <= doxy_version:
-      fp.write('USE_MDFILE_AS_MAINPAGE = ../{}/README.md\n'.format(pkg))
-   else:
-      subprocess.check_call(['sed','1 s/^\\(.*\\)$/\\1 {#mainpage}/'],
-         stdin=open('../{}/README.md'.format(pkg)),
-         stdout=open('doxy-readme.md','w'))
-      genfiles.append('doxy-readme.md')
-      fp.write('EXCLUDE = ../{}/README.md\n'.format(pkg))
-      fp.write('INPUT += doxy-readme.md\n')
+   # ignore github-only readme
+   fp.write('EXCLUDE = ../{}/README.md\n'.format(pkg))
    
    # general configuration
    fp.write('EXTERNAL_GROUPS = NO\n')
    fp.write('EXTERNAL_PAGES = NO\n')
    
    # output
-   fp.write('GENERATE_LATEX = NO\n')
    fp.write('GENERATE_HTML = YES\n')
+   fp.write('GENERATE_LATEX = NO\n')
    fp.write('OUTPUT_DIRECTORY = _build/html/{}\n'.format(pkg))
    fp.write('HTML_OUTPUT = .\n')
    fp.write('HTML_HEADER = {}\n'.format(fn_header))

@@ -1,32 +1,15 @@
-prpy_lemur: LEMUR for PrPy
-==========================
+`prpy_lemur`
+============
 
-`prpy` bindings for Chris Dellin's LEMUR planner (aka multiset, e8, or family planner).  For now, only a few features are supported.  For example, caching between calls (within a single planner instance, or through cached files) is not yet supported.
+Wrappers for the LEMUR planner for [PrPy][prpy].  It is part of the
+[LEMUR repository](../README.md).
 
-* Source code is on [GitHub][github-sourcecode].
-* Documentation is on [ReadTheDocs][rtd-documentation].
+Documentation
+-------------
 
-Usage
------
+Top-level documentation for the package is provided in the
+[docs](docs/) directory.  Full API docs are provided by ReadTheDocs:
 
-    # Create a prpy planner instance
-    import prpy_lemur.planning_multiset
-    planner = prpy_lemur.planning_multiset.MultisetPlanner()
+[![Documentation](https://readthedocs.org/projects/lemur-planning/badge/?version=latest)](http://lemur-planning.readthedocs.org/en/latest/prpy_lemur/?badge=latest)
 
-    # Plan
-    traj = planner.PlanToConfiguration(robot, q_goal)
-
-Planning Methods Supported
---------------------------
-
-We don't currently support many planning methods.  Here is a list:
-
-- `PlanToConfiguration(robot, goal_config)`: SUPPORTED
-- `PlanToConfigurations(robot, goal_configs)`: UNSUPPORTED
-- `PlanToEndEffectorPose(robot, goal_pose)`: UNSUPPORTED
-- `PlanToEndEffectorOffset(robot, direction, min_distance, max_distance)` UNSUPPORTED
-- `PlanToTSR(robot, tsrchains)`: UNSUPPORTED
-- `PlanToBasePose(robot, goal_pose)`: UNSUPPORTED
-
-[github-sourcecode]: https://github.com/personalrobotics/lemur/tree/master/prpy_lemur/
-[rtd-documentation]: http://lemur-planning.readthedocs.org/en/latest/prpy_lemur/
+[prpy]: https://github.com/personalrobotics/prpy/

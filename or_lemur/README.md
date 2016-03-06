@@ -1,8 +1,13 @@
-or_lemur: LEMUR for OpenRAVE
-============================
+`or_lemur`
+========
 
-* Source code is on [GitHub][github-sourcecode].
-* Documentation is on [ReadTheDocs][rtd-documentation].
+Wrapper for the LEMUR planner in OpenRAVE.  It is part of the
+[LEMUR repository](../README.md).
 
-[github-sourcecode]: https://github.com/personalrobotics/lemur/tree/master/or_lemur/
-[rtd-documentation]: http://lemur-planning.readthedocs.org/en/latest/or_lemur/
+Documentation
+-------------
+
+Top-level documentation for the package is provided in the
+[docs](docs/) directory.  Full API docs are provided by ReadTheDocs:
+
+[![Documentation](https://readthedocs.org/projects/lemur-planning/badge/?version=latest)](http://lemur-planning.readthedocs.org/en/latest/or_lemur/?badge=latest)

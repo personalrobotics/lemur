@@ -1,4 +1,4 @@
-LEMUR Planner
+LEMUR Planner {#ompl-lemur-lemur-planner}
 =============
 
 Here is top-level documentation for how to use the implementation of LEMUR for OMPL.
@@ -11,9 +11,9 @@ The primary planner is `ompl_lemur::LEMUR`, a derived class of `ompl::base::Plan
 The roadmap to be searched is an instance of a roadmap type which
 subclasses `ompl_lemur::Roadmap`.
 Some of the classes implemented are described on the
-[Roadmaps](Roadmaps.md) page.
+[Roadmaps](@ref ompl-lemur-roadmaps) page!
 
-For an overview, see the [main page](../README.md).
+For an overview, see the [main page](@ref index).
 
 ### Parameters
 
