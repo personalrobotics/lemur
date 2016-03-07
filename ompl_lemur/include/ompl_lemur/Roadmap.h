@@ -7,7 +7,6 @@
 namespace ompl_lemur
 {
 
-
 template <class Graph_, class VState_, class EDistance_, class VBatch_, class EBatch_, class VShadow_, class EVector_, class NN_>
 struct RoadmapArgs
 {
@@ -47,19 +46,32 @@ struct RoadmapArgs
    }
 };
 
-// continuous space
-// generates a possibly infinite roadmap given an ompl space
-// note, generate() should tolerate the graph having unused but
-// added vertices (e.g. from old/unapplied roots)
-//
-// API: after construction,
-// the caller may set parameters,
-// and then must call initialize() at most once at the beginning,
-// followed by at most one call to deserialize(),
-// followed by successive calls to generate()
-// serialize() will save the roadmap generator's state so it can be re-constructed in the future!
-//
-// new-stype roadmap interface
+/*! \brief Interface for generating roadmaps over OMPL state spaces
+ *         into Boost Graph objects.
+ * 
+ * Derived classes should specify a unique name to the constructor.
+ * A Roadmap can generate a (possibly infinite) roadmap in batches;
+ * the maximum number of batches is given in the max_batches
+ * argument.
+ * 
+ * This class is templated on the RoadmapArgs type, which specifies the
+ * types of property maps used by Boost Graph to store the requisite
+ * vertex and edge properties (e.g. the state, vertex/edge batch
+ * indices, etc).
+ *
+ * An instance of this class goes through the following lifecycle:
+ * 1. The instance is constructed
+ * 2. Parameters can be set via the OMPL params interface
+ * 3. The initialize() method is called (exactly once, should set
+ *    initialized=true)
+ * 4. At most one call to deserialize()
+ * 5. Successive calls to generate(), each one incrementing
+ *    num_batches_generated
+ * 
+ * At any time after step 3, serialize() can be called to save the
+ * roadmap generator's state so it can be reconstituted into a
+ * different instance.
+ */
 template <class RoadmapArgs>
 class Roadmap
 {
@@ -129,17 +141,32 @@ public:
          params[name].setRangeSuggestion(rangeSuggestion);
    }
    
+   /*! \brief Initialize roadmap; must be called once after setting
+    *         parameters.
+    */
    virtual void initialize() = 0;
    
-   // should be stateless (but after initialize)
+   /*! \brief Calcuate the root radius to be used for connecting to
+    *         potential root vertices.
+    * 
+    * This should be stateless (but will be called after initialize)
+    */
    virtual double root_radius(std::size_t i_batch) = 0;
    
+   /*! \brief Re-constitute the internal generator state from
+    *         serialized data.
+    */
    virtual void deserialize(const std::string & ser_data) = 0;
    
-   // sets all of these maps
-   // generates one additional batch
+   /*! \brief Generates one additional batch.
+    * 
+    * This alters internal state.
+    */
    virtual void generate() = 0;
    
+   /*! \brief Serialize the internal generator state into the passed
+    *         string.
+    */
    virtual void serialize(std::string & ser_data) = 0;
 };
 
