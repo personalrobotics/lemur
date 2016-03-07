@@ -1,5 +1,6 @@
 or_lemur: LEMUR for OpenRAVE {#index}
 ============================
+@anchor or-lemur-index
 
 The `or_lemur` package contains LEMUR bindings for [OpenRAVE][openrave].
 The primary interface is through the or_lemur::LEMUR class, as
@@ -16,11 +17,11 @@ Dependencies: `boost`
 License
 -------
 
-* Source code for this package is on [GitHub][github-or-lemur].
-
 LEMUR is written by Chris Dellin at the [Personal Robotics Lab][prlab]
 at the [Robotics Intitute][ri], [Carnegie Mellon University][cmu].  It
 was released on April 9, 2015 under a BSD license.
+
+Source code for this package is on [GitHub][github-or-lemur].
 
 [cmu]: http://www.cmu.edu/
 [github-or-lemur]: https://github.com/personalrobotics/lemur/tree/master/or_lemur/

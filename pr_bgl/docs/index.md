@@ -192,11 +192,11 @@ Test coverage: Yes.
 License
 -------
 
-* Source code for this package is on [GitHub][github-pr-bgl].
-
 LEMUR is written by Chris Dellin at the [Personal Robotics Lab][prlab]
 at the [Robotics Intitute][ri], [Carnegie Mellon University][cmu].  It
 was released on April 9, 2015 under a BSD license.
+
+Source code for this package is on [GitHub][github-pr-bgl].
 
 [bgl]: http://boost.org/doc/libs/release/libs/graph/
 [bgl-list-remove]: http://lists.boost.org/boost-users/2015/08/84850.php

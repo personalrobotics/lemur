@@ -31,11 +31,11 @@ We don't currently support many planning methods.  Here is a list:
 License
 -------
 
-* Source code for this package is on [GitHub][github-prpy-lemur].
-
 LEMUR is written by Chris Dellin at the [Personal Robotics Lab][prlab]
 at the [Robotics Intitute][ri], [Carnegie Mellon University][cmu].  It
 was released on April 9, 2015 under a BSD license.
+
+Source code for this package is on [GitHub][github-prpy-lemur].
 
 [cmu]: http://www.cmu.edu/
 [github-prpy]: https://github.com/personalrobotics/prpy/
