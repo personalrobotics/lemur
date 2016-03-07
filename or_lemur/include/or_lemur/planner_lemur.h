@@ -22,9 +22,7 @@ public:
    ompl::base::StateSpacePtr ompl_space;
    ompl::base::SpaceInformationPtr ompl_si;
    boost::shared_ptr<or_lemur::OrChecker> ompl_checker;
-   //boost::shared_ptr<ompl_lemur::SimpleEffortModel> sem;
    ompl_lemur::BinaryUtilityCheckerPtr ompl_binary_checker;
-   boost::shared_ptr< ompl_lemur::TagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> > tag_cache;
    //boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::LEMUR::Roadmap> > roadmapgen;
    boost::shared_ptr<ompl_lemur::LEMUR> ompl_planner;
    ompl::base::ProblemDefinitionPtr ompl_pdef;

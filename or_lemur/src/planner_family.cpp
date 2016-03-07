@@ -282,10 +282,7 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
          ompl::base::StateValidityCheckerPtr(fam->ompl_family_checker));
       fam->ompl_si->setup();
       
-      // punt on tag cache for now
-      fam->ompl_tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
-      
-      fam->ompl_lemur.reset(new ompl_lemur::LEMUR(fam->ompl_si, *fam->ompl_tag_cache));
+      fam->ompl_lemur.reset(new ompl_lemur::LEMUR(fam->ompl_si));
       
       fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");
       fam->ompl_lemur->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");

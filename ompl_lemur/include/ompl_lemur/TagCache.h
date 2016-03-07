@@ -7,34 +7,25 @@
 namespace ompl_lemur
 {
 
+// this may throw on load or save error!
 template <class VTagMap, class ETagsMap>
 class TagCache
 {
 public:
-   virtual void load_begin(void) = 0;
-   virtual void load_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
-   virtual void load_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
-   virtual void load_end(void) = 0;
+   // this is checked by setProblemDefinition() (or solve()?)
+   // if this is set, then the planner assumes that the entire graph
+   // should be re-loaded
+   virtual bool hasChanged() = 0;
    
-   virtual void save_begin(void) = 0;
-   virtual void save_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
-   virtual void save_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
-   virtual void save_end(void) = 0;
-};
-
-template <class VTagMap, class ETagsMap>
-class DummyTagCache : public TagCache<VTagMap,ETagsMap>
-{
-public:
-   void load_begin(void) {}
-   void load_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) {}
-   void load_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) {}
-   void load_end(void) {}
+   virtual void loadBegin(void) = 0;
+   virtual void loadVertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
+   virtual void loadEdges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
+   virtual void loadEnd(void) = 0;
    
-   void save_begin(void) {}
-   void save_vertices(VTagMap v_tag_map, size_t v_from, size_t v_to) {}
-   void save_edges(ETagsMap e_tags_map, size_t e_from, size_t e_to) {}
-   void save_end(void) {}
+   virtual void saveBegin(void) = 0;
+   virtual void saveVertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
+   virtual void saveEdges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
+   virtual void saveEnd(void) = 0;
 };
 
 } // namespace ompl_lemur

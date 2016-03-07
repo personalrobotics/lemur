@@ -198,8 +198,7 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
    if (!ompl_planner || !persist_planner)
    {
       // set up planner
-      tag_cache.reset(new ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap>());
-      ompl_planner.reset(new ompl_lemur::LEMUR(ompl_si, *tag_cache));
+      ompl_planner.reset(new ompl_lemur::LEMUR(ompl_si));
       
       // register known roadmap types
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapAAGrid>("AAGrid");

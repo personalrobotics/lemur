@@ -96,9 +96,7 @@ void remove_vertex(ompl_lemur::LEMUR::Vertex v, ompl_lemur::LEMUR::Graph & g)
  *  - other edges, from roots to core vertices (or other roots) look like regular edges
  */
 
-ompl_lemur::LEMUR::LEMUR(
-      const ompl::base::SpaceInformationPtr & si,
-      TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache):
+ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    ompl::base::Planner(si, "LEMUR"),
    //effort_model(effort_model),
    space(si->getStateSpace()),
@@ -107,7 +105,6 @@ ompl_lemur::LEMUR::LEMUR(
    overlay_manager(eig,og,
       get(&OverVProps::core_vertex, og),
       get(&OverEProps::core_edge, og)),
-   tag_cache(tag_cache),
    //nn(new ompl::NearestNeighborsLinear<Vertex>), // option A1
    //nn(new ompl::NearestNeighborsGNAT<Vertex>), // option A2
    nn(new ompl_lemur::NearestNeighborsLinearBGL<Graph,VPStateMap>(g, get(&VProps::state,g), space)), // option B
@@ -1462,10 +1459,13 @@ ompl_lemur::LEMUR::solve(
          printf("LEMUR: loading from cache ...\n");
          
          // load new batch from cache
-         tag_cache.load_begin();
-         tag_cache.load_vertices(m_vidx_tag_map, v_from, v_to);
-         tag_cache.load_edges(m_eidx_tags_map, e_from, e_to);
-         tag_cache.load_end();
+         if (_tag_cache)
+         {
+            _tag_cache->loadBegin();
+            _tag_cache->loadVertices(m_vidx_tag_map, v_from, v_to);
+            _tag_cache->loadEdges(m_eidx_tags_map, e_from, e_to);
+            _tag_cache->loadEnd();
+         }
          
          // calculate w_lazy for these new edges
          for (size_t eidx=e_from; eidx<e_to; eidx++)
@@ -1593,23 +1593,26 @@ void ompl_lemur::LEMUR::dump_graph(std::ostream & os_graph)
 // saves only core vertices
 void ompl_lemur::LEMUR::cache_save_all()
 {
-   tag_cache.save_begin();
+   if (!_tag_cache)
+      return;
+   
+   _tag_cache->saveBegin();
    
    for (size_t ibatch=0; ibatch<m_subgraph_sizes.size(); ibatch++)
    {
       if (ibatch == 0)
       {
-         tag_cache.save_vertices(m_vidx_tag_map, 0, m_subgraph_sizes[ibatch].first);
-         tag_cache.save_edges(m_eidx_tags_map, 0, m_subgraph_sizes[ibatch].second);
+         _tag_cache->saveVertices(m_vidx_tag_map, 0, m_subgraph_sizes[ibatch].first);
+         _tag_cache->saveEdges(m_eidx_tags_map, 0, m_subgraph_sizes[ibatch].second);
       }
       else
       {
-         tag_cache.save_vertices(m_vidx_tag_map, m_subgraph_sizes[ibatch-1].first, m_subgraph_sizes[ibatch].first);
-         tag_cache.save_edges(m_eidx_tags_map, m_subgraph_sizes[ibatch-1].second, m_subgraph_sizes[ibatch].second);
+         _tag_cache->saveVertices(m_vidx_tag_map, m_subgraph_sizes[ibatch-1].first, m_subgraph_sizes[ibatch].first);
+         _tag_cache->saveEdges(m_eidx_tags_map, m_subgraph_sizes[ibatch-1].second, m_subgraph_sizes[ibatch].second);
       }
    }
    
-   tag_cache.save_end();
+   _tag_cache->saveEnd();
 }
 
 double ompl_lemur::LEMUR::getDurTotal()

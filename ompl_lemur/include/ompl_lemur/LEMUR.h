@@ -151,6 +151,10 @@ private:
    std::vector<std::string> _roadmap_params;
 public:
    boost::shared_ptr< Roadmap<RoadmapArgs> > _roadmap;
+   
+   // danger, don't change this during planning!
+   boost::shared_ptr< TagCache<VIdxTagMap,EIdxTagsMap> > _tag_cache;
+   
 private:
 
    std::vector< std::pair<size_t,size_t> > m_subgraph_sizes; // numverts,numedges (cumulative)
@@ -179,8 +183,6 @@ private:
       overlay_manager;
    
    BisectPerm bisect_perm;
-   
-   TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache;
    
    // note: the nearest neighbor object will only store core roadmap vertices
    // (not overlayed vertices), and will only be queried by the roadmap generator
@@ -241,10 +243,7 @@ private:
    // part 3: ompl methods
 
 public:
-   LEMUR(
-      const ompl::base::SpaceInformationPtr & si,
-      ompl_lemur::TagCache<VIdxTagMap,EIdxTagsMap> & tag_cache);
-   
+   LEMUR(const ompl::base::SpaceInformationPtr & si);
    ~LEMUR(void);
    
    template <template<class> class RoadmapTemplate>
