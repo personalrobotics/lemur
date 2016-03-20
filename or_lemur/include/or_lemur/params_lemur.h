@@ -7,7 +7,7 @@
 namespace or_lemur
 {
 
-// <startstate> and <goalstate> can be specified multiple times
+// remember, <startstate> and <goalstate> can be specified multiple times
 class LEMURParameters : public OpenRAVE::PlannerBase::PlannerParameters
 {
 public:
@@ -16,6 +16,8 @@ public:
    std::string roadmap_type;
    
    // key/value strings for roadmap (keys without roadmap. prefix)
+   // note there's a difference between no <roadmap> and an empty <roadmap>
+   bool has_roadmap_params;
    std::vector< std::pair<std::string,std::string> > roadmap_params;
    
    bool has_do_roadmap_save;
@@ -63,6 +65,9 @@ public:
    bool has_eval_type;
    std::string eval_type;
    
+   bool has_do_solve_all;
+   bool do_solve_all;
+   
    LEMURParameters():
       has_roadmap_type(false),
       has_do_roadmap_save(false),
@@ -79,10 +84,12 @@ public:
       has_max_batches(false),
       has_time_limit(false),
       has_search_type(false),
-      has_eval_type(false)
+      has_eval_type(false),
+      has_do_solve_all(false)
    {
+      // top-level tags we can process
       _vXMLParameters.push_back("roadmap_type");
-      _vXMLParameters.push_back("roadmap_param");
+      _vXMLParameters.push_back("roadmap");
       _vXMLParameters.push_back("do_roadmap_save");
       _vXMLParameters.push_back("num_batches_init");
       _vXMLParameters.push_back("alglog");
@@ -98,10 +105,12 @@ public:
       _vXMLParameters.push_back("time_limit");
       _vXMLParameters.push_back("search_type");
       _vXMLParameters.push_back("eval_type");
+      _vXMLParameters.push_back("do_solve_all");
    }
    
 private:
    std::string lemur_deserializing;
+   std::string lemur_sub_deserializing;
    
 protected:
    bool serialize(std::ostream& sout, int options=0) const
@@ -110,11 +119,17 @@ protected:
          return false;
       if (has_roadmap_type)
          sout << "<roadmap_type>" << roadmap_type << "</roadmap_type>";
-      for (unsigned int ui=0; ui<roadmap_params.size(); ui++)
+      if (has_roadmap_params)
       {
-         sout << "<roadmap_param>"
-            << roadmap_params[ui].first << "=" << roadmap_params[ui].second
-            << "</roadmap_param>";
+         sout << "<roadmap>";
+         for (unsigned int ui=0; ui<roadmap_params.size(); ui++)
+         {
+            sout
+               << "<" << roadmap_params[ui].first << ">"
+               << roadmap_params[ui].second
+               << "</" << roadmap_params[ui].first << ">";
+         }
+         sout << "</roadmap>";
       }
       if (has_do_roadmap_save)
          sout << "<do_roadmap_save>" << (do_roadmap_save?"true":"false") << "</do_roadmap_save>";
@@ -146,6 +161,8 @@ protected:
          sout << "<search_type>" << search_type << "</search_type>";
       if (has_eval_type)
          sout << "<eval_type>" << eval_type << "</eval_type>";
+      if (has_do_solve_all)
+         sout << "<do_solve_all>" << (do_solve_all?"true":"false") << "</do_solve_all>";
       return !!sout;
    }
    
@@ -153,14 +170,23 @@ protected:
       const std::string & name, const OpenRAVE::AttributesList & atts)
    {
       if (lemur_deserializing.size())
+      {
+         if (lemur_deserializing == "roadmap" && !lemur_sub_deserializing.size())
+         {
+            lemur_sub_deserializing = name;
+            _ss.str("");
+            return PE_Support;
+         }
+         RAVELOG_WARN("Ignoring unknown <%s> sub-tag <%s>!\n", lemur_deserializing.c_str(), name.c_str());
          return PE_Ignore;
+      }
       // ask base calss
       enum OpenRAVE::BaseXMLReader::ProcessElement base;
       base = OpenRAVE::PlannerBase::PlannerParameters::startElement(name,atts);
       if (base != PE_Pass) return base;
       // can we handle it?
       if (name == "roadmap_type"
-         || name == "roadmap_param"
+         || name == "roadmap"
          || name == "do_roadmap_save"
          || name == "num_batches_init"
          || name == "alglog"
@@ -175,9 +201,11 @@ protected:
          || name == "max_batches"
          || name == "time_limit"
          || name == "search_type"
-         || name == "eval_type")
+         || name == "eval_type"
+         || name == "do_solve_all")
       {
          lemur_deserializing = name;
+         _ss.str("");
          return PE_Support;
       }
       return PE_Pass;
@@ -187,6 +215,25 @@ protected:
    {
       if (!lemur_deserializing.size())
          return OpenRAVE::PlannerBase::PlannerParameters::endElement(name);
+      // are we concluding a sub-tag?
+      if (lemur_sub_deserializing.size())
+      {
+         if (name == lemur_sub_deserializing)
+         {
+            if (lemur_deserializing == "roadmap")
+            {
+               roadmap_params.push_back(std::make_pair(name,_ss.str()));
+            }
+         }
+         else
+         {
+            RAVELOG_WARN("Closing tag <%s> doesn't match opening tag <%s>!\n",
+               name.c_str(), lemur_sub_deserializing.c_str());
+         }
+         lemur_sub_deserializing.clear();
+         return false;
+      }
+      // ok, we must be concluding a tag
       if (name == lemur_deserializing)
       {
          if (lemur_deserializing == "roadmap_type")
@@ -194,15 +241,9 @@ protected:
             roadmap_type = _ss.str();
             has_roadmap_type = true;
          }
-         if (lemur_deserializing == "roadmap_param")
+         if (lemur_deserializing == "roadmap")
          {
-            std::string roadmap_param = _ss.str();
-            size_t eq = roadmap_param.find('=');
-            if (eq != roadmap_param.npos)
-               roadmap_params.push_back(std::make_pair(
-                  roadmap_param.substr(0,eq), roadmap_param.substr(eq+1)));
-            else
-               RAVELOG_WARN("no = found in roadmap_param!\n");
+            has_roadmap_params = true;
          }
          if (lemur_deserializing == "do_roadmap_save")
          {
@@ -291,7 +332,14 @@ protected:
             eval_type = _ss.str();
             has_eval_type = true;
          }
-         
+         if (lemur_deserializing == "do_solve_all")
+         {
+            std::ios state(0);
+            state.copyfmt(_ss);
+            _ss >> std::boolalpha >> do_solve_all;
+            _ss.copyfmt(state);
+            has_do_solve_all = true;
+         }
       }
       else
          RAVELOG_WARN("closing tag doesnt match opening tag!\n");

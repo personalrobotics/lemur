@@ -9,6 +9,7 @@
 #include <vector>
 #include <cstdio>
 #include <boost/graph/adjacency_list.hpp>
+#include <ompl/util/Console.h>
 #include <ompl/base/StateValidityChecker.h>
 #include <pr_bgl/heap_indexed.h>
 #include <ompl_lemur/UtilityChecker.h>
@@ -105,9 +106,7 @@ void ompl_lemur::FamilyUtilityChecker::initialize()
       if (!(iconst<_sets.size()))
          break;
    }
-   printf("truth table has %lu rows\n", _truth_table.size());
-   
-   printf("constructing family graph ...\n");
+   OMPL_INFORM("Truth table has %lu rows.", _truth_table.size());
    
    Vertex v = add_vertex(_g);
    _g[v].knowns.resize(_sets.size(),false);
@@ -202,7 +201,7 @@ void ompl_lemur::FamilyUtilityChecker::initialize()
       }
    }
    
-   printf("graph has %lu vertices!\n", num_vertices(_g));
+   OMPL_INFORM("Family graph has %lu vertices.", num_vertices(_g));
 }
 
 void ompl_lemur::FamilyUtilityChecker::start_checking(std::string set_target,
@@ -212,7 +211,6 @@ void ompl_lemur::FamilyUtilityChecker::start_checking(std::string set_target,
    // no need to recompute!
    
    // convert target and checkers into var index
-   printf(">> incoming target si: %s\n", set_target.c_str());
    _checkers.clear();
    _var_target = _sets.size();
    for (size_t var=0; var<_sets.size(); var++)
@@ -331,7 +329,7 @@ bool ompl_lemur::FamilyUtilityChecker::isValidPartialEval(size_t & tag, const om
    {
       Edge e = _g[v].edge_next;
       //printf("checking against ivar=%lu desired=%c ...\n",
-      //   g[e].var, g[e].value ? 'T' : 'F');
+      //   _g[e].var, _g[e].value ? 'T' : 'F');
       bool valid = _checkers[_g[e].var].second->isValid(state);
       if (valid != _g[e].value)
       {

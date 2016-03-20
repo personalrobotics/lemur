@@ -23,37 +23,8 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
-#include <or_lemur/or_checker.h>
+#include <or_lemur/or_ompl_conversions.h>
 #include <or_lemur/planner_cctimer.h>
-
-
-namespace {
-
-ompl::base::RealVectorBounds ompl_bounds(OpenRAVE::RobotBasePtr robot)
-{
-   ompl::base::RealVectorBounds bounds(robot->GetActiveDOF());
-   std::vector<OpenRAVE::dReal> lowers;
-   std::vector<OpenRAVE::dReal> uppers;
-   robot->GetActiveDOFLimits(lowers, uppers);
-   for (int i=0; i<robot->GetActiveDOF(); i++)
-   {
-      bounds.setLow(i, lowers[i]);
-      bounds.setHigh(i, uppers[i]);
-   }
-   return bounds;
-}
-
-double ompl_resolution(OpenRAVE::RobotBasePtr robot)
-{
-   std::vector<OpenRAVE::dReal> dof_resolutions;
-   robot->GetActiveDOFResolutions(dof_resolutions);
-   double resolution = HUGE_VAL;
-   for (unsigned int i=0; i<dof_resolutions.size(); i++)
-      resolution = dof_resolutions[i] < resolution ? dof_resolutions[i] : resolution;
-   return resolution;
-}
-
-} // anonymous namespace
 
 
 or_lemur::CCTimer::CCTimer(OpenRAVE::EnvironmentBasePtr env):

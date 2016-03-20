@@ -119,8 +119,8 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    _search_type(SEARCH_TYPE_ASTAR),
    _eval_type(EVAL_TYPE_ALT),
    os_alglog(0),
-   m_vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
-   m_eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tags,g), eig.edge_vector_map))
+   _vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
+   _eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tag,g), eig.edge_vector_map))
 {
    // get utility checker
    _utility_checker = boost::dynamic_pointer_cast<UtilityChecker>(si->getStateValidityChecker());
@@ -178,9 +178,7 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    og[ov_singlegoal].is_shadow = false;
    og[ov_singlegoal].tag = 0;
    
-   printf("space->getLongestValidSegmentLength(): %f\n", space->getLongestValidSegmentLength());
-   
-   printf("LEMUR: constructor finished.\n");
+   OMPL_INFORM("space->getLongestValidSegmentLength(): %f", space->getLongestValidSegmentLength());
 }
 
 ompl_lemur::LEMUR::~LEMUR()
@@ -211,6 +209,12 @@ void ompl_lemur::LEMUR::registerRoadmapType(std::string roadmap_type,
    boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> factory)
 {
    _roadmap_registry[roadmap_type] = factory;
+}
+
+boost::shared_ptr< const ompl_lemur::Roadmap<ompl_lemur::LEMUR::RoadmapArgs> >
+ompl_lemur::LEMUR::getRoadmap()
+{
+   return _roadmap;
 }
 
 void ompl_lemur::LEMUR::setRoadmapType(std::string roadmap_type)
@@ -400,6 +404,10 @@ void ompl_lemur::LEMUR::setProblemDefinition(
    // this will set my pdef_ and update my pis_
    ompl::base::Planner::setProblemDefinition(pdef);
    
+   // ensure roadmap is initialized
+   if (!_roadmap->initialized)
+      _roadmap->initialize();
+   
    // clear overlay graph
    overlay_unapply(); // just to be sure
    
@@ -554,7 +562,7 @@ void ompl_lemur::LEMUR::setProblemDefinition(
             og[oe].num_edge_states = floor(dist/(2.0*check_radius));
             //edge_init_points(state, g[*vi].state, dist, og[oe].edge_states);
             //og[oe].edge_tags.resize(og[oe].edge_states.size(), 0);
-            //og[e].tag = 0;
+            og[oe].edge_tag = 0;
          }
          
       }
@@ -568,6 +576,7 @@ void ompl_lemur::LEMUR::setProblemDefinition(
          og[e].distance = 0.0;
          og[e].batch = 0;
          og[e].num_edge_states = 0;
+         og[e].edge_tag = 0;
       }
    }
    
@@ -788,7 +797,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             
             boost::chrono::high_resolution_clock::time_point time_selector_init_begin
                = boost::chrono::high_resolution_clock::now();
-            printf("computing partition_all from scratch ...\n");
+            OMPL_INFORM("computing partition_all from scratch ...");
             pr_bgl::partition_all_matrix solver(num_vertices(g));
             // add all edges (both directions)
             std::pair<EdgeIter,EdgeIter> ep=edges(g);
@@ -920,7 +929,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             
             boost::chrono::high_resolution_clock::time_point time_selector_init_begin
                = boost::chrono::high_resolution_clock::now();
-            printf("computing partition_all from scratch ...\n");
+            OMPL_INFORM("computing partition_all from scratch ...");
             pr_bgl::partition_all_matrix solver(num_vertices(g));
             // add all edges (both directions)
             std::pair<EdgeIter,EdgeIter> ep=edges(g);
@@ -1027,7 +1036,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          
          boost::chrono::high_resolution_clock::time_point time_selector_init_begin
             = boost::chrono::high_resolution_clock::now();
-         printf("computing partition_all from scratch ...\n");
+         OMPL_INFORM("computing partition_all from scratch ...");
          pr_bgl::partition_all_matrix solver(num_vertices(g));
          // add all edges (both directions)
          std::pair<EdgeIter,EdgeIter> ep=edges(g);
@@ -1175,7 +1184,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          
          boost::chrono::high_resolution_clock::time_point time_selector_init_begin
             = boost::chrono::high_resolution_clock::now();
-         printf("computing partition_all from scratch ...\n");
+         OMPL_INFORM("computing partition_all from scratch ...");
          pr_bgl::partition_all_matrix solver(num_vertices(g));
          // add all edges (both directions)
          std::pair<EdgeIter,EdgeIter> ep=edges(g);
@@ -1251,6 +1260,8 @@ ompl_lemur::LEMUR::solve(
 {
    if (!_roadmap)
       throw std::runtime_error("no roadmap set!");
+   if (!pdef_)
+      throw std::runtime_error("no problem definition set!");
    
    boost::chrono::high_resolution_clock::time_point time_total_begin;
    if (_do_timing)
@@ -1265,10 +1276,6 @@ ompl_lemur::LEMUR::solve(
       _dur_selector_notify = boost::chrono::high_resolution_clock::duration();
       time_total_begin = boost::chrono::high_resolution_clock::now();
    }
-   
-   // ensure roadmap is initialized
-   if (!_roadmap->initialized)
-      _roadmap->initialize();
    
    // ok, do some sweet sweet lazy search!
    
@@ -1320,7 +1327,7 @@ ompl_lemur::LEMUR::solve(
    ompl::base::PlannerStatus ret = ompl::base::PlannerStatus::TIMEOUT;
    while (ptc() == false)
    {
-      printf("considering %u batches ...\n", num_batches);
+      OMPL_INFORM("Considering %u batches ...", num_batches);
       
       // should we do a search?
       if (_num_batches_init <= num_batches)
@@ -1347,7 +1354,7 @@ ompl_lemur::LEMUR::solve(
             }
          }
          
-         printf("running lazy search over %lu vertices and %lu edges...\n",
+         OMPL_INFORM("Running LazySP over %lu vertices and %lu edges...",
             num_vertices(eig), num_edges(eig));
          
          // run lazy search
@@ -1415,7 +1422,7 @@ ompl_lemur::LEMUR::solve(
          
          std::size_t new_batch = _roadmap->num_batches_generated;
          
-         printf("densifying to batch [%lu] ...\n", new_batch);
+         OMPL_INFORM("Densifying roadmap to batch [%lu] ...", new_batch);
          
          size_t v_from = num_vertices(eig);
          size_t e_from = num_edges(eig);
@@ -1439,11 +1446,11 @@ ompl_lemur::LEMUR::solve(
          
          size_t v_to = num_vertices(eig);
          size_t e_to = num_edges(eig);
-         m_subgraph_sizes.push_back(std::make_pair(v_to,e_to));
+         _subgraph_sizes.push_back(std::make_pair(v_to,e_to));
          
          // initialize new vertices/edges
          for (size_t vidx=v_from; vidx<v_to; vidx++)
-            put(m_vidx_tag_map, vidx, 0);
+            put(_vidx_tag_map, vidx, 0);
          for (size_t eidx=e_from; eidx<e_to; eidx++)
          {
             Edge e = get(eig.edge_vector_map,eidx);
@@ -1454,16 +1461,18 @@ ompl_lemur::LEMUR::solve(
             //   g[e].distance,
             //   g[e].edge_states);
             //g[e].edge_tags.resize(g[e].edge_states.size(), 0);
+            g[e].edge_tag = 0;
          }
          
-         printf("LEMUR: loading from cache ...\n");
+         OMPL_INFORM("Loading from tag cache ...");
          
          // load new batch from cache
          if (_tag_cache)
          {
             _tag_cache->loadBegin();
-            _tag_cache->loadVertices(m_vidx_tag_map, v_from, v_to);
-            _tag_cache->loadEdges(m_eidx_tags_map, e_from, e_to);
+            _tag_cache->loadBatch(new_batch,
+               _vidx_tag_map, v_from, v_to,
+               _eidx_tags_map, e_from, e_to);
             _tag_cache->loadEnd();
          }
          
@@ -1522,6 +1531,7 @@ ompl_lemur::LEMUR::solve(
                //edge_init_points(og[*ovi].state, g[*vi].state, dist, og[oe].edge_states);
                //og[oe].edge_tags.resize(og[oe].edge_states.size(), 0);
                //og[e].tag = 0;
+               og[oe].edge_tag = 0;
             }
          }
          
@@ -1537,32 +1547,26 @@ ompl_lemur::LEMUR::solve(
 }
 
 // solves only core vertices
-void ompl_lemur::LEMUR::solve_all()
+void ompl_lemur::LEMUR::solveAll()
 {
+   if (!pdef_)
+      throw std::runtime_error("no problem definition set!");
+   
    // evaluate all vertices first
-   printf("solve_all() evaluating vertices ...\n");
+   OMPL_INFORM("solve_all() evaluating vertices ...");
    VertexIter vi, vi_end;
    for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       while (!_utility_checker->isKnown(g[*vi].tag))
          _utility_checker->isValidPartialEval(g[*vi].tag, g[*vi].state);
    
-   printf("solve_all() evaluating edges ...\n");
+   OMPL_INFORM("solve_all() evaluating edges ...");
    unsigned int count = 0;
    EdgeIter ei, ei_end;
    for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
    {
-      printf("calculating edge %u/%lu ...\n", count, num_edges(eig));
-      // generate edge tags if they're not there
-      if (g[*ei].num_edge_states != g[*ei].edge_states.size())
-         edge_init_states(*ei);
-      // check edges
-      for (unsigned ui=0; ui<g[*ei].edge_tags.size(); ui++)
-      {
-         while (!_utility_checker->isKnown(g[*ei].edge_tags[ui]))
-            _utility_checker->isValidPartialEval(g[*ei].edge_tags[ui], g[*ei].edge_states[ui]);
-         if (_utility_checker->isKnownInvalid(g[*ei].edge_tags[ui]))
-            break;
-      }
+      OMPL_INFORM("calculating edge %u/%lu ...", count, num_edges(eig));
+      while (!isevaledmap_get(*ei))
+         wmap_get(*ei);
       count++;
    }
 }
@@ -1591,24 +1595,26 @@ void ompl_lemur::LEMUR::dump_graph(std::ostream & os_graph)
 }
 
 // saves only core vertices
-void ompl_lemur::LEMUR::cache_save_all()
+void ompl_lemur::LEMUR::saveTagCache()
 {
    if (!_tag_cache)
       return;
    
    _tag_cache->saveBegin();
    
-   for (size_t ibatch=0; ibatch<m_subgraph_sizes.size(); ibatch++)
+   for (size_t ibatch=0; ibatch<_subgraph_sizes.size(); ibatch++)
    {
       if (ibatch == 0)
       {
-         _tag_cache->saveVertices(m_vidx_tag_map, 0, m_subgraph_sizes[ibatch].first);
-         _tag_cache->saveEdges(m_eidx_tags_map, 0, m_subgraph_sizes[ibatch].second);
+         _tag_cache->saveBatch(ibatch,
+            _vidx_tag_map, 0, _subgraph_sizes[ibatch].first,
+            _eidx_tags_map, 0, _subgraph_sizes[ibatch].second);
       }
       else
       {
-         _tag_cache->saveVertices(m_vidx_tag_map, m_subgraph_sizes[ibatch-1].first, m_subgraph_sizes[ibatch].first);
-         _tag_cache->saveEdges(m_eidx_tags_map, m_subgraph_sizes[ibatch-1].second, m_subgraph_sizes[ibatch].second);
+         _tag_cache->saveBatch(ibatch,
+            _vidx_tag_map, _subgraph_sizes[ibatch-1].first, _subgraph_sizes[ibatch].first,
+            _eidx_tags_map, _subgraph_sizes[ibatch-1].second, _subgraph_sizes[ibatch].second);
       }
    }
    
@@ -1687,7 +1693,10 @@ void ompl_lemur::LEMUR::overlay_apply()
       //g[ecore].w_lazy = og[eover].w_lazy;
       g[ecore].num_edge_states = og[eover].num_edge_states;
       g[ecore].edge_states = og[eover].edge_states;
+#if 0
       g[ecore].edge_tags = og[eover].edge_tags;
+#endif
+      g[ecore].edge_tag = og[eover].edge_tag;
       //g[ecore].tag = og[eover].tag;
       calculate_w_lazy(ecore);
    }
@@ -1718,7 +1727,10 @@ void ompl_lemur::LEMUR::overlay_unapply()
       //og[eover].w_lazy = g[ecore].w_lazy;
       og[eover].num_edge_states = g[ecore].num_edge_states;
       og[eover].edge_states = g[ecore].edge_states;
+#if 0
       og[eover].edge_tags = g[ecore].edge_tags;
+#endif
+      og[eover].edge_tag = g[ecore].edge_tag;
       //og[eover].tag = g[ecore].tag;
    }
    
@@ -1755,7 +1767,7 @@ void ompl_lemur::LEMUR::edge_init_states(const Edge & e)
          1.0*(1+order[ui].first)/(n+1),
          g[e].edge_states[ui]);
    // allocate tags
-   g[e].edge_tags.resize(n, 0);
+   //g[e].edge_tags.resize(n, 0);
 }
 
 void ompl_lemur::LEMUR::calculate_w_lazy(const Edge & e)
@@ -1783,11 +1795,20 @@ void ompl_lemur::LEMUR::calculate_w_lazy(const Edge & e)
    }
    // ok, its a non-singleroot edge
    // is it known infeasible?
+#if 0
    unsigned int ui;
    for (ui=0; ui<g[e].edge_tags.size(); ui++)
       if (_utility_checker->isKnownInvalid(g[e].edge_tags[ui]))
          break;
    if (ui<g[e].edge_states.size()
+      || _utility_checker->isKnownInvalid(g[va].tag)
+      || _utility_checker->isKnownInvalid(g[vb].tag))
+   {
+      g[e].w_lazy = std::numeric_limits<double>::infinity();
+      return;
+   }
+#endif
+   if (_utility_checker->isKnownInvalid(g[e].edge_tag)
       || _utility_checker->isKnownInvalid(g[va].tag)
       || _utility_checker->isKnownInvalid(g[vb].tag))
    {
@@ -1801,6 +1822,7 @@ void ompl_lemur::LEMUR::calculate_w_lazy(const Edge & e)
    // half bounary vertices
    g[e].w_lazy += 0.5 * _coeff_checkcost * _utility_checker->getPartialEvalCost(g[va].tag, g[va].state);
    g[e].w_lazy += 0.5 * _coeff_checkcost * _utility_checker->getPartialEvalCost(g[vb].tag, g[vb].state);
+#if 0
    // interior states
    if (g[e].edge_tags.size() == 0)
    {
@@ -1812,6 +1834,8 @@ void ompl_lemur::LEMUR::calculate_w_lazy(const Edge & e)
       for (ui=0; ui<g[e].edge_tags.size(); ui++)
          g[e].w_lazy += _coeff_checkcost * _utility_checker->getPartialEvalCost(g[e].edge_tags[ui], g[e].edge_states[ui]);
    }
+#endif
+   g[e].w_lazy += _coeff_checkcost * g[e].num_edge_states * _utility_checker->getPartialEvalCost(g[e].edge_tag,0);
 }
 
 bool ompl_lemur::LEMUR::isevaledmap_get(const Edge & e)
@@ -1825,9 +1849,13 @@ bool ompl_lemur::LEMUR::isevaledmap_get(const Edge & e)
       return false;
    if (g[e].num_edge_states != g[e].edge_states.size())
       return false;
+#if 0
    for (unsigned int ui=0; ui<g[e].edge_tags.size(); ui++)
       if (!_utility_checker->isKnown(g[e].edge_tags[ui]))
          return false;
+#endif
+   if (g[e].edge_states.size() && !_utility_checker->isKnown(g[e].edge_tag))
+      return false;
    return true;
 }
 
@@ -1857,6 +1885,8 @@ double ompl_lemur::LEMUR::wmap_get(const Edge & e)
       if (g[e].num_edge_states != g[e].edge_states.size())
          edge_init_states(e);
 
+      // check each internal edge state (once)
+#if 0
       for (unsigned ui=0; ui<g[e].edge_tags.size(); ui++)
       {
          if (!_utility_checker->isKnown(g[e].edge_tags[ui]))
@@ -1866,6 +1896,31 @@ double ompl_lemur::LEMUR::wmap_get(const Edge & e)
                break;
          }
       }
+#endif
+      size_t old_tag = g[e].edge_tag;
+      size_t new_tag = 0;
+      if (!_utility_checker->isKnown(old_tag))
+      {
+         for (unsigned ui=0; ui<g[e].edge_states.size(); ui++)
+         {
+            size_t this_new_tag = old_tag;
+            bool success = _utility_checker->isValidPartialEval(this_new_tag, g[e].edge_states[ui]);
+            if (ui == 0)
+               new_tag = this_new_tag;
+            if (!success)
+            {
+               new_tag = this_new_tag;
+               break;
+            }
+            if (this_new_tag != new_tag)
+            {
+               OMPL_ERROR("Within-edge tag mismatch!");
+               abort();
+            }
+         }
+      }
+      g[e].edge_tag = new_tag;
+
    }
    while (0);
    

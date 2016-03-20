@@ -113,11 +113,8 @@ TEST(LemurSimpleTestCase, LemurSimpleTest)
    pdef->addStartState(make_state(space, 0.25, 0.75));
    pdef->setGoalState(make_state(space, 0.75, 0.25));
    
-   // cache
-   ompl_lemur::DummyTagCache<ompl_lemur::LEMUR::VIdxTagMap,ompl_lemur::LEMUR::EIdxTagsMap> tag_cache;
-   
    // planner
-   ompl::base::PlannerPtr planner(new ompl_lemur::LEMUR(si, tag_cache));
+   ompl::base::PlannerPtr planner(new ompl_lemur::LEMUR(si));
    planner->as<ompl_lemur::LEMUR>()->setCoeffDistance(1.);
    planner->as<ompl_lemur::LEMUR>()->setCoeffCheckcost(0.);
    planner->as<ompl_lemur::LEMUR>()->setCoeffBatch(0.);

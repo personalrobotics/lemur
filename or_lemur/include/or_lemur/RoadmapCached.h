@@ -212,7 +212,7 @@ public:
       edges_in_subgraph.push_back(num_edges(this->g));
    }
    
-   void save_file()
+   void save_file() const
    {
       size_t mysizet;
       

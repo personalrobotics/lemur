@@ -31,8 +31,10 @@ class Wam7Testcase(unittest.TestCase):
          params.SetGoalConfig(q_goal)
          params.SetExtraParameters(
             '<roadmap_type>Halton</roadmap_type>'
-            + '<roadmap_param>num=1000</roadmap_param>'
-            + '<roadmap_param>radius=2.0</roadmap_param>')
+            + '<roadmap>'
+            + '<num>1000</num>'
+            + '<radius>2.0</radius>'
+            + '</roadmap>')
          planner.InitPlan(robot, params)
          
          traj = openravepy.RaveCreateTrajectory(env, '')

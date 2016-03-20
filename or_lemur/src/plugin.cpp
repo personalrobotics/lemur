@@ -34,8 +34,9 @@
 #include <ompl_lemur/LEMUR.h>
 #include <ompl_lemur/Family.h>
 #include <ompl_lemur/FamilyUtilityChecker.h>
+#include <ompl_lemur/FamilyTagCache.h>
 
-#include <or_lemur/or_checker.h>
+#include <or_lemur/or_ompl_conversions.h>
 #include <or_lemur/module_family.h>
 #include <or_lemur/params_lemur.h>
 #include <or_lemur/params_family.h>

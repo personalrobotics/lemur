@@ -64,13 +64,20 @@ public:
    
    SetPtr GetSetFromExpression(std::string input);
    
+   // returns nothing if literal not bound
+   SetPtr GetSet(std::string literal);
+   
    void Let(std::string literal, SetPtr set);
    
    void Del(std::string literal);
    
+   std::string GetHeaderFromSet(SetPtr set);
+   
+   SetPtr GetSetFromHeader(std::string set_header);
+   
    // returns all currently named sets,
    // as well as other sets need for all of their relations
-   Family GetCurrentFamily();
+   Family GetCurrentFamily(std::set<SetPtr> sets_ext = std::set<SetPtr>());
    
    // should return a map from SetPtr -> bool (*)(vec<dReal> q)
    // internally, this delegates to something else?
@@ -95,12 +102,8 @@ public:
    
    bool CmdPrintCurrentFamily(std::ostream & soutput, std::istream & sinput);
    
-   // outputs a purely textual snapshot of the family
-   // this can be used as the header for a file
-   // uses indices for checks and for subsets
-   // the $file{} command expects it at the beginning of the file
-   // if --with-link-pairs is passed, also get the link pairs!
-   bool CmdGetSnapshot(std::ostream & soutput, std::istream & sinput);
+   // input: expression
+   bool CmdGetHeaderFromSet(std::ostream & soutput, std::istream & sinput);
 
 private:
 
@@ -165,6 +168,8 @@ private:
    // and finds an existing matching posedlink if it exists
    // (we dont add them cause they might not be used)
    std::map<PosedLink *, OpenRAVE::KinBody::LinkPtr> live_links();
+   
+   SetPtr set_from_checks(const std::set<Check> & checks);
    
 };
 

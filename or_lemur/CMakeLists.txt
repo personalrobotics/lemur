@@ -33,6 +33,7 @@ add_definitions("-Wall -Werror")
 add_definitions("-fno-strict-aliasing")
 
 add_library(${PROJECT_NAME}
+   src/or_ompl_conversions.cpp
    src/module_family.cpp
    src/parse_args.cpp
    src/planner_lemur.cpp

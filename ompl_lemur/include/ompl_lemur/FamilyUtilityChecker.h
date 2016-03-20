@@ -26,7 +26,6 @@ public:
    FamilyUtilityChecker(const ompl::base::SpaceInformationPtr & si, const Family & family);
    ~FamilyUtilityChecker();
    
-private:
    // called by constructor
    void initialize();
 
@@ -49,7 +48,7 @@ public: // used by planner
    
    bool isValidPartialEval(size_t & tag, const ompl::base::State * state) const;
    
-private:
+//private:
    typedef boost::adjacency_list<boost::vecS,boost::vecS,boost::bidirectionalS>::edge_descriptor PreEdge;
    struct VProps
    {
@@ -79,6 +78,7 @@ private:
    typedef boost::graph_traits<Graph>::edge_descriptor Edge;
    typedef boost::graph_traits<Graph>::edge_iterator EdgeIter;
    typedef boost::graph_traits<Graph>::in_edge_iterator InEdgeIter;
+   typedef boost::graph_traits<Graph>::out_edge_iterator OutEdgeIter;
    
    const Family _family;
    bool _has_changed;

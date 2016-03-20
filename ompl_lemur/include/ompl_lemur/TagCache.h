@@ -8,7 +8,7 @@ namespace ompl_lemur
 {
 
 // this may throw on load or save error!
-template <class VTagMap, class ETagsMap>
+template <class VTagMap, class ETagMap>
 class TagCache
 {
 public:
@@ -17,15 +17,17 @@ public:
    // should be re-loaded
    virtual bool hasChanged() = 0;
    
-   virtual void loadBegin(void) = 0;
-   virtual void loadVertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
-   virtual void loadEdges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
-   virtual void loadEnd(void) = 0;
+   virtual void loadBegin() = 0;
+   virtual void loadBatch(size_t batch,
+      VTagMap v_tag_map, size_t v_from, size_t v_to,
+      ETagMap e_tags_map, size_t e_from, size_t e_to) = 0;
+   virtual void loadEnd() = 0;
    
-   virtual void saveBegin(void) = 0;
-   virtual void saveVertices(VTagMap v_tag_map, size_t v_from, size_t v_to) = 0;
-   virtual void saveEdges(ETagsMap e_tags_map, size_t e_from, size_t e_to) = 0;
-   virtual void saveEnd(void) = 0;
+   virtual void saveBegin() = 0;
+   virtual void saveBatch(size_t batch,
+      VTagMap v_tag_map, size_t v_from, size_t v_to,
+      ETagMap e_tags_map, size_t e_from, size_t e_to) = 0;
+   virtual void saveEnd() = 0;
 };
 
 } // namespace ompl_lemur

@@ -52,74 +52,9 @@
 #include <ompl_lemur/LEMUR.h>
 
 #include <or_lemur/RoadmapCached.h>
-#include <or_lemur/or_checker.h>
+#include <or_lemur/or_ompl_conversions.h>
 #include <or_lemur/params_lemur.h>
 #include <or_lemur/planner_lemur.h>
-
-
-namespace {
-
-ompl::base::RealVectorBounds ompl_bounds(OpenRAVE::RobotBasePtr robot)
-{
-   ompl::base::RealVectorBounds bounds(robot->GetActiveDOF());
-   std::vector<OpenRAVE::dReal> lowers;
-   std::vector<OpenRAVE::dReal> uppers;
-   robot->GetActiveDOFLimits(lowers, uppers);
-   for (int i=0; i<robot->GetActiveDOF(); i++)
-   {
-      bounds.setLow(i, lowers[i]);
-      bounds.setHigh(i, uppers[i]);
-   }
-   return bounds;
-}
-
-double ompl_resolution(OpenRAVE::RobotBasePtr robot)
-{
-   std::vector<OpenRAVE::dReal> dof_resolutions;
-   robot->GetActiveDOFResolutions(dof_resolutions);
-   double resolution = HUGE_VAL;
-   for (unsigned int i=0; i<dof_resolutions.size(); i++)
-      resolution = dof_resolutions[i] < resolution ? dof_resolutions[i] : resolution;
-   return resolution;
-}
-
-void ompl_set_roots(ompl::base::ProblemDefinitionPtr ompl_pdef,
-   OpenRAVE::PlannerBase::PlannerParametersConstPtr params)
-{
-   ompl::base::SpaceInformationPtr space_si = ompl_pdef->getSpaceInformation();
-   ompl::base::StateSpacePtr space = space_si->getStateSpace();
-   unsigned int dim = space->getDimension();
-   
-   // add start states
-   ompl_pdef->clearStartStates();
-   if (params->vinitialconfig.size() % dim != 0)
-      throw OpenRAVE::openrave_exception("vector of initial states is not the right size!");
-   unsigned int num_starts = params->vinitialconfig.size() / dim;
-   for (unsigned int istart=0; istart<num_starts; istart++)
-   {
-      ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s_start(space);
-      for (unsigned int j=0; j<dim; j++)
-         s_start->values[j] = params->vinitialconfig[istart*dim + j];
-      ompl_pdef->addStartState(s_start);
-   }
-   
-   // add goal states
-   ompl::base::GoalStates * gs = new ompl::base::GoalStates(space_si);
-   gs->clear();
-   if (params->vgoalconfig.size() % dim != 0)
-      throw OpenRAVE::openrave_exception("vector of goal states is not the right size!");
-   unsigned int num_goals = params->vgoalconfig.size() / dim;
-   for (unsigned int igoal=0; igoal<num_goals; igoal++)
-   {
-      ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s_goal(space);
-      for (unsigned int j=0; j<dim; j++)
-         s_goal->values[j] = params->vgoalconfig[igoal*dim + j];
-      gs->addState(s_goal);
-   }
-   ompl_pdef->setGoal(ompl::base::GoalPtr(gs));
-}
-
-} // anonymous namespace
 
 
 or_lemur::LEMUR::LEMUR(OpenRAVE::EnvironmentBasePtr env):
@@ -256,12 +191,20 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
    if (params->has_eval_type)
       ompl_planner->setEvalType(params->eval_type);
    
+   if (params->has_do_solve_all && params->do_solve_all)
+   {
+      RAVELOG_ERROR("or_lemur::LEMUR does not yet support do_solve_all!\n");
+      return false;
+   }
+   
    // force reeval of wlazy
    ompl_binary_checker->_has_changed = true;
    
    // problem definition
    ompl_pdef.reset(new ompl::base::ProblemDefinition(ompl_si));
-   ompl_set_roots(ompl_pdef, params);   
+   bool success = ompl_set_roots(ompl_pdef, params);   
+   if (!success)
+      return false;
    ompl_planner->setProblemDefinition(ompl_pdef);
    
    return true;
@@ -304,12 +247,12 @@ or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    
    if (params->has_do_roadmap_save && params->do_roadmap_save)
    {
-      boost::shared_ptr< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> > cached_roadmap
-         = boost::dynamic_pointer_cast< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >(ompl_planner->_roadmap);
+      boost::shared_ptr< const or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> > cached_roadmap
+         = boost::dynamic_pointer_cast< const or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >(ompl_planner->getRoadmap());
       if (cached_roadmap)
       {
          printf("saving cached roadmap ...\n");
-         ompl_planner->_roadmap->as< or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >()->save_file();
+         cached_roadmap->save_file();
       }
       else
       {

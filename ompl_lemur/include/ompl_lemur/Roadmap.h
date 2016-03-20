@@ -180,7 +180,7 @@ struct RoadmapFactory
 };
 
 template <class RoadmapArgs>
-std::string roadmap_id(ompl_lemur::Roadmap<RoadmapArgs> * roadmap)
+std::string roadmap_id(const ompl_lemur::Roadmap<RoadmapArgs> * roadmap)
 {
    std::string roadmap_id;
    

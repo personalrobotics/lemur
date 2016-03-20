@@ -42,8 +42,8 @@ public:
       // then edge_states needs to be generated! (with tags = 0)
       size_t num_edge_states;
       std::vector< ompl::base::State * > edge_states;
-      std::vector< size_t > edge_tags;
-      //size_t tag; // mega tag?
+      //std::vector< size_t > edge_tags;
+      size_t edge_tag; // this is the tag for ALL INTERNAL STATES
    };
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -69,7 +69,8 @@ public:
    typedef boost::property_map<Graph, double EProps::*>::type EPDistanceMap;
    typedef boost::property_map<Graph, int EProps::*>::type EPBatchMap;
    typedef boost::property_map<Graph, double EProps::*>::type EPWlazyMap;
-   typedef boost::property_map<Graph, std::vector<size_t> EProps::*>::type EPTagsMap;
+   //typedef boost::property_map<Graph, std::vector<size_t> EProps::*>::type EPTagsMap;
+   typedef boost::property_map<Graph, size_t EProps::*>::type EPTagMap;
    
    // for indexing
    typedef pr_bgl::edge_indexed_graph<Graph, EPIndexMap> EdgeIndexedGraph;
@@ -79,7 +80,7 @@ public:
    
    // for tag cache object
    typedef pr_bgl::compose_property_map<VPTagMap,VertexIndexMap> VIdxTagMap;
-   typedef pr_bgl::compose_property_map<EPTagsMap,EdgeVectorMap> EIdxTagsMap;
+   typedef pr_bgl::compose_property_map<EPTagMap,EdgeVectorMap> EIdxTagsMap;
    
    // roadmap generator type
    //typedef ompl_lemur::NNOmplBatched<Graph,VPStateMap> NN;
@@ -111,8 +112,8 @@ public:
       bool is_evaled;
       size_t num_edge_states;
       std::vector< ompl::base::State * > edge_states;
-      std::vector< size_t > edge_tags;
-      size_t tag; // mega tag?
+      //std::vector< size_t > edge_tags;
+      size_t edge_tag; // mega tag?
    };
    typedef boost::adjacency_list<
       boost::vecS, // Edgelist ds, for per-vertex out-edges
@@ -149,15 +150,17 @@ private:
 
    std::string _roadmap_type;
    std::vector<std::string> _roadmap_params;
-public:
+
    boost::shared_ptr< Roadmap<RoadmapArgs> > _roadmap;
    
+public:
+
    // danger, don't change this during planning!
    boost::shared_ptr< TagCache<VIdxTagMap,EIdxTagsMap> > _tag_cache;
    
 private:
 
-   std::vector< std::pair<size_t,size_t> > m_subgraph_sizes; // numverts,numedges (cumulative)
+   std::vector< std::pair<size_t,size_t> > _subgraph_sizes; // numverts,numedges (cumulative)
 
    const ompl::base::StateSpacePtr space;
    double check_radius; // this is half the standard resolution
@@ -227,8 +230,8 @@ public:
 
 private:   
    // property maps
-   VIdxTagMap m_vidx_tag_map;
-   EIdxTagsMap m_eidx_tags_map;
+   VIdxTagMap _vidx_tag_map;
+   EIdxTagsMap _eidx_tags_map;
    
    boost::chrono::high_resolution_clock::duration _dur_total;
    boost::chrono::high_resolution_clock::duration _dur_roadmapgen;
@@ -254,6 +257,8 @@ public:
    
    void registerRoadmapType(std::string roadmap_type,
       boost::function<Roadmap<RoadmapArgs> * (RoadmapArgs args)> factory);
+      
+   boost::shared_ptr< const Roadmap<RoadmapArgs> > getRoadmap();
    
    void setRoadmapType(std::string roadmap_type);
    std::string getRoadmapType() const;
@@ -285,6 +290,7 @@ public:
    void setEvalType(std::string eval_type);
    std::string getEvalType() const;
    
+   // this is guaranteed to initialize the roadmap
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
    
    template <class MyGraph, class IncSP, class EvalStrategy>
@@ -293,13 +299,15 @@ public:
    template <class MyGraph>
    bool do_lazysp_a(MyGraph & graph, std::vector<Edge> & epath);
    
+   // this fails if problem definition not set
    ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
    
-   void solve_all();
+   // this fails if problem definition not set
+   void solveAll();
    
    void dump_graph(std::ostream & os_graph);
    
-   void cache_save_all();
+   void saveTagCache();
    
    double getDurTotal();
    double getDurRoadmapGen();
@@ -311,7 +319,8 @@ public:
    double getDurSelector();
    double getDurSelectorNotify();
    
-   // part 4: private-ish methods
+   // part 4: private methods
+private:
    
    // assuming num_edge_states != edge_states.size(),
    // this generates the states and their tags (assumed tag=0)
@@ -322,9 +331,13 @@ public:
    
    void calculate_w_lazy(const Edge & e);
 
+   // these are public so the property map wrappers can access them;
+   // instead, i should probable move those classes inside LEMUR
+public:
    bool isevaledmap_get(const Edge & e);
    double wmap_get(const Edge & e);
    
+private:
    double nn_dist(const Vertex & va, const Vertex & vb);
 };
 

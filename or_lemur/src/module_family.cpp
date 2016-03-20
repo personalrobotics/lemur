@@ -22,18 +22,18 @@
 or_lemur::FamilyModule::FamilyModule(OpenRAVE::EnvironmentBasePtr penv):
    OpenRAVE::ModuleBase(penv), _initialized(false)
 {
-   printf("constructed family |%p|\n", this);
    RegisterCommand("GetInstanceId",boost::bind(&or_lemur::FamilyModule::CmdGetInstanceId,this,_1,_2),"GetInstanceId");
    RegisterCommand("Let",boost::bind(&or_lemur::FamilyModule::CmdLet,this,_1,_2),"Let");
    RegisterCommand("NamesOf",boost::bind(&or_lemur::FamilyModule::CmdNamesOf,this,_1,_2),"NamesOf");
    RegisterCommand("PrintCurrentFamily",boost::bind(&or_lemur::FamilyModule::CmdPrintCurrentFamily,this,_1,_2),"PrintCurrentFamily");
-   RegisterCommand("GetSnapshot",boost::bind(&or_lemur::FamilyModule::CmdGetSnapshot,this,_1,_2),"GetSnapshot");
+   RegisterCommand("GetHeaderFromSet",boost::bind(&or_lemur::FamilyModule::CmdGetHeaderFromSet,this,_1,_2),"GetHeaderFromSet");
+   RAVELOG_INFO("Constructed family \"%s\".\n", GetInstanceId().c_str());
 }
 
 
 or_lemur::FamilyModule::~FamilyModule()
 {
-   printf("destructed family |%p|\n", this);
+   RAVELOG_INFO("Destructed family \"%s\".\n", GetInstanceId().c_str());
 }
 
 
@@ -107,7 +107,7 @@ int or_lemur::FamilyModule::main(const std::string & cmd)
    for (unsigned int ui=0; ui<active_dofs.size(); ui++)
       id += ompl_lemur::util::sf("-%d", active_dofs[ui]);
    
-   printf("id: |%s|\n", id.c_str());
+   RAVELOG_INFO("Family id: \"%s\".\n", id.c_str());
    
    // get active joints
    std::set<OpenRAVE::KinBody::JointPtr> active_joints;
@@ -159,7 +159,6 @@ int or_lemur::FamilyModule::main(const std::string & cmd)
 
 void or_lemur::FamilyModule::Destroy()
 {
-   printf("destroying ...\n");
 }
 
 
@@ -178,8 +177,6 @@ or_lemur::FamilyModule::GetCurrentSet()
       RAVELOG_ERROR("Robot not found!\n");
       throw OpenRAVE::openrave_exception("Robot not found");
    }
-   
-   printf("set_live called ...\n");
    
    // collect all pairs of links that should be currently checked
    
@@ -257,10 +254,9 @@ or_lemur::FamilyModule::GetCurrentSet()
    std::map< std::pair<int,OpenRAVE::KinBody::LinkPtr>, PosedLink * > links_used;
    for (unsigned int ci=0; ci<link_checks.size(); ci++)
    {
-      links_used.insert(std::make_pair(link_checks[ci].first,(PosedLink *)0));
-      links_used.insert(std::make_pair(link_checks[ci].second,(PosedLink *)0));
+      links_used.insert(std::make_pair(link_checks[ci].first, (PosedLink *)0));
+      links_used.insert(std::make_pair(link_checks[ci].second, (PosedLink *)0));
    }
-   
    
    // ok, ensure that all posedlinks are in our datastructure
    // this is where the deduplication happens
@@ -320,7 +316,7 @@ or_lemur::FamilyModule::GetCurrentSet()
    }
    
    // get checks required for this set
-   std::set< Check > checks;
+   std::set<Check> checks;
    for (unsigned int ci=0; ci<link_checks.size(); ci++)
    {
       PosedLink * posedlink1 = links_used[link_checks[ci].first];
@@ -331,103 +327,7 @@ or_lemur::FamilyModule::GetCurrentSet()
          checks.insert(std::make_pair(posedlink2,posedlink1));
    }
    
-   // do any existing sets match this?
-   std::set<SetPtr>::iterator itset;
-   for (itset=_sets_all.begin(); itset!=_sets_all.end(); itset++)
-      if ((*itset)->checks == checks)
-         break;
-   if (itset!=_sets_all.end())
-   {
-      // set already exists!
-      // just return it
-      return *itset;
-   }
-   
-   // ok, so we need to make a new set
-   // add it to all
-   SetPtr set(new Set);
-   set->checks = checks;
-   _sets_all.insert(set);
-   
-   // ok, do the atom stuff!
-   
-   // are there any checks not owned by any current atom?
-   
-   // find out which atom owns each check
-   std::map<Check, Atom *> check_owner;
-   for (std::set< Check >::iterator itcheck=checks.begin(); itcheck!=checks.end(); itcheck++)
-   {
-      std::set< Atom * >::iterator itatom;
-      for (itatom=_atoms.begin(); itatom!=_atoms.end(); itatom++)
-         if ((*itatom)->checks.count(*itcheck))
-            break;
-      if (itatom!=_atoms.end())
-         check_owner[*itcheck] = (*itatom);
-      else
-         check_owner[*itcheck] = 0;
-   }
-   
-   // create a new atom for any check not owned
-   // also get the list of other owners
-   Atom * newatom = 0;
-   std::set<Atom *> owners;
-   for (std::map<Check, Atom *>::iterator
-      itown=check_owner.begin(); itown!=check_owner.end(); itown++)
-   {
-      if (itown->second)
-      {
-         owners.insert(itown->second);
-         continue;
-      }
-      if (!newatom)
-         newatom = new Atom;
-      newatom->checks.insert(itown->first);
-   }
-   if (newatom)
-   {
-      _atoms.insert(newatom);
-      set->atoms.insert(newatom);
-   }
-   
-   // ok, go through owners;
-   // for each, if it is completely within the set,
-   // as it as one of its atom;
-   // otherwise, split it!
-   for (std::set<Atom *>::iterator
-      itowner=owners.begin(); itowner!=owners.end(); itowner++)
-   {
-      std::set<Check> checks_inside;
-      std::set<Check> checks_outside;
-      for (std::set<Check>::iterator
-         itcheck=(*itowner)->checks.begin(); itcheck!=(*itowner)->checks.end(); itcheck++)
-      {
-         if (checks.count(*itcheck))
-            checks_inside.insert(*itcheck);
-         else
-            checks_outside.insert(*itcheck);
-      }
-      if (!checks_outside.size())
-      {
-         set->atoms.insert(*itowner);
-         continue;
-      }
-      // ok, we need to split!
-      Atom * otheratom = new Atom;
-      (*itowner)->checks = checks_inside;
-      otheratom->checks = checks_outside;
-      set->atoms.insert(*itowner);
-      // fix existing sets relying on (*itowner)
-      for (std::set<SetPtr>::iterator
-         itset=_sets_all.begin(); itset!=_sets_all.end(); itset++)
-      {
-         if ((*itset) == set)
-            continue;
-         if ((*itset)->atoms.count(*itowner))
-            (*itset)->atoms.insert(otheratom);
-      }
-   }
-   
-   return set;
+   return set_from_checks(checks);
 }
 
 
@@ -490,6 +390,17 @@ or_lemur::FamilyModule::GetSetFromExpression(std::string input)
 }
 
 
+or_lemur::FamilyModule::SetPtr
+or_lemur::FamilyModule::GetSet(std::string literal)
+{
+   std::map<std::string, SetPtr>::iterator
+      needle = _sets_bound.find(literal);
+   if (needle == _sets_bound.end())
+      return SetPtr();
+   return needle->second;
+}
+
+
 void or_lemur::FamilyModule::Let(std::string literal, or_lemur::FamilyModule::SetPtr set)
 {
    std::map<std::string, SetPtr>::iterator needle;
@@ -515,28 +426,235 @@ void or_lemur::FamilyModule::Del(std::string literal)
 }
 
 
+std::string
+or_lemur::FamilyModule::GetHeaderFromSet(or_lemur::FamilyModule::SetPtr set)
+{
+   std::stringstream ret;
+   
+   ret << "family " << _id << "\n";
+   
+   // collect all posedlinks needed by checks in this set
+   std::set<PosedLink *> posedlinks;
+   for (std::set<Check>::iterator
+      it=set->checks.begin(); it!=set->checks.end(); it++)
+   {
+      posedlinks.insert(it->first);
+      posedlinks.insert(it->second);
+   }
+   
+   // compute the string version of each
+   std::map<std::string, PosedLink *> posedlink_sorted;
+   for (std::set<PosedLink *>::iterator
+      it=posedlinks.begin(); it!=posedlinks.end(); it++)
+   {
+      std::stringstream ss;
+      ss << (*it)->proxidx
+         << " " << (*it)->geomhash
+         << " " << (*it)->pose.trans.x
+         << " " << (*it)->pose.trans.y
+         << " " << (*it)->pose.trans.z
+         << " " << (*it)->pose.rot.y // qx
+         << " " << (*it)->pose.rot.z // qy
+         << " " << (*it)->pose.rot.w // qz
+         << " " << (*it)->pose.rot.x; // qw
+      posedlink_sorted.insert(std::make_pair(ss.str(), *it));
+   }
+   
+   // first part of header -- posedlinks (also assign indices)
+   ret << "num_posedlinks " << posedlink_sorted.size() << "\n";
+   std::map<PosedLink *, size_t> posedlink_indices;
+   for (std::map<std::string, PosedLink *>::iterator
+      it=posedlink_sorted.begin(); it!=posedlink_sorted.end(); it++)
+   {
+      size_t idx = posedlink_indices.size();
+      ret << "posedlink " << idx << " " << it->first << "\n";
+      posedlink_indices.insert(std::make_pair(it->second, idx));
+   }
+   
+   // collect and print all checks
+   std::set< std::pair<size_t,size_t> > idx_checks;
+   for (std::set<Check>::iterator
+      it=set->checks.begin(); it!=set->checks.end(); it++)
+   {
+      size_t idx1 = posedlink_indices[it->first];
+      size_t idx2 = posedlink_indices[it->second];
+      if (idx1 < idx2)
+         idx_checks.insert(std::make_pair(idx1,idx2));
+      else
+         idx_checks.insert(std::make_pair(idx2,idx1));
+   }
+   ret << "checks " << idx_checks.size();
+   for (std::set< std::pair<size_t,size_t> >::iterator
+      it=idx_checks.begin(); it!=idx_checks.end(); it++)
+   {
+      ret << " " << it->first << "x" << it->second;
+   }
+   ret << "\n";
+   
+   return ret.str();
+}
+
+
+or_lemur::FamilyModule::SetPtr
+or_lemur::FamilyModule::GetSetFromHeader(std::string set_header)
+{
+   std::stringstream ss(set_header);
+   std::string str;
+   ss >> str;
+   if (str != "family")
+   {
+      RAVELOG_ERROR("Could not find family id!\n");
+      return or_lemur::FamilyModule::SetPtr();
+   }
+   ss >> str;
+   if (str != _id)
+   {
+      RAVELOG_ERROR("Family id mismatch!\n");
+      return or_lemur::FamilyModule::SetPtr();
+   }
+   
+   size_t num_posedlinks;
+   ss >> str;
+   if (str != "num_posedlinks")
+   {
+      RAVELOG_ERROR("Parse error!\n");
+      return or_lemur::FamilyModule::SetPtr();
+   }
+   ss >> num_posedlinks;
+   
+   // read each posed link
+   // this will create a new posedlink if necessary
+   std::vector<PosedLink *> posedlinks;
+   for (size_t idx=0; idx<num_posedlinks; idx++)
+   {
+      size_t read_idx;
+      size_t proxidx;
+      std::string geomhash;
+      double x, y, z, qx, qy, qz, qw;
+      ss >> str >> read_idx >> proxidx >> geomhash >> x >> y >> z >> qx >> qy >> qz >> qw;
+      if (str != "posedlink" || read_idx != idx)
+      {
+         // TODO: delete allocated posedlinks!
+         RAVELOG_ERROR("posedlink parse error!\n");
+         return or_lemur::FamilyModule::SetPtr();
+      }
+      OpenRAVE::Transform tx_prox_link(OpenRAVE::Vector(qw, qx, qy, qz), OpenRAVE::Vector(x, y, z));
+      
+      // TODO: the following is duplicated with GetCurrentSet() implementation
+      
+      // look up (proxidx,geomhash) in index
+      std::map< std::pair<int,std::string>, std::set<PosedLink *> >::iterator
+         indexkey = _posedlinks.find(std::make_pair(proxidx,geomhash));
+      if (indexkey == _posedlinks.end())
+         indexkey = _posedlinks.insert(std::make_pair(
+            std::make_pair(proxidx,geomhash), std::set<PosedLink *>())).first;
+      
+      // search for matching posedlink object
+      std::set<PosedLink *>::iterator needle;
+      for (needle=indexkey->second.begin(); needle!=indexkey->second.end(); needle++)
+      {
+         OpenRAVE::Transform tx_rel = tx_prox_link.inverse() * (*needle)->pose;
+         // is this different?
+         if (tx_rel.trans.lengthsqr3() > 0.0000001)
+            continue;
+         OpenRAVE::dReal quat_xxyyzz = 0.0;
+         quat_xxyyzz += tx_rel.rot.y * tx_rel.rot.y; // qx
+         quat_xxyyzz += tx_rel.rot.z * tx_rel.rot.z; // qy
+         quat_xxyyzz += tx_rel.rot.w * tx_rel.rot.w; // qz
+         if (quat_xxyyzz > 0.0000001)
+            continue;
+         // the same!
+         break;
+      }
+      
+      // if we didn't find it, allocate a new one here!
+      if (needle == indexkey->second.end())
+      {
+         PosedLink * posedlink = new PosedLink;
+         posedlink->proxidx = proxidx;
+         posedlink->geomhash = geomhash;
+         posedlink->pose = tx_prox_link;
+         needle = indexkey->second.insert(posedlink).first;
+      }
+      
+      posedlinks.push_back(*needle);
+   }
+   
+   // next, read checks
+   size_t num_checks;
+   ss >> str >> num_checks;
+   if (str != "checks")
+   {
+      // TODO: delete allocated posedlinks!
+      RAVELOG_ERROR("checks parse error!\n");
+      return or_lemur::FamilyModule::SetPtr();
+   }
+   std::set<Check> checks;
+   for (size_t ic=0; ic<num_checks; ic++)
+   {
+      ss >> str;
+      const char * s = str.c_str();
+      char * end;
+      long int idx1 = strtol(s, &end, 10);
+      if (!(s<end) || *end != 'x')
+      {
+         // TODO: delete allocated posedlinks!
+         RAVELOG_ERROR("checks parse error!\n");
+         return or_lemur::FamilyModule::SetPtr();
+      }
+      long int idx2 = strtol(end+1, &end, 10);
+      if ((end-s) != (int)str.size())
+      {
+         // TODO: delete allocated posedlinks!
+         RAVELOG_ERROR("checks parse error!\n");
+         return or_lemur::FamilyModule::SetPtr();
+      }
+      PosedLink * posedlink1 = posedlinks[idx1];
+      PosedLink * posedlink2 = posedlinks[idx2];
+      if (posedlink1 < posedlink2)
+         checks.insert(std::make_pair(posedlink1,posedlink2));
+      else
+         checks.insert(std::make_pair(posedlink2,posedlink1));
+   }
+   
+   return set_from_checks(checks);
+}
+
+
 or_lemur::FamilyModule::Family
-or_lemur::FamilyModule::GetCurrentFamily()
+or_lemur::FamilyModule::GetCurrentFamily(std::set<SetPtr> sets_ext)
 {
    Family family;
    
    // add all bound sets
-   // also compute all atoms used
-   std::set<Atom *> atoms_used;
    for (std::map<std::string, SetPtr>::iterator
       sit=_sets_bound.begin(); sit!=_sets_bound.end(); sit++)
    {
       family.sets.insert(sit->second);
-      for (std::set<Atom *>::iterator
-         ait=sit->second->atoms.begin(); ait!=sit->second->atoms.end(); ait++)
-      {
-         atoms_used.insert(*ait);
-      }
+   }
+   
+   // add all input sets
+   for (std::set<SetPtr>::iterator
+      sit=sets_ext.begin(); sit!=sets_ext.end(); sit++)
+   {
+      family.sets.insert(*sit);
    }
    
    // if we don't have any sets yet, then we're done!
    if (!family.sets.size())
       return family;
+   
+   // compute all atoms used
+   std::set<Atom *> atoms_used;
+   for (std::set<SetPtr>::iterator
+      sit=family.sets.begin(); sit!=family.sets.end(); sit++)
+   {
+      for (std::set<Atom *>::iterator
+         ait=(*sit)->atoms.begin(); ait!=(*sit)->atoms.end(); ait++)
+      {
+         atoms_used.insert(*ait);
+      }
+   }
    
    // ok, since our family will be a subsets of _sets_all,
    // our atoms will be too small
@@ -861,173 +979,17 @@ bool or_lemur::FamilyModule::CmdPrintCurrentFamily(std::ostream & soutput, std::
 }
 
 
-bool or_lemur::FamilyModule::CmdGetSnapshot(std::ostream & soutput, std::istream & sinput)
+bool or_lemur::FamilyModule::CmdGetHeaderFromSet(std::ostream & soutput, std::istream & sinput)
 {
-   printf("getting snapshot ...\n");
+   std::ostringstream oss;
+   oss << sinput.rdbuf();
+   std::string expression = oss.str();
    
-   // if LIVE,
-   // then also include the live subset for this snapshot
-   // (and then presumably clean it up everything at the end)
-   // (this returns the live set, and places it in _sets_all, untill cleanup)
-   SetPtr setlive = GetCurrentSet();
+   SetPtr set = GetSetFromExpression(expression);
    
-   // ok, first dump all posedlinks used
-   // this map is temporary, used as index
-   std::map<PosedLink *, size_t> posedlink_indices;
-   std::vector<PosedLink *> posedlinks;
-   for (std::map< std::pair<int,std::string>, std::set<PosedLink *> >::iterator
-      it1=_posedlinks.begin(); it1!=_posedlinks.end(); it1++)
-   {
-      for (std::set<PosedLink *>::iterator
-         it2=it1->second.begin(); it2!=it1->second.end(); it2++)
-      {
-         posedlink_indices.insert(std::make_pair(*it2, posedlinks.size()));
-         posedlinks.push_back(*it2);
-      }
-   }
+   std::string header = GetHeaderFromSet(set);
    
-   // ok, serialize each posedlinks
-   soutput << "num_posedlinks " << posedlinks.size() << std::endl;
-   for (unsigned int ui=0; ui<posedlinks.size(); ui++)
-   {
-      soutput << "posedlink " << ui
-         << " " << posedlinks[ui]->proxidx
-         << " " << posedlinks[ui]->geomhash
-         << " " << posedlinks[ui]->pose.trans.x
-         << " " << posedlinks[ui]->pose.trans.y
-         << " " << posedlinks[ui]->pose.trans.z
-         << " " << posedlinks[ui]->pose.rot.y // qx
-         << " " << posedlinks[ui]->pose.rot.z // qy
-         << " " << posedlinks[ui]->pose.rot.w // qz
-         << " " << posedlinks[ui]->pose.rot.x // qw
-         << std::endl;
-   }
-   
-   // temp vector of sets
-   // also, keep track of the single-atom set for each atom
-   std::vector<SetPtr> sets;
-   std::map<Set *, size_t> set_index;
-   std::map<Atom *, Set *> atom_sets;
-   // add all of our sets,
-   // and also keep track of claimed sets
-   for (std::set<SetPtr>::iterator
-      it=_sets_all.begin(); it!=_sets_all.end(); it++)
-   {
-      set_index.insert(std::make_pair((*it).get(), sets.size()));
-      sets.push_back(*it);
-      if ((*it)->atoms.size() == 1) // found a rep!
-         atom_sets.insert(std::make_pair(*(*it)->atoms.begin(), (*it).get()));
-   }
-   
-   // ok, for any unclaimed atom,
-   // make a new subset (will get deleted with the temp sets vec)
-   for (std::set<Atom *>::iterator
-      it=_atoms.begin(); it!=_atoms.end(); it++)
-   {
-      if (atom_sets.find(*it)!=atom_sets.end())
-         continue;
-      SetPtr newset(new Set);
-      newset->checks = (*it)->checks;
-      newset->atoms.insert(*it);
-      // add new set
-      set_index.insert(std::make_pair(newset.get(), sets.size()));
-      sets.push_back(newset);
-      atom_sets.insert(std::make_pair((*it), newset.get()));
-   }
-   
-   // next, dump all subsets
-   soutput << "num_sets " << sets.size() << std::endl;
-   for (unsigned int ui=0; ui<sets.size(); ui++)
-   {
-      std::set< std::pair<int,int> > intchecks;
-      for (std::set<Check>::iterator
-         it=sets[ui]->checks.begin(); it!=sets[ui]->checks.end(); it++)
-      {
-         size_t idpl1 = posedlink_indices[(*it).first];
-         size_t idpl2 = posedlink_indices[(*it).second];
-         if (idpl1 < idpl2)
-            intchecks.insert(std::make_pair(idpl1,idpl2));
-         else
-            intchecks.insert(std::make_pair(idpl2,idpl1));
-      }
-      soutput << "set " << ui << " num_checks " << intchecks.size() << " checks";
-      for (std::set< std::pair<int,int> >::iterator
-         it=intchecks.begin(); it!=intchecks.end(); it++)
-      {
-         soutput << " " << it->first << "*" << it->second;
-      }
-      soutput << std::endl;
-   }
-   
-   // next, dump relations
-   // (for now, this is just relations that are implicit in the checks)
-   size_t num_relations = 0;
-   for (unsigned int ui=0; ui<sets.size(); ui++)
-   {
-      if (sets[ui]->atoms.size() == 1)
-         continue;
-      num_relations++;
-   }
-   soutput << "num_relations " << num_relations << std::endl;
-   num_relations = 0;
-   for (unsigned int ui=0; ui<sets.size(); ui++)
-   {
-      if (sets[ui]->atoms.size() == 1)
-         continue;
-      soutput << "relation " << num_relations;
-      soutput << " set " << set_index[sets[ui].get()];
-      soutput << " intersection " << sets[ui]->atoms.size() << " sets";
-      std::set<size_t> setidxs;
-      for (std::set<Atom *>::iterator
-         it=sets[ui]->atoms.begin(); it!=sets[ui]->atoms.end(); it++)
-      {
-         setidxs.insert(set_index[atom_sets[*it]]);
-      }
-      for (std::set<size_t>::iterator
-         it=setidxs.begin(); it!=setidxs.end(); it++)
-      {
-         soutput << " " << *it;
-      }
-      soutput << std::endl;
-      num_relations++;
-   }
-   
-   // next, dump all checkable link pairs! (kinbodyname:linkname)
-   // IF ASKED!
-   std::map<PosedLink *, OpenRAVE::KinBody::LinkPtr>
-      livemap = live_links();
-   soutput << "num_livelinks " << livemap.size() << std::endl;
-   for (unsigned int ui=0; ui<posedlinks.size(); ui++)
-   {
-      std::map<PosedLink *, OpenRAVE::KinBody::LinkPtr>::iterator
-         needle = livemap.find(posedlinks[ui]);
-      if (needle == livemap.end())
-         continue;
-      soutput << "livelink " << ui
-         << " " << needle->second->GetParent()->GetName()
-         << ":" << needle->second->GetName()
-         << std::endl;
-   }
-   
-   // next, dump live set IF ASKED!
-   soutput << "liveset " << set_index[setlive.get()] << std::endl;
-   
-   // next, dump literals
-   // IF ASKED!
-   for (unsigned int ui=0; ui<sets.size(); ui++)
-   {
-      if (!sets[ui]->literals.size())
-         continue;
-      soutput << "setname " << ui;
-      for (std::set< std::string >::iterator
-         it=sets[ui]->literals.begin(); it!=sets[ui]->literals.end(); it++)
-      {
-         soutput << " " << *it;
-      }
-      soutput << std::endl;
-   }
-   
-   // at the end, we should let setlive reset, and cleanup!
+   soutput << header;
    
    return true;
 }
@@ -1132,4 +1094,106 @@ or_lemur::FamilyModule::live_links()
    }
    
    return map;
+}
+
+or_lemur::FamilyModule::SetPtr
+or_lemur::FamilyModule::set_from_checks(const std::set<or_lemur::FamilyModule::Check> & checks)
+{
+   // do any existing sets match this?
+   std::set<SetPtr>::iterator itset;
+   for (itset=_sets_all.begin(); itset!=_sets_all.end(); itset++)
+      if ((*itset)->checks == checks)
+         break;
+   if (itset!=_sets_all.end())
+   {
+      // set already exists!
+      // just return it
+      return *itset;
+   }
+   
+   // ok, so we need to make a new set
+   // add it to all
+   SetPtr set(new Set);
+   set->checks = checks;
+   _sets_all.insert(set);
+   
+   // ok, do the atom stuff!
+   
+   // are there any checks not owned by any current atom?
+   
+   // find out which atom owns each check
+   std::map<Check, Atom *> check_owner;
+   for (std::set< Check >::iterator itcheck=checks.begin(); itcheck!=checks.end(); itcheck++)
+   {
+      std::set< Atom * >::iterator itatom;
+      for (itatom=_atoms.begin(); itatom!=_atoms.end(); itatom++)
+         if ((*itatom)->checks.count(*itcheck))
+            break;
+      if (itatom!=_atoms.end())
+         check_owner[*itcheck] = (*itatom);
+      else
+         check_owner[*itcheck] = 0;
+   }
+   
+   // create a new atom for any check not owned
+   // also get the list of other owners
+   Atom * newatom = 0;
+   std::set<Atom *> owners;
+   for (std::map<Check, Atom *>::iterator
+      itown=check_owner.begin(); itown!=check_owner.end(); itown++)
+   {
+      if (itown->second)
+      {
+         owners.insert(itown->second);
+         continue;
+      }
+      if (!newatom)
+         newatom = new Atom;
+      newatom->checks.insert(itown->first);
+   }
+   if (newatom)
+   {
+      _atoms.insert(newatom);
+      set->atoms.insert(newatom);
+   }
+   
+   // ok, go through owners;
+   // for each, if it is completely within the set,
+   // as it as one of its atom;
+   // otherwise, split it!
+   for (std::set<Atom *>::iterator
+      itowner=owners.begin(); itowner!=owners.end(); itowner++)
+   {
+      std::set<Check> checks_inside;
+      std::set<Check> checks_outside;
+      for (std::set<Check>::iterator
+         itcheck=(*itowner)->checks.begin(); itcheck!=(*itowner)->checks.end(); itcheck++)
+      {
+         if (checks.count(*itcheck))
+            checks_inside.insert(*itcheck);
+         else
+            checks_outside.insert(*itcheck);
+      }
+      if (!checks_outside.size())
+      {
+         set->atoms.insert(*itowner);
+         continue;
+      }
+      // ok, we need to split!
+      Atom * otheratom = new Atom;
+      (*itowner)->checks = checks_inside;
+      otheratom->checks = checks_outside;
+      set->atoms.insert(*itowner);
+      // fix existing sets relying on (*itowner)
+      for (std::set<SetPtr>::iterator
+         itset=_sets_all.begin(); itset!=_sets_all.end(); itset++)
+      {
+         if ((*itset) == set)
+            continue;
+         if ((*itset)->atoms.count(*itowner))
+            (*itset)->atoms.insert(otheratom);
+      }
+   }
+   
+   return set;
 }

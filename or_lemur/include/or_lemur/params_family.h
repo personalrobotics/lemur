@@ -7,7 +7,7 @@
 namespace or_lemur
 {
 
-// <startstate> and <goalstate> can be specified multiple times
+// 
 class FamilyParameters : public or_lemur::LEMURParameters
 {
 public:
@@ -15,14 +15,27 @@ public:
    bool has_family_module;
    std::string family_module;
    
+   // list of family cache filenames
+   // note there's a difference between no <family_caches> and an empty <family_caches>
+   struct SetCache
+   {
+      std::string name;
+      std::string filename;
+   };
+   bool has_family_setcaches;
+   std::vector< SetCache > family_setcaches;
+   
    FamilyParameters():
       has_family_module(false)
    {
       _vXMLParameters.push_back("family_module");
+      _vXMLParameters.push_back("family_setcaches");
    }
    
 private:
-   std::string family_deserializing;
+   // path we're currently deserializing
+   std::string family_path;
+   SetCache family_setcache_cur;
    
 protected:
    bool serialize(std::ostream& sout, int options=0) const
@@ -31,42 +44,106 @@ protected:
          return false;
       if (has_family_module)
          sout << "<family_module>" << family_module << "</family_module>";
+      if (has_family_setcaches)
+      {
+         sout << "<family_setcaches>";
+         for (unsigned int ui=0; ui<family_setcaches.size(); ui++)
+         {
+            sout << "<setcache>";
+            sout << "<name>" << family_setcaches[ui].name << "</name>";
+            sout << "<filename>" << family_setcaches[ui].filename << "</filename>";
+            sout << "</setcache>";
+         }
+         sout << "</family_setcaches>";
+      }
       return !!sout;
    }
    
    OpenRAVE::BaseXMLReader::ProcessElement startElement(
       const std::string & name, const OpenRAVE::AttributesList & atts)
    {
-      if (family_deserializing.size())
-         return PE_Ignore;
-      // ask base calss
-      enum OpenRAVE::BaseXMLReader::ProcessElement base;
-      base = or_lemur::LEMURParameters::startElement(name,atts);
-      if (base != PE_Pass) return base;
-      // can we handle it?
-      if (name == "family_module")
+      OpenRAVE::BaseXMLReader::ProcessElement ret = PE_Ignore;
+      if (family_path == "")
       {
-         family_deserializing = name;
-         return PE_Support;
+         if (name == "family_module"
+            || name == "family_setcaches")
+         {
+            family_path = name;
+            ret = PE_Support;
+         }
+         else
+         {
+            // ask base class
+            return or_lemur::LEMURParameters::startElement(name,atts);
+         }
       }
-      return PE_Pass;
+      else if (family_path == "family_setcaches")
+      {
+         if (name == "setcache")
+         {
+            family_path = "family_setcaches/" + name;
+            family_setcache_cur.name = "";
+            family_setcache_cur.filename = "";
+            ret = PE_Support;
+         }
+      }
+      else if (family_path == "family_setcaches/setcache")
+      {
+         if (name == "name"
+            || name == "filename")
+         {
+            family_path = "family_setcaches/setcache/" + name;
+            ret = PE_Support;
+         }
+      }
+      if (ret == PE_Support)
+         _ss.str("");
+      if (ret == PE_Ignore)
+         RAVELOG_WARN("Ignoring unknown tag <%s>!\n", name.c_str());
+      return ret;
    }
 
    bool endElement(const std::string & name)
    {
-      if (!family_deserializing.size())
+      if (family_path == "")
          return or_lemur::LEMURParameters::endElement(name);
-      if (name == family_deserializing)
+      if (family_path == "family_module")
       {
-         if (family_deserializing == "family_module")
-         {
-            family_module = _ss.str();
-            has_family_module = true;
-         }
+         printf("found family module!\n");
+         family_module = _ss.str();
+         has_family_module = true;
+         family_path = "";
+         return false;
       }
-      else
-         RAVELOG_WARN("closing tag doesnt match opening tag!\n");
-      family_deserializing.clear();
+      if (family_path == "family_setcaches/setcache/name")
+      {
+         if (name != "name")
+            RAVELOG_WARN("Closing tag <%s> doesn't match opening tag <name>!\n", name.c_str());
+         family_setcache_cur.name = _ss.str();
+         family_path = "family_setcaches/setcache";
+         return false;
+      }
+      if (family_path == "family_setcaches/setcache/filename")
+      {
+         if (name != "filename")
+            RAVELOG_WARN("Closing tag <%s> doesn't match opening tag <filename>!\n", name.c_str());
+         family_setcache_cur.filename = _ss.str();
+         family_path = "family_setcaches/setcache";
+         return false;
+      }
+      if (family_path == "family_setcaches/setcache")
+      {
+         family_setcaches.push_back(family_setcache_cur);
+         family_path = "family_setcaches";
+         return false;
+      }
+      if (family_path == "family_setcaches")
+      {
+         has_family_setcaches = true;
+         family_path = "";
+         return false;
+      }
+      RAVELOG_ERROR("Parse error!");
       return false;
    }
 };
