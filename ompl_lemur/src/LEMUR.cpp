@@ -116,6 +116,7 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    _persist_roots(false),
    _num_batches_init(0),
    _max_batches(UINT_MAX),
+   _solve_all(false),
    _search_type(SEARCH_TYPE_ASTAR),
    _eval_type(EVAL_TYPE_ALT),
    os_alglog(0),
@@ -154,6 +155,9 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    Planner::declareParam<unsigned int>("max_batches", this,
       &ompl_lemur::LEMUR::setMaxBatches,
       &ompl_lemur::LEMUR::getMaxBatches);
+   Planner::declareParam<bool>("solve_all", this,
+      &ompl_lemur::LEMUR::setSolveAll,
+      &ompl_lemur::LEMUR::getSolveAll);
    Planner::declareParam<std::string>("search_type", this,
       &ompl_lemur::LEMUR::setSearchType,
       &ompl_lemur::LEMUR::getSearchType);
@@ -328,6 +332,16 @@ void ompl_lemur::LEMUR::setMaxBatches(unsigned int max_batches)
 unsigned int ompl_lemur::LEMUR::getMaxBatches() const
 {
    return _max_batches;
+}
+
+void ompl_lemur::LEMUR::setSolveAll(bool solve_all)
+{
+   _solve_all = solve_all;
+}
+
+bool ompl_lemur::LEMUR::getSolveAll() const
+{
+   return _solve_all;
 }
 
 void ompl_lemur::LEMUR::setSearchType(std::string search_type)
@@ -1279,10 +1293,20 @@ ompl_lemur::LEMUR::solve(
    
    // ok, do some sweet sweet lazy search!
    
-   if (out_degree(ov_singlestart,og) == 0)
-      throw std::runtime_error("no start states passed!");
-   if (out_degree(ov_singlegoal,og) == 0)
-      throw std::runtime_error("no goal states passed!");
+   if (_solve_all)
+   {
+      if (out_degree(ov_singlestart,og) != 0)
+         throw std::runtime_error("start states passed with solve_all!");
+      if (out_degree(ov_singlegoal,og) != 0)
+         throw std::runtime_error("goal states passed with solve_all!");
+   }
+   else
+   {
+      if (out_degree(ov_singlestart,og) == 0)
+         throw std::runtime_error("no start states passed!");
+      if (out_degree(ov_singlegoal,og) == 0)
+         throw std::runtime_error("no goal states passed!");
+   }
    
    // compute singleroot costs
    switch (_search_type)
@@ -1354,32 +1378,66 @@ ompl_lemur::LEMUR::solve(
             }
          }
          
-         OMPL_INFORM("Running LazySP over %lu vertices and %lu edges...",
-            num_vertices(eig), num_edges(eig));
-         
-         // run lazy search
-         bool success;
+         bool do_return_solution = false;
          std::vector<Edge> epath;
          
-         boost::chrono::high_resolution_clock::time_point time_lazysp_begin;
-         if (_do_timing)
-            time_lazysp_begin = boost::chrono::high_resolution_clock::now();
-         
-         if (num_batches < _roadmap->num_batches_generated)
+         if (_solve_all)
          {
-            filter_num_batches filter(get(&EProps::batch,g), num_batches);
-            boost::filtered_graph<Graph,filter_num_batches> fg(g, filter);
-            success = do_lazysp_a(fg, epath);
+            // note, this will solve only core vertices
+            // even though we're applied
+            // because we're guaranteed to have no roots!
+            
+            OMPL_INFORM("Evaluating all %lu vertices and %lu edges...",
+               num_vertices(eig), num_edges(eig));
+
+            // evaluate all vertices first
+            OMPL_INFORM("Evaluating vertices ...");
+            VertexIter vi, vi_end;
+            for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+            {
+               if (!g[*vi].state)
+                  continue;
+               while (!_utility_checker->isKnown(g[*vi].tag))
+                  _utility_checker->isValidPartialEval(g[*vi].tag, g[*vi].state);
+            }
+            
+            OMPL_INFORM("Evaluating edges ...");
+            unsigned int count = 0;
+            EdgeIter ei, ei_end;
+            for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
+            {
+               if (count % 100 == 0)
+                  OMPL_INFORM("Calculating edge [%u] of %lu ...", count, num_edges(eig));
+               while (!isevaledmap_get(*ei))
+                  wmap_get(*ei);
+               count++;
+            }
          }
          else
          {
-            success = do_lazysp_a(g, epath);
+            OMPL_INFORM("Running LazySP over %lu vertices and %lu edges...",
+               num_vertices(eig), num_edges(eig));
+            
+            boost::chrono::high_resolution_clock::time_point time_lazysp_begin;
+            if (_do_timing)
+               time_lazysp_begin = boost::chrono::high_resolution_clock::now();
+            
+            if (num_batches < _roadmap->num_batches_generated)
+            {
+               filter_num_batches filter(get(&EProps::batch,g), num_batches);
+               boost::filtered_graph<Graph,filter_num_batches> fg(g, filter);
+               do_return_solution = do_lazysp_a(fg, epath);
+            }
+            else
+            {
+               do_return_solution = do_lazysp_a(g, epath);
+            }
+            
+            if (_do_timing)
+               _dur_lazysp += boost::chrono::high_resolution_clock::now() - time_lazysp_begin;
          }
-         
-         if (_do_timing)
-            _dur_lazysp += boost::chrono::high_resolution_clock::now() - time_lazysp_begin;
-         
-         if (success)
+            
+         if (do_return_solution)
          {
             /* create the path */
             ompl::geometric::PathGeometric * path
@@ -1395,7 +1453,7 @@ ompl_lemur::LEMUR::solve(
          
          overlay_unapply();
          
-         if (success)
+         if (do_return_solution)
          {
             ret = ompl::base::PlannerStatus::EXACT_SOLUTION;
             break;
@@ -1544,31 +1602,6 @@ ompl_lemur::LEMUR::solve(
       _dur_total = boost::chrono::high_resolution_clock::now() - time_total_begin;
 
    return ret;
-}
-
-// solves only core vertices
-void ompl_lemur::LEMUR::solveAll()
-{
-   if (!pdef_)
-      throw std::runtime_error("no problem definition set!");
-   
-   // evaluate all vertices first
-   OMPL_INFORM("solve_all() evaluating vertices ...");
-   VertexIter vi, vi_end;
-   for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
-      while (!_utility_checker->isKnown(g[*vi].tag))
-         _utility_checker->isValidPartialEval(g[*vi].tag, g[*vi].state);
-   
-   OMPL_INFORM("solve_all() evaluating edges ...");
-   unsigned int count = 0;
-   EdgeIter ei, ei_end;
-   for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
-   {
-      OMPL_INFORM("calculating edge %u/%lu ...", count, num_edges(eig));
-      while (!isevaledmap_get(*ei))
-         wmap_get(*ei);
-      count++;
-   }
 }
 
 void ompl_lemur::LEMUR::dump_graph(std::ostream & os_graph)

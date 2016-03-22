@@ -509,7 +509,9 @@ or_lemur::FamilyModule::GetSetFromHeader(std::string set_header)
    ss >> str;
    if (str != _id)
    {
-      RAVELOG_ERROR("Family id mismatch!\n");
+      RAVELOG_ERROR("Family id mismatch:\n");
+      RAVELOG_ERROR("  family has id: \"%s\"\n", _id.c_str());
+      RAVELOG_ERROR("  header has id: \"%s\"\n", str.c_str());
       return or_lemur::FamilyModule::SetPtr();
    }
    

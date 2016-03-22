@@ -63,8 +63,8 @@ public:
    bool has_eval_type;
    std::string eval_type;
    
-   bool has_do_solve_all;
-   bool do_solve_all;
+   bool has_solve_all;
+   bool solve_all;
    
    LEMURParameters():
       has_roadmap_type(false),
@@ -83,7 +83,7 @@ public:
       has_time_limit(false),
       has_search_type(false),
       has_eval_type(false),
-      has_do_solve_all(false)
+      has_solve_all(false)
    {
       // top-level tags we can process
       _vXMLParameters.push_back("roadmap_type");
@@ -103,7 +103,7 @@ public:
       _vXMLParameters.push_back("time_limit");
       _vXMLParameters.push_back("search_type");
       _vXMLParameters.push_back("eval_type");
-      _vXMLParameters.push_back("do_solve_all");
+      _vXMLParameters.push_back("solve_all");
    }
    
 private:
@@ -152,8 +152,8 @@ protected:
          sout << "<search_type>" << search_type << "</search_type>";
       if (has_eval_type)
          sout << "<eval_type>" << eval_type << "</eval_type>";
-      if (has_do_solve_all)
-         sout << "<do_solve_all>" << (do_solve_all?"true":"false") << "</do_solve_all>";
+      if (has_solve_all)
+         sout << "<solve_all>" << (solve_all?"true":"false") << "</solve_all>";
       return !!sout;
    }
    
@@ -184,7 +184,7 @@ protected:
          || name == "time_limit"
          || name == "search_type"
          || name == "eval_type"
-         || name == "do_solve_all")
+         || name == "solve_all")
       {
          lemur_deserializing = name;
          _ss.str("");
@@ -301,13 +301,13 @@ protected:
             eval_type = _ss.str();
             has_eval_type = true;
          }
-         if (lemur_deserializing == "do_solve_all")
+         if (lemur_deserializing == "solve_all")
          {
             std::ios state(0);
             state.copyfmt(_ss);
-            _ss >> std::boolalpha >> do_solve_all;
+            _ss >> std::boolalpha >> solve_all;
             _ss.copyfmt(state);
-            has_do_solve_all = true;
+            has_solve_all = true;
          }
       }
       else

@@ -186,16 +186,12 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
       ompl_planner->setNumBatchesInit(params->num_batches_init);
    if (params->has_max_batches)
       ompl_planner->setMaxBatches(params->max_batches);
+   if (params->has_solve_all)
+      ompl_planner->setSolveAll(params->solve_all);
    if (params->has_search_type)
       ompl_planner->setSearchType(params->search_type);
    if (params->has_eval_type)
       ompl_planner->setEvalType(params->eval_type);
-   
-   if (params->has_do_solve_all && params->do_solve_all)
-   {
-      RAVELOG_ERROR("or_lemur::LEMUR does not yet support do_solve_all!\n");
-      return false;
-   }
    
    // force reeval of wlazy
    ompl_binary_checker->_has_changed = true;
@@ -276,6 +272,13 @@ or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    }
    
    if (ompl_status != ompl::base::PlannerStatus::EXACT_SOLUTION) return OpenRAVE::PS_Failed;
+   
+   if (params->has_solve_all && params->solve_all)
+   {
+      if (traj)
+         traj->Init(robot->GetActiveConfigurationSpecification()); // reset traj
+      return OpenRAVE::PS_HasSolution;
+   }
    
    // convert result
    // (if the planner exited with an exact empty solution, then it's done!)

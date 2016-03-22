@@ -206,6 +206,8 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
             
             // retrieve the set from the family by header
             set_cache.set = mod_family->GetSetFromHeader(set_cache.set_header);
+            if (!set_cache.set)
+               return false;
             
             if (set_cache.name != "")
             {
@@ -415,6 +417,8 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       _current_family->ompl_lemur->setNumBatchesInit(params->num_batches_init);
    if (params->has_max_batches)
       _current_family->ompl_lemur->setMaxBatches(params->max_batches);
+   if (params->has_solve_all)
+      _current_family->ompl_lemur->setSolveAll(params->solve_all);
    if (params->has_search_type)
       _current_family->ompl_lemur->setSearchType(params->search_type);
    if (params->has_eval_type)
@@ -427,20 +431,9 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
    // the user can either set initial/goal configs, OR do_solve_all
    ompl::base::ProblemDefinitionPtr ompl_pdef(
       new ompl::base::ProblemDefinition(_current_family->ompl_si));
-   if (params->has_do_solve_all && params->do_solve_all)
-   {
-      if (params->vinitialconfig.size() || params->vgoalconfig.size())
-      {
-         RAVELOG_ERROR("you can set either vinitialconfig/vgoalconfig or do_solve_all, but not both!\n");
-         return false;
-      }
-   }
-   else
-   {
-      bool success = ompl_set_roots(ompl_pdef, params);
-      if (!success)
-         return false;
-   }
+   bool success = ompl_set_roots(ompl_pdef, params);
+   if (!success)
+      return false;
    _current_family->ompl_lemur->setProblemDefinition(ompl_pdef);
    
    // now that a problem definition is set, we can trust the roadmap id!
@@ -549,14 +542,6 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       fam->ompl_lemur->os_alglog = &fp_alglog;
    }
    
-   if (fam->params_last->has_do_solve_all && fam->params_last->do_solve_all)
-   {
-      fam->ompl_lemur->solveAll();
-      fam->ompl_family_checker->stop_checking();
-      traj->Init(robot->GetActiveConfigurationSpecification()); // reset traj
-      return OpenRAVE::PS_HasSolution;
-   }
-   
    ompl::base::PlannerStatus ompl_status;
    ompl::base::PlannerTerminationCondition ptc(ompl::base::plannerNonTerminatingCondition());
    if (fam->params_last->has_time_limit)
@@ -598,6 +583,14 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    {
       fam->ompl_family_checker->stop_checking();
       return OpenRAVE::PS_Failed;
+   }
+   
+   if (fam->params_last->has_solve_all && fam->params_last->solve_all)
+   {
+      fam->ompl_family_checker->stop_checking();
+      if (traj)
+         traj->Init(robot->GetActiveConfigurationSpecification()); // reset traj
+      return OpenRAVE::PS_HasSolution;
    }
    
    // convert result

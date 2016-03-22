@@ -109,7 +109,6 @@ protected:
          return or_lemur::LEMURParameters::endElement(name);
       if (family_path == "family_module")
       {
-         printf("found family module!\n");
          family_module = _ss.str();
          has_family_module = true;
          family_path = "";

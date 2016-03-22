@@ -204,6 +204,8 @@ private:
    unsigned int _num_batches_init; // dont do a search on batches below this
    unsigned int _max_batches;
    
+   bool _solve_all;
+   
    enum
    {
       SEARCH_TYPE_DIJKSTRAS,
@@ -284,6 +286,9 @@ public:
    void setMaxBatches(unsigned int max_batches);
    unsigned int getMaxBatches() const;
    
+   void setSolveAll(bool solve_all);
+   bool getSolveAll() const;
+   
    void setSearchType(std::string search_type);
    std::string getSearchType() const;
    
@@ -301,9 +306,6 @@ public:
    
    // this fails if problem definition not set
    ompl::base::PlannerStatus solve(const ompl::base::PlannerTerminationCondition & ptc);
-   
-   // this fails if problem definition not set
-   void solveAll();
    
    void dump_graph(std::ostream & os_graph);
    
