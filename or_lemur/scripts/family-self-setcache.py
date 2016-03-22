@@ -28,17 +28,24 @@ parser = argparse.ArgumentParser(description='family self setcache')
 parser.add_argument('--robot-xml') # e.g. barrettwam.robot.xml
 parser.add_argument('--urdf') # can be package:// uri
 parser.add_argument('--srdf') # can be package:// uri
+parser.add_argument('--manip')
+parser.add_argument('--collision-checker')
 parser.add_argument('--roadmap-type', required=True)
 parser.add_argument('--roadmap-param', action='append') # values name=value
 parser.add_argument('--num-batches', type=int, required=True)
 parser.add_argument('--setcache', required=True)
-parser.add_argument('--manip')
 args = parser.parse_args()
 
+# load environment
 openravepy.RaveInitialize(True, level=openravepy.DebugLevel.Info)
 atexit.register(openravepy.RaveDestroy)
 env = openravepy.Environment()
 atexit.register(env.Destroy)
+
+# load collision checker
+if args.collision_checker is not None:
+   collision_checker = openravepy.RaveCreateCollisionChecker(env, args.collision_checker)
+   env.SetCollisionChecker(collision_checker)
 
 # load robot
 if args.robot_xml is not None:
@@ -50,9 +57,29 @@ elif args.urdf is not None and args.srdf is not None:
    fn_srdf = rr_get_filename(args.srdf)
    robot = env.GetRobot(or_urdf.SendCommand('load {} {}'.format(fn_urdf,fn_srdf)))
 
+# set manipulator / active dofs
 if args.manip is not None:
    robot.SetActiveManipulator(args.manip)
    robot.SetActiveDOFs(robot.GetActiveManipulator().GetArmIndices())
+
+# disable any link that moves due to non-active dofs
+print('Computing self-checked set cache for these links:')
+for linkindex,link in enumerate(robot.GetLinks()):
+   inactive_affected = False
+   for dofindex in range(robot.GetDOF()):
+      if dofindex in robot.GetActiveDOFIndices():
+         continue
+      joint = robot.GetJointFromDOFIndex(dofindex)
+      jointindex = robot.GetJoints().index(joint)
+      if robot.DoesAffect(jointindex, linkindex):
+         inactive_affected = True
+   if inactive_affected:
+      link.Enable(False)
+   else:
+      print('  [{}] {} ({} geoms)'.format(
+         linkindex, link.GetName(),
+         len(link.GetGeometries())))
+
 
 # create a family
 family = openravepy.RaveCreateModule(env, 'Family')
@@ -72,6 +99,7 @@ print(self_header, end='')
 # create a planner
 planner = openravepy.RaveCreatePlanner(env, 'FamilyPlanner')
 
+# create params
 params = openravepy.Planner.PlannerParameters()
 params.SetRobotActiveJoints(robot)
 params.SetInitialConfig([])
@@ -84,7 +112,7 @@ for kv in args.roadmap_param:
 paramsxml.append('<max_batches>{}</max_batches>'.format(args.num_batches))
 paramsxml.append('<solve_all>true</solve_all>')
 paramsxml.append('<family_module>{}</family_module>'.format(family.SendCommand('GetInstanceId')))
-paramsxml.append('<family_setcaches><setcache><filename>{}</filename></setcache></family_setcaches>'.format(args.setcache))
+paramsxml.append('<family_setcaches><setcache><name>Self</name><filename>{}</filename></setcache></family_setcaches>'.format(args.setcache))
 paramsstr = '\n'.join(paramsxml)
 print('Planner parameters:')
 print(paramsstr)
