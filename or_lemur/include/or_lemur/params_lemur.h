@@ -16,8 +16,6 @@ public:
    std::string roadmap_type;
    
    // key/value strings for roadmap (keys without roadmap. prefix)
-   // note there's a difference between no <roadmap> and an empty <roadmap>
-   bool has_roadmap_params;
    std::vector< std::pair<std::string,std::string> > roadmap_params;
    
    bool has_do_roadmap_save;
@@ -89,7 +87,7 @@ public:
    {
       // top-level tags we can process
       _vXMLParameters.push_back("roadmap_type");
-      _vXMLParameters.push_back("roadmap");
+      _vXMLParameters.push_back("roadmap_param");
       _vXMLParameters.push_back("do_roadmap_save");
       _vXMLParameters.push_back("num_batches_init");
       _vXMLParameters.push_back("alglog");
@@ -110,7 +108,6 @@ public:
    
 private:
    std::string lemur_deserializing;
-   std::string lemur_sub_deserializing;
    
 protected:
    bool serialize(std::ostream& sout, int options=0) const
@@ -119,17 +116,11 @@ protected:
          return false;
       if (has_roadmap_type)
          sout << "<roadmap_type>" << roadmap_type << "</roadmap_type>";
-      if (has_roadmap_params)
+      for (unsigned int ui=0; ui<roadmap_params.size(); ui++)
       {
-         sout << "<roadmap>";
-         for (unsigned int ui=0; ui<roadmap_params.size(); ui++)
-         {
-            sout
-               << "<" << roadmap_params[ui].first << ">"
-               << roadmap_params[ui].second
-               << "</" << roadmap_params[ui].first << ">";
-         }
-         sout << "</roadmap>";
+         sout << "<roadmap_param>"
+            << roadmap_params[ui].first << "=" << roadmap_params[ui].second
+            << "</roadmap_param>";
       }
       if (has_do_roadmap_save)
          sout << "<do_roadmap_save>" << (do_roadmap_save?"true":"false") << "</do_roadmap_save>";
@@ -170,23 +161,14 @@ protected:
       const std::string & name, const OpenRAVE::AttributesList & atts)
    {
       if (lemur_deserializing.size())
-      {
-         if (lemur_deserializing == "roadmap" && !lemur_sub_deserializing.size())
-         {
-            lemur_sub_deserializing = name;
-            _ss.str("");
-            return PE_Support;
-         }
-         RAVELOG_WARN("Ignoring unknown <%s> sub-tag <%s>!\n", lemur_deserializing.c_str(), name.c_str());
          return PE_Ignore;
-      }
       // ask base calss
       enum OpenRAVE::BaseXMLReader::ProcessElement base;
       base = OpenRAVE::PlannerBase::PlannerParameters::startElement(name,atts);
       if (base != PE_Pass) return base;
       // can we handle it?
       if (name == "roadmap_type"
-         || name == "roadmap"
+         || name == "roadmap_param"
          || name == "do_roadmap_save"
          || name == "num_batches_init"
          || name == "alglog"
@@ -215,25 +197,6 @@ protected:
    {
       if (!lemur_deserializing.size())
          return OpenRAVE::PlannerBase::PlannerParameters::endElement(name);
-      // are we concluding a sub-tag?
-      if (lemur_sub_deserializing.size())
-      {
-         if (name == lemur_sub_deserializing)
-         {
-            if (lemur_deserializing == "roadmap")
-            {
-               roadmap_params.push_back(std::make_pair(name,_ss.str()));
-            }
-         }
-         else
-         {
-            RAVELOG_WARN("Closing tag <%s> doesn't match opening tag <%s>!\n",
-               name.c_str(), lemur_sub_deserializing.c_str());
-         }
-         lemur_sub_deserializing.clear();
-         return false;
-      }
-      // ok, we must be concluding a tag
       if (name == lemur_deserializing)
       {
          if (lemur_deserializing == "roadmap_type")
@@ -241,9 +204,15 @@ protected:
             roadmap_type = _ss.str();
             has_roadmap_type = true;
          }
-         if (lemur_deserializing == "roadmap")
+         if (lemur_deserializing == "roadmap_param")
          {
-            has_roadmap_params = true;
+            std::string roadmap_param = _ss.str();
+            size_t eq = roadmap_param.find('=');
+            if (eq != roadmap_param.npos)
+               roadmap_params.push_back(std::make_pair(
+                  roadmap_param.substr(0,eq), roadmap_param.substr(eq+1)));
+            else
+               RAVELOG_WARN("no = found in roadmap_param!\n");
          }
          if (lemur_deserializing == "do_roadmap_save")
          {
