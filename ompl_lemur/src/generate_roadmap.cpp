@@ -1,4 +1,4 @@
-/*! \file generate_unit_roadmap.cpp
+/*! \file generate_roadmap.cpp
  * \author Chris Dellin <cdellin@gmail.com>
  * \copyright 2015 Carnegie Mellon University
  * \copyright License: BSD
@@ -81,8 +81,9 @@ int main(int argc, char **argv)
    boost::program_options::options_description desc("Allowed options");
    desc.add_options()
       ("help", "produce help message")
-      ("dim", boost::program_options::value<int>(), "unit hypercube dimension (e.g. 2)")
-      ("roadmap-type", boost::program_options::value<std::string>(), "(e.g. halton)")
+      ("dim", boost::program_options::value<int>(), "hypercube dimension (e.g. 2)")
+      ("bounds", boost::program_options::value< std::vector<std::string> >(), "(e.g. 0:-2:2)")
+      ("roadmap-type", boost::program_options::value<std::string>(), "(e.g. Halton)")
       ("roadmap-param", boost::program_options::value< std::vector<std::string> >(), "(e.g. num=30)")
       ("num-batches", boost::program_options::value<std::size_t>(), "number of batches (e.g. 1)")
       ("out-file", boost::program_options::value<std::string>(), "output file (can be - for stdout)")
@@ -93,21 +94,48 @@ int main(int argc, char **argv)
    boost::program_options::store(boost::program_options::parse_command_line(argc, argv, desc), args);
    boost::program_options::notify(args);    
 
-   if (args.count("help")
-      || args.count("dim") != 1
-      || args.count("roadmap-type") != 1
-      || args.count("num-batches") != 1
-      || args.count("out-file") != 1
-      || args.count("out-format") != 1)
+   if (args.count("help"))
    {
       std::cout << desc << std::endl;
-      return 1;
+      return 0;
+   }
+   
+   const char * reqs[] = {"dim", "roadmap-type", "num-batches", "out-file", "out-format"};
+   for (unsigned int ui=0; ui<sizeof(reqs)/sizeof(reqs[0]); ui++)
+   {
+      if (args.count(reqs[ui]) != 1)
+      {
+         OMPL_ERROR("--%s must be passed.", reqs[ui]);
+         return 1;
+      }
    }
    
    int dim = args["dim"].as<int>();
-   printf("creating unit ompl space of dimension %d ...\n", dim);
+   OMPL_INFORM("Creating unit ompl space of dimension %d ...", dim);
    ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(dim));
-   space->as<ompl::base::RealVectorStateSpace>()->setBounds(0.0, 1.0);
+   ompl::base::RealVectorBounds space_bounds(dim);
+   space_bounds.setLow(0.0);
+   space_bounds.setHigh(1.0);
+   
+   const std::vector<std::string> & bounds = args["bounds"].as< std::vector<std::string> >();
+   for (unsigned int ui=0; ui<bounds.size(); ui++)
+   {
+      int idof;
+      double lower;
+      double upper;
+      int n;
+      int ret;
+      ret = sscanf(bounds[ui].c_str(), "%d:%lf,%lf%n", &idof, &lower, &upper, &n);
+      if (ret != 3 || n != (int)bounds[ui].size() || idof<0 || dim<=idof)
+      {
+         OMPL_ERROR("--bounds %s not properly formatted.", bounds[ui].c_str());
+         return 1;
+      }
+      space_bounds.setLow(idof, lower);
+      space_bounds.setHigh(idof, upper);
+   }
+   
+   space->as<ompl::base::RealVectorStateSpace>()->setBounds(space_bounds);
    
    RoadmapPtr p_mygen;
    
@@ -128,25 +156,25 @@ int main(int argc, char **argv)
       eig.edge_vector_map,
       &nnlin);
    
-   if (args["roadmap-type"].as<std::string>() == "aa_grid")
+   if (args["roadmap-type"].as<std::string>() == "AAGrid")
       p_mygen.reset(new ompl_lemur::RoadmapAAGrid<RoadmapArgs>(rmargs));
-   else if (args["roadmap-type"].as<std::string>() == "from_file")
+   else if (args["roadmap-type"].as<std::string>() == "FromFile")
       p_mygen.reset(new ompl_lemur::RoadmapFromFile<RoadmapArgs>(rmargs));
-   else if (args["roadmap-type"].as<std::string>() == "rgg")
+   else if (args["roadmap-type"].as<std::string>() == "RGG")
       p_mygen.reset(new ompl_lemur::RoadmapRGG<RoadmapArgs>(rmargs));
-   else if (args["roadmap-type"].as<std::string>() == "rgg_dens")
+   else if (args["roadmap-type"].as<std::string>() == "RGGDens")
       p_mygen.reset(new ompl_lemur::RoadmapRGGDens<RoadmapArgs>(rmargs));
-   else if (args["roadmap-type"].as<std::string>() == "rgg_dens_const")
+   else if (args["roadmap-type"].as<std::string>() == "RGGDensConst")
       p_mygen.reset(new ompl_lemur::RoadmapRGGDensConst<RoadmapArgs>(rmargs));
-   else if (args["roadmap-type"].as<std::string>() == "halton")
+   else if (args["roadmap-type"].as<std::string>() == "Halton")
       p_mygen.reset(new ompl_lemur::RoadmapHalton<RoadmapArgs>(rmargs));
-   else if (args["roadmap-type"].as<std::string>() == "halton_dens")
+   else if (args["roadmap-type"].as<std::string>() == "HaltonDens")
       p_mygen.reset(new ompl_lemur::RoadmapHaltonDens<RoadmapArgs>(rmargs));
-   else if (args["roadmap-type"].as<std::string>() == "halton_off_dens")
+   else if (args["roadmap-type"].as<std::string>() == "HaltonOffDens")
       p_mygen.reset(new ompl_lemur::RoadmapHaltonOffDens<RoadmapArgs>(rmargs));
    else
    {
-      std::cout << "unknown roadmap type!" << std::endl;
+      OMPL_ERROR("--roadmap-type unknown!");
       return 1;
    }
    
@@ -156,14 +184,14 @@ int main(int argc, char **argv)
       size_t eq = params[ui].find('=');
       if (eq == params[ui].npos)
       {
-         std::cout << "param has bad format!" << std::endl;
+         OMPL_ERROR("--roadmap-param has bad format!");
          return 1;
       }
       p_mygen->params.setParam(params[ui].substr(0,eq), params[ui].substr(eq+1));
    }
    
    std::size_t num_batches = args["num-batches"].as<std::size_t>();
-   printf("generating %lu batches ...\n", num_batches);
+   OMPL_INFORM("Generating %lu batch%s ...", num_batches, num_batches==1?"":"es");
    
    p_mygen->initialize();
    while (p_mygen->num_batches_generated < num_batches)
@@ -171,6 +199,8 @@ int main(int argc, char **argv)
       // generate a graph
       p_mygen->generate();
    }
+   
+   OMPL_INFORM("Generated graph has %lu vertices and %lu edges.", num_vertices(g), num_edges(g));
    
    // write it out to file
    boost::dynamic_properties props;
@@ -197,6 +227,7 @@ int main(int argc, char **argv)
    std::string out_format = args["out-format"].as<std::string>();
    if (out_format == "graphio")
    {
+      OMPL_INFORM("Writing to graphio file ...");
       pr_bgl::write_graphio_graph(*outp, g,
          get(boost::vertex_index,g), get(&EdgeProperties::index,g));
       pr_bgl::write_graphio_properties(*outp, g,
@@ -205,10 +236,14 @@ int main(int argc, char **argv)
    }
    else if (out_format == "graphml")
    {
+      OMPL_INFORM("Writing to graphml file ...");
       boost::write_graphml(*outp, g, get(boost::vertex_index,g), props, true); // ordered_vertices
    }
    else
-      throw std::runtime_error("out format must be graphio or graphml!");
+   {
+      OMPL_ERROR("--out-format must be graphio or graphml!");
+      return 1;
+   }
    
    if (fp.is_open())
       fp.close();

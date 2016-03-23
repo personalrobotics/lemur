@@ -37,8 +37,8 @@ add_library(${PROJECT_NAME}
    src/util.cpp
    src/UtilityChecker.cpp)
 
-add_executable(generate-unit-roadmap src/generate_unit_roadmap.cpp)
-target_link_libraries(generate-unit-roadmap ${PROJECT_NAME})
+add_executable(generate-roadmap src/generate_roadmap.cpp)
+target_link_libraries(generate-roadmap ${PROJECT_NAME})
 
 add_executable(test_graph_overlay src/test_graph_overlay.cpp)
 target_link_libraries(test_graph_overlay ${PROJECT_NAME})
