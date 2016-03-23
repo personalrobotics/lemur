@@ -65,6 +65,18 @@ inline void stringify_to_x(const std::string & repr, int & val)
 }
 
 
+inline void stringify_from_x(std::string & repr, const long unsigned int & val)
+{
+   char buf[2048];
+   sprintf(buf, "%lu", val);
+   repr = std::string(buf);
+}
+inline void stringify_to_x(const std::string & repr, long unsigned int & val)
+{
+   val = atoi(repr.c_str());
+}
+
+
 inline void stringify_from_x(std::string & repr, const bool & val)
 {
    if (val)

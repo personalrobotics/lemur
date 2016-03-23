@@ -26,6 +26,7 @@
 #include <ompl/datastructures/NearestNeighbors.h>
 
 #include <pr_bgl/compose_property_map.hpp>
+#include <pr_bgl/vector_ref_property_map.h>
 #include <pr_bgl/edge_indexed_graph.h>
 #include <pr_bgl/overlay_manager.h>
 #include <pr_bgl/string_map.h>

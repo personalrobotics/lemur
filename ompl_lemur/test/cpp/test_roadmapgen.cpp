@@ -16,6 +16,7 @@
 
 #include <pr_bgl/graph_io.h>
 #include <pr_bgl/string_map.h>
+#include <pr_bgl/vector_ref_property_map.h>
 #include <pr_bgl/edge_indexed_graph.h>
 
 #include <ompl_lemur/util.h>
@@ -51,7 +52,6 @@ typedef boost::graph_traits<Graph>::edge_descriptor Edge;
 
 typedef boost::property_map<Graph, boost::vertex_index_t>::type VertexIndexMap;
 typedef boost::property_map<Graph, std::size_t EdgeProperties::*>::type EdgeIndexMap;
-typedef boost::vector_property_map<Edge> EdgeVectorMap;
 
 typedef boost::property_map<Graph, ompl::base::State * VertexProperties::*>::type StateMap;
 typedef boost::property_map<Graph, int VertexProperties::*>::type VertexBatchMap;
@@ -61,7 +61,7 @@ typedef boost::property_map<Graph, double EdgeProperties::*>::type DistanceMap;
 
 typedef pr_bgl::edge_indexed_graph<Graph, EdgeIndexMap> EdgeIndexedGraph;
 typedef ompl_lemur::NearestNeighborsLinearBGL<EdgeIndexedGraph,StateMap> NN;
-typedef ompl_lemur::RoadmapArgs<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,EdgeVectorMap,NN> RoadmapArgs;
+typedef ompl_lemur::RoadmapArgs<EdgeIndexedGraph,StateMap,DistanceMap,VertexBatchMap,EdgeBatchMap,IsShadowMap,EdgeIndexedGraph::EdgeVectorMap,NN> RoadmapArgs;
 typedef boost::shared_ptr< ompl_lemur::RoadmapRGG<RoadmapArgs> > RoadmapPtr;
 
 

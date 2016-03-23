@@ -26,26 +26,24 @@ public:
    typedef typename boost::graph_traits<Graph>::out_edge_iterator out_edge_iterator;
    typedef typename boost::graph_traits<Graph>::in_edge_iterator in_edge_iterator;
    typedef typename boost::graph_traits<Graph>::vertex_iterator vertex_iterator;
-   typedef typename boost::graph_traits<Graph>::edge_iterator edge_iterator;
    typedef typename boost::graph_traits<Graph>::directed_category directed_category;
    typedef typename boost::graph_traits<Graph>::edge_parallel_category edge_parallel_category;
    typedef typename boost::graph_traits<Graph>::traversal_category traversal_category;
    typedef typename boost::graph_traits<Graph>::vertices_size_type vertices_size_type;
    typedef typename boost::graph_traits<Graph>::edges_size_type edges_size_type;
    typedef typename boost::graph_traits<Graph>::degree_size_type degree_size_type;
+   typedef typename std::vector<edge_descriptor>::const_iterator edge_iterator;
+   typedef vector_ref_property_map<edge_descriptor> EdgeVectorMap;
    
-   typedef typename boost::vector_property_map<edge_descriptor> EdgeVectorMap;
-
    Graph & m_g;
-   size_t edge_count;
    EdgeIndexMap edge_index_map;
+   std::vector<edge_descriptor> edge_vector;
    EdgeVectorMap edge_vector_map;
    
    edge_indexed_graph(Graph & g, EdgeIndexMap edge_index_map):
       m_g(g),
-      edge_count(0),
       edge_index_map(edge_index_map),
-      edge_vector_map(0)
+      edge_vector_map(edge_vector)
    {
       BOOST_ASSERT(num_edges(g) == 0);
    }
@@ -67,8 +65,7 @@ template <class Graph, class EdgeIndexMap>
 inline typename boost::graph_traits<Graph>::edges_size_type
 num_edges(const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
-   //return num_edges(g.m_g);
-   return g.edge_count;
+   return g.edge_vector.size();
 }
 
 template <class Graph, class EdgeIndexMap>
@@ -86,10 +83,10 @@ vertices(const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 }
 
 template <class Graph, class EdgeIndexMap>
-inline std::pair<typename boost::graph_traits<Graph>::edge_iterator, typename boost::graph_traits<Graph>::edge_iterator>
+inline std::pair<typename edge_indexed_graph<Graph,EdgeIndexMap>::edge_iterator, typename edge_indexed_graph<Graph,EdgeIndexMap>::edge_iterator>
 edges(const edge_indexed_graph<Graph,EdgeIndexMap> & g)
 {
-   return edges(g.m_g);
+   return std::make_pair(g.edge_vector.begin(), g.edge_vector.end());
 }
 
 template <class Graph, class EdgeIndexMap>
@@ -124,9 +121,8 @@ add_edge(
       res = add_edge(u, v, g.m_g);
    if (res.second)
    {
-      put(g.edge_index_map, res.first, g.edge_count);
-      put(g.edge_vector_map, g.edge_count, res.first);
-      g.edge_count++;
+      put(g.edge_index_map, res.first, g.edge_vector.size());
+      g.edge_vector.push_back(res.first);
    }
    return res;
 }
@@ -153,8 +149,8 @@ remove_edge(
    // leave edge_vector_map alone
    // (indices bigger than num_edges()-1
    //  will just map to bogus edge descriptors)
+   g.edge_vector.pop_back();
    remove_edge(e, g.m_g);
-   g.edge_count--;
 }
 
 } // namespace pr_bgl
