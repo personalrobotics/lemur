@@ -20,3 +20,12 @@ CachedHaltonOffDens = nt('CachedHaltonOffDens', HaltonOffDens._fields)
 CachedRGG = nt('CachedRGG', RGG._fields)
 CachedRGGDens = nt('CachedRGGDens', RGGDens._fields)
 CachedRGGDensConst = nt('CachedRGGDensConst', RGGDensConst._fields)
+
+def get_roadmap_id(roadmap):
+   roadmap_type = type(roadmap).__name__
+   if roadmap_type.startswith('Cached'):
+      roadmap_type = roadmap_type[6:]
+   roadmap_id = roadmap_type
+   for k,v in sorted(roadmap._asdict().items()):
+      roadmap_id += ',{}'.format(v)
+   return roadmap_id

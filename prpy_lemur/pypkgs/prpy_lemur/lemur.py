@@ -5,12 +5,11 @@ from __future__ import division
 import collections
 import openravepy
 import prpy.planning.base
-import prpy_lemur.roadmaps
 
 class LEMURPlanner(prpy.planning.base.BasePlanner):
    
    # params can be passed by name to constructor or planning methods
-   LEMURParams = collections.namedtuple('LEMURParams',
+   Params = collections.namedtuple('LEMURParams',
       ['roadmap', 'check_cost', 'search_type', 'num_batches_init', 'max_batches'])
    
    def __init__(self, **kw_args):
@@ -20,21 +19,14 @@ class LEMURPlanner(prpy.planning.base.BasePlanner):
       if self.planner is None:
          raise prpy.planning.base.UnsupportedPlanningError('Unable to create LEMUR planner.')
       
-      P = LEMURPlanner.LEMURParams
-      self.defaults = P(*[None for f in P._fields])._replace(**kw_args)
+      Params = type(self).Params
+      self.defaults = Params(*[None for f in Params._fields])._replace(**kw_args)
       
    def __str__(self):
       return 'LEMUR'
    
-   @prpy.planning.base.PlanningMethod
-   def PlanToConfiguration(self, robot, q_goal, **kw_args):
-      
-      params = self.defaults._replace(**kw_args)
-      
-      # serialize parameters
-      orparams = openravepy.Planner.PlannerParameters()
-      orparams.SetRobotActiveJoints(robot)
-      orparams.SetGoalConfig(q_goal)
+   @staticmethod
+   def xml_from_params(params):
       xml = list()
       for k,v in params._asdict().items():
          if v is None:
@@ -45,6 +37,18 @@ class LEMURPlanner(prpy.planning.base.BasePlanner):
                xml.append('<roadmap_param>{k}={v}</roadmap_param>'.format(k=k,v=v))
          else:
             xml.append('<{k}>{v}</{k}>'.format(k=k,v=v))
+      return xml
+   
+   @prpy.planning.base.PlanningMethod
+   def PlanToConfiguration(self, robot, q_goal, **kw_args):
+      
+      params = self.defaults._replace(**kw_args)
+      
+      # serialize parameters
+      orparams = openravepy.Planner.PlannerParameters()
+      orparams.SetRobotActiveJoints(robot)
+      orparams.SetGoalConfig(q_goal)
+      xml = self.xml_from_params(params)
       orparams.SetExtraParameters('\n'.join(xml))
       self.planner.InitPlan(robot, orparams)
       

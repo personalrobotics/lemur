@@ -1,1 +1,2 @@
 from lemur import LEMURPlanner
+from lemur_selfcached import LEMURSelfCachedPlanner
