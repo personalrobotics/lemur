@@ -1881,14 +1881,12 @@ bool ompl_lemur::LEMUR::isevaledmap_get(const Edge & e)
    Vertex vb = target(e, g);
    if (g[vb].state && !_utility_checker->isKnown(g[vb].tag))
       return false;
-   if (g[e].num_edge_states != g[e].edge_states.size())
-      return false;
 #if 0
    for (unsigned int ui=0; ui<g[e].edge_tags.size(); ui++)
       if (!_utility_checker->isKnown(g[e].edge_tags[ui]))
          return false;
 #endif
-   if (g[e].edge_states.size() && !_utility_checker->isKnown(g[e].edge_tag))
+   if (g[e].num_edge_states && !_utility_checker->isKnown(g[e].edge_tag))
       return false;
    return true;
 }
