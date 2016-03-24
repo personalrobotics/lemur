@@ -23,6 +23,7 @@ or_lemur::FamilyModule::FamilyModule(OpenRAVE::EnvironmentBasePtr penv):
    OpenRAVE::ModuleBase(penv), _initialized(false)
 {
    RegisterCommand("GetInstanceId",boost::bind(&or_lemur::FamilyModule::CmdGetInstanceId,this,_1,_2),"GetInstanceId");
+   RegisterCommand("GetFamilyId",boost::bind(&or_lemur::FamilyModule::CmdGetFamilyId,this,_1,_2),"GetFamilyId");
    RegisterCommand("Let",boost::bind(&or_lemur::FamilyModule::CmdLet,this,_1,_2),"Let");
    RegisterCommand("NamesOf",boost::bind(&or_lemur::FamilyModule::CmdNamesOf,this,_1,_2),"NamesOf");
    RegisterCommand("PrintCurrentFamily",boost::bind(&or_lemur::FamilyModule::CmdPrintCurrentFamily,this,_1,_2),"PrintCurrentFamily");
@@ -101,11 +102,11 @@ int or_lemur::FamilyModule::main(const std::string & cmd)
    {
       std::stringstream ss;
       robot->serialize(ss, OpenRAVE::SO_Kinematics);
-      id += "family-" + OpenRAVE::utils::GetMD5HashString(ss.str());
+      id += OpenRAVE::utils::GetMD5HashString(ss.str());
    }
    // serialize active dofs
    for (unsigned int ui=0; ui<active_dofs.size(); ui++)
-      id += ompl_lemur::util::sf("-%d", active_dofs[ui]);
+      id += ompl_lemur::util::sf(",%d", active_dofs[ui]);
    
    RAVELOG_INFO("Family id: \"%s\".\n", id.c_str());
    
@@ -159,6 +160,12 @@ int or_lemur::FamilyModule::main(const std::string & cmd)
 
 void or_lemur::FamilyModule::Destroy()
 {
+}
+
+
+std::string or_lemur::FamilyModule::GetFamilyId()
+{
+   return _id;
 }
 
 
@@ -858,6 +865,13 @@ or_lemur::FamilyModule::GetCanonicalNames(const Family & family)
 bool or_lemur::FamilyModule::CmdGetInstanceId(std::ostream & soutput, std::istream & sinput)
 {
    soutput << GetInstanceId();
+   return true;
+}
+
+
+bool or_lemur::FamilyModule::CmdGetFamilyId(std::ostream & soutput, std::istream & sinput)
+{
+   soutput << GetFamilyId();
    return true;
 }
 

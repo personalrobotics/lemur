@@ -56,6 +56,8 @@ public:
    int main(const std::string & cmd);
    void Destroy();
    
+   std::string GetFamilyId();
+   
    // note: these will generate the new set and put it in _sets_all,
    // but it's unnamed, so on next cleanup() it will be removed
    // if the pointer is destroyed
@@ -89,6 +91,8 @@ public:
    std::map<SetPtr,std::string> GetCanonicalNames(const Family & family);
 
    bool CmdGetInstanceId(std::ostream & soutput, std::istream & sinput);
+   
+   bool CmdGetFamilyId(std::ostream & soutput, std::istream & sinput);
 
    // assignment statement
    // Let A = $live
