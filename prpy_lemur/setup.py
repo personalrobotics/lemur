@@ -3,7 +3,7 @@
 from distutils.core import setup
 from catkin_pkg.python_setup import generate_distutils_setup
 d = generate_distutils_setup(
-   packages=['prpy_lemur'],
-   package_dir={'': 'src'}
+   package_dir={'': 'pypkgs'},
+   packages=['prpy_lemur']
 )
 setup(**d)
