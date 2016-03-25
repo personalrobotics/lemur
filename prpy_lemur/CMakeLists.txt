@@ -9,8 +9,6 @@ catkin_package()
 
 if (CATKIN_ENABLE_TESTING)
 
-   #catkin_add_nosetests(test/hashes.py)
-   
    catkin_add_nosetests(test/wam7.py)
 
 endif ()
