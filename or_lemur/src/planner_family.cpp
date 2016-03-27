@@ -659,14 +659,14 @@ bool or_lemur::FamilyPlanner::CmdGetTimes(std::ostream & sout, std::istream & si
       }
    }
 #endif
-   sout << " e8_dur_total " << fam->ompl_lemur->getDurTotal();
-   sout << " e8_dur_roadmapgen " <<  fam->ompl_lemur->getDurRoadmapGen();
-   sout << " e8_dur_roadmapinit " <<  fam->ompl_lemur->getDurRoadmapInit();
-   sout << " e8_dur_lazysp " <<  fam->ompl_lemur->getDurLazySP();
-   sout << " e8_dur_search " <<  fam->ompl_lemur->getDurSearch();
-   sout << " e8_dur_eval " <<  fam->ompl_lemur->getDurEval();
-   sout << " e8_dur_selector_init " <<  fam->ompl_lemur->getDurSelectorInit();
-   sout << " e8_dur_selector " <<  fam->ompl_lemur->getDurSelector();
-   sout << " e8_dur_selector_notify " <<  fam->ompl_lemur->getDurSelectorNotify();
+   sout << " dur_total " << fam->ompl_lemur->getDurTotal();
+   sout << " dur_roadmapgen " <<  fam->ompl_lemur->getDurRoadmapGen();
+   sout << " dur_roadmapinit " <<  fam->ompl_lemur->getDurRoadmapInit();
+   sout << " dur_lazysp " <<  fam->ompl_lemur->getDurLazySP();
+   sout << " dur_search " <<  fam->ompl_lemur->getDurSearch();
+   sout << " dur_eval " <<  fam->ompl_lemur->getDurEval();
+   sout << " dur_selector_init " <<  fam->ompl_lemur->getDurSelectorInit();
+   sout << " dur_selector " <<  fam->ompl_lemur->getDurSelector();
+   sout << " dur_selector_notify " <<  fam->ompl_lemur->getDurSelectorNotify();
    return true;
 }

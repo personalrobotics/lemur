@@ -125,7 +125,7 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
    else
    {
       check_cost = ompl_space->getLongestValidSegmentLength();
-      printf("using simple effort model with default check_cost=%f\n", check_cost);
+      RAVELOG_INFO("Using simple effort model with default check_cost=%f.\n", check_cost);
    }
    ompl_binary_checker.reset(new ompl_lemur::BinaryUtilityChecker(ompl_si, ompl_checker, check_cost));
    ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_binary_checker));
@@ -216,8 +216,6 @@ or_lemur::LEMUR::GetParameters() const
 OpenRAVE::PlannerStatus
 or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
 {
-   printf("planning ...\n");
-   
    ompl_checker->num_checks = 0;
    ompl_checker->dur_checks = boost::chrono::high_resolution_clock::duration();
    
@@ -240,7 +238,6 @@ or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    if (params->has_time_limit)
       ptc = ompl::base::timedPlannerTerminationCondition(params->time_limit);
    ompl_status = ompl_planner->solve(ptc);
-   printf("planner returned: %s\n", ompl_status.asString().c_str());
    
    if (params->has_do_roadmap_save && params->do_roadmap_save)
    {
@@ -248,7 +245,7 @@ or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
          = boost::dynamic_pointer_cast< const or_lemur::RoadmapCached<ompl_lemur::LEMUR::RoadmapArgs> >(ompl_planner->getRoadmap());
       if (cached_roadmap)
       {
-         printf("saving cached roadmap ...\n");
+         RAVELOG_INFO("Saving cached roadmap ...\n");
          cached_roadmap->save_file();
       }
       else
@@ -305,14 +302,14 @@ bool or_lemur::LEMUR::GetTimes(std::ostream & sout, std::istream & sin) const
    sout << "checktime " << boost::chrono::duration<double>(ompl_checker->dur_checks).count();
    sout << " totaltime " << 0.0;
    sout << " n_checks " << ompl_checker->num_checks;
-   sout << " e8_dur_total " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurTotal();
-   sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapGen();
-   sout << " e8_dur_roadmapinit " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapInit();
-   sout << " e8_dur_lazysp " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurLazySP();
-   sout << " e8_dur_search " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSearch();
-   sout << " e8_dur_eval " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurEval();
-   sout << " e8_dur_selector_init " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorInit();
-   sout << " e8_dur_selector " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelector();
-   sout << " e8_dur_selector_notify " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorNotify();
+   sout << " dur_total " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurTotal();
+   sout << " dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapGen();
+   sout << " dur_roadmapinit " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurRoadmapInit();
+   sout << " dur_lazysp " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurLazySP();
+   sout << " dur_search " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSearch();
+   sout << " dur_eval " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurEval();
+   sout << " dur_selector_init " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorInit();
+   sout << " dur_selector " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelector();
+   sout << " dur_selector_notify " <<  ompl_planner->as<ompl_lemur::LEMUR>()->getDurSelectorNotify();
    return true;
 }

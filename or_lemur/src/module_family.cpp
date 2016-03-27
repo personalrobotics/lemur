@@ -821,6 +821,10 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
          baked_checker = 0;
       }
    }
+   if (baker && baked_checker)
+      RAVELOG_INFO("Found baking collision checker interface.\n");
+   else
+      RAVELOG_WARN("No baking collision checker interface found.\n");
 
    // get live checks
    std::map<PosedLink *, OpenRAVE::KinBody::LinkPtr> livelinks = live_links();
