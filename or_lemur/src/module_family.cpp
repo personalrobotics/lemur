@@ -799,6 +799,29 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
       throw OpenRAVE::openrave_exception("Robot not found");
    }
    
+   // check whether the collision checker supports baked checks
+   boost::function< boost::shared_ptr<void> (const std::set< std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr> > &)> * baker = 0;
+   boost::function< bool (boost::shared_ptr<void>, OpenRAVE::CollisionReportPtr)> * baked_checker = 0;
+   {
+      OpenRAVE::CollisionCheckerBasePtr cc = GetEnv()->GetCollisionChecker();
+      std::stringstream sinput;
+      std::stringstream soutput;
+      sinput << "GetBakerFunctions";
+      try
+      {
+         if (cc->SendCommand(soutput, sinput))
+         {
+            soutput >> (void *&)baker;
+            soutput >> (void *&)baked_checker;
+         }
+      }
+      catch (const OpenRAVE::openrave_exception & exc)
+      {
+         baker = 0;
+         baked_checker = 0;
+      }
+   }
+
    // get live checks
    std::map<PosedLink *, OpenRAVE::KinBody::LinkPtr> livelinks = live_links();
    
@@ -810,7 +833,7 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
       const SetPtr & set = (*sit);
       
       // iterate over set's checks
-      std::set< std::pair<OpenRAVE::KinBody::LinkPtr, OpenRAVE::KinBody::LinkPtr> > pairs;
+      std::set< std::pair<OpenRAVE::KinBody::LinkConstPtr, OpenRAVE::KinBody::LinkConstPtr> > pairs;
       std::set<Check>::iterator cit;
       for (cit=set->checks.begin(); cit!=set->checks.end(); cit++)
       {
@@ -826,12 +849,22 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
       if (cit!=set->checks.end()) // failed to find some checks
       {
          indicators.insert(std::make_pair(set, std::make_pair(
-            std::numeric_limits<double>::infinity(), (Indicator)0)));
+            std::numeric_limits<double>::infinity(), or_lemur::AbortingIndicator())));
       }
       else // all found!
       {
-         indicators.insert(std::make_pair(set, std::make_pair(
-            1.0+pairs.size(), or_lemur::AllPairsIndicator(robot,pairs))));
+         if (baker && baked_checker)
+         {
+            boost::shared_ptr<void> baked_check = (*baker)(pairs);
+            
+            indicators.insert(std::make_pair(set, std::make_pair(
+               1.0+pairs.size(), or_lemur::BakedCheckIndicator(robot, *baked_checker, baked_check))));
+         }
+         else
+         {
+            indicators.insert(std::make_pair(set, std::make_pair(
+               1.0+pairs.size(), or_lemur::AllPairsIndicator(robot, pairs))));
+         }
       }
    }
    
