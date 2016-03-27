@@ -98,7 +98,7 @@ public:
          ompl_lemur::FamilyUtilityChecker::OutEdgeIter ei, ei_end;
          for (boost::tie(ei,ei_end)=out_edges(vtag,_checker->_g); ei!=ei_end; ++ei)
          {
-            if (_checker->_g[*ei].var != tag)
+            if (_checker->_g[*ei].var != newset.var)
                continue;
             size_t tag_result = target(*ei, _checker->_g);
             if (_checker->_g[*ei].value)
