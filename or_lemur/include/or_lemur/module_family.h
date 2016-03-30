@@ -24,6 +24,12 @@ namespace or_lemur
  * a family is a set of sets
  * bound to a particular robot (for now)
  * 
+ * NOTE: The current set includes all robot self and environment
+ * inter-link collisions, with the following known differences:
+ * - Initially colliding links of the grabber (with the grabbee)
+ *   are not ignored.
+ * - Pairs are only checked if they traverse a joint which contains
+ *   an active DOF.
  */
 class FamilyModule : public OpenRAVE::ModuleBase
 {
