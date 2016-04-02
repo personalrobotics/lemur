@@ -72,7 +72,7 @@ public:
       // compute the cache filename for this wrapped roadmap
       std::string id = "space_id " + ompl_lemur::space_id(this->space)
          + " roadmap_id " + ompl_lemur::roadmap_id(_roadmap_wrapped.get());
-      _cache_filename = "e8/roadmap-" + OpenRAVE::utils::GetMD5HashString(id) + ".bin";
+      _cache_filename = "or_lemur/roadmap-" + OpenRAVE::utils::GetMD5HashString(id) + ".bin";
             
       _infile_num_batches = 0; // assume read failure
       do

@@ -351,12 +351,12 @@ public:
    typedef LEMUR::Edge key_type;
    typedef bool value_type;
    typedef bool reference;
-   LEMUR & e8_roadmap;
-   IsEvaledMap(LEMUR & e8_roadmap): e8_roadmap(e8_roadmap) {}
+   LEMUR & lemur;
+   IsEvaledMap(LEMUR & lemur): lemur(lemur) {}
 };
 inline const double get(const IsEvaledMap & isevaledmap, const LEMUR::Edge & e)
 {
-   return isevaledmap.e8_roadmap.isevaledmap_get(e);
+   return isevaledmap.lemur.isevaledmap_get(e);
 }
 
 // helper property map which delegates to FamilyPlanner::wmap_get()
@@ -367,12 +367,12 @@ public:
    typedef LEMUR::Edge key_type;
    typedef double value_type;
    typedef double reference;
-   LEMUR & e8_roadmap;
-   WMap(LEMUR & e8_roadmap): e8_roadmap(e8_roadmap) {}
+   LEMUR & lemur;
+   WMap(LEMUR & lemur): lemur(lemur) {}
 };
 inline const double get(const WMap & wmap, const LEMUR::Edge & e)
 {
-   return wmap.e8_roadmap.wmap_get(e);
+   return wmap.lemur.wmap_get(e);
 }
 
 } // namespace ompl_lemur

@@ -61,7 +61,7 @@
 or_lemur::LEMUR::LEMUR(OpenRAVE::EnvironmentBasePtr env):
    OpenRAVE::PlannerBase(env), env(env)
 {
-   __description = "E8 roadmap planner";
+   __description = "LEMUR planner";
    RegisterCommand("GetTimes",
       boost::bind(&or_lemur::LEMUR::GetTimes,this,_1,_2),
       "get timing information from last plan");

@@ -30,7 +30,7 @@
 or_lemur::CCTimer::CCTimer(OpenRAVE::EnvironmentBasePtr env):
    OpenRAVE::PlannerBase(env), env(env)
 {
-   __description = "E8 roadmap planner";
+   __description = "LEMUR collision-check timer planner";
    RegisterCommand("GetTimes",
       boost::bind(&or_lemur::CCTimer::GetTimes,this,_1,_2),
       "get timing information from last plan");
@@ -126,12 +126,12 @@ bool or_lemur::CCTimer::GetTimes(std::ostream & sout, std::istream & sin) const
    sout << "checktime " << boost::chrono::duration<double>(ompl_checker->dur_checks).count();
    sout << " totaltime " << 0.0;
    sout << " n_checks " << ompl_checker->num_checks;
-   sout << " e8_dur_total " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurTotal();
-   sout << " e8_dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurRoadmapGen();
-   sout << " e8_dur_roadmapinit " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurRoadmapInit();
-   sout << " e8_dur_lazysp " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurLazySP();
-   sout << " e8_dur_search " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurSearch();
-   sout << " e8_dur_eval " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurEval();
+   sout << " dur_total " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurTotal();
+   sout << " dur_roadmapgen " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurRoadmapGen();
+   sout << " dur_roadmapinit " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurRoadmapInit();
+   sout << " dur_lazysp " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurLazySP();
+   sout << " dur_search " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurSearch();
+   sout << " dur_eval " <<  ompl_planner->as<ompl_lemur::CCTimer>()->getDurEval();
 #endif
    return true;
 }

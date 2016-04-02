@@ -65,8 +65,8 @@ with env:
    # set starting arm configuration
    robot.SetActiveDOFValues([2.5,-1.8,0.0,2.0,0.0,0.2,0.0])
 
-   #planner = prpy.planning.ompl.OMPLPlanner('RRTConnect')
-   planner = prpy_lemur.LEMURPlanner()
+   planner = prpy.planning.ompl.OMPLPlanner('RRTConnect')
+   #planner = prpy_lemur.LEMURPlanner()
    
    traj = planner.PlanToConfiguration(robot, q_goal,
       roadmap=prpy_lemur.roadmaps.Halton(num=10000, radius=2.0))
