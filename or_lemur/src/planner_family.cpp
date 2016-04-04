@@ -446,14 +446,17 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       for (std::map<std::string, SetCache>::iterator
          it=_current_family->setcaches.begin(); it!=_current_family->setcaches.end(); it++)
       {
+         std::string planner_roadmap = _current_family->roadmap_header;
+         if (planner_roadmap.substr(0,11) == "type=Cached")
+            planner_roadmap = "type=" + planner_roadmap.substr(11);
          if (it->second.roadmap_header == "")
          {
-            it->second.roadmap_header = _current_family->roadmap_header;
+            it->second.roadmap_header = planner_roadmap;
          }
-         else if (it->second.roadmap_header != _current_family->roadmap_header)
+         else if (it->second.roadmap_header != planner_roadmap)
          {
             RAVELOG_ERROR("setcache roadmap header mismatch!\n");
-            RAVELOG_ERROR(" planner roadmap: %s", _current_family->roadmap_header.c_str());
+            RAVELOG_ERROR(" planner roadmap: %s", planner_roadmap.c_str());
             RAVELOG_ERROR("setcache roadmap: %s", it->second.roadmap_header.c_str());
             return false;
          }

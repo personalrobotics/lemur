@@ -20,7 +20,7 @@
 
 
 or_lemur::FamilyModule::FamilyModule(OpenRAVE::EnvironmentBasePtr penv):
-   OpenRAVE::ModuleBase(penv), _initialized(false)
+   OpenRAVE::ModuleBase(penv), _initialized(false), _has_use_baked_checker(false)
 {
    RegisterCommand("GetInstanceId",boost::bind(&or_lemur::FamilyModule::CmdGetInstanceId,this,_1,_2),"GetInstanceId");
    RegisterCommand("GetFamilyId",boost::bind(&or_lemur::FamilyModule::CmdGetFamilyId,this,_1,_2),"GetFamilyId");
@@ -59,7 +59,8 @@ int or_lemur::FamilyModule::main(const std::string & cmd)
    boost::program_options::options_description desc;
    desc.add_options()
       ("help", "produce help message")
-      ("robot-name", boost::program_options::value<std::string>(), "robot name in environment");
+      ("robot-name", boost::program_options::value<std::string>(), "robot name in environment")
+      ("use-baked-checker", boost::program_options::value<bool>(), "whether to used a baked checker");
    boost::program_options::variables_map args;
    try
    {
@@ -146,6 +147,13 @@ int or_lemur::FamilyModule::main(const std::string & cmd)
       }
       
       proxidxs[idx] = proxlink->GetIndex();
+   }
+   
+   // parse use-baked-checker
+   if (args.count("use-baked-checker") == 1)
+   {
+      _use_baked_checker = args["use-baked-checker"].as<bool>();
+      _has_use_baked_checker = true;
    }
    
    // save values
@@ -802,6 +810,7 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
    // check whether the collision checker supports baked checks
    boost::function< boost::shared_ptr<void> (const std::set< std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr> > &)> * baker = 0;
    boost::function< bool (boost::shared_ptr<void>, OpenRAVE::CollisionReportPtr)> * baked_checker = 0;
+   if (!_has_use_baked_checker || _use_baked_checker)
    {
       OpenRAVE::CollisionCheckerBasePtr cc = GetEnv()->GetCollisionChecker();
       std::stringstream sinput;
@@ -822,9 +831,18 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
       }
    }
    if (baker && baked_checker)
+   {
       RAVELOG_INFO("Found baking collision checker interface.\n");
+   }
    else
-      RAVELOG_WARN("No baking collision checker interface found.\n");
+   {
+      if (_has_use_baked_checker && _use_baked_checker)
+      {
+         RAVELOG_ERROR("No baking collision checker interface found.\n");
+         throw OpenRAVE::openrave_exception("No baking collision checker interface found");
+      }
+      RAVELOG_INFO("No baking collision checker interface found.\n");
+   }
 
    // get live checks
    std::map<PosedLink *, OpenRAVE::KinBody::LinkPtr> livelinks = live_links();

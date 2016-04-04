@@ -119,6 +119,8 @@ private:
 
    /*! \brief these are set once on init, and then fixed */
    bool _initialized;
+   bool _has_use_baked_checker; // whether it was passed
+   bool _use_baked_checker;
    boost::weak_ptr<OpenRAVE::RobotBase> _robot;
    std::vector<int> _active_dofs;
    std::string _id;
