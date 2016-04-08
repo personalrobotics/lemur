@@ -14,7 +14,10 @@ def rr_get_filename(url):
    if not url.startswith(PACKAGE_PREFIX):
       return url
    mod_url = url[len(PACKAGE_PREFIX):]
-   return subprocess.check_output(['catkin_find',mod_url]).rstrip('\n')
+   path = subprocess.check_output(['catkin_find',mod_url]).rstrip('\n')
+   if path == '':
+      raise RuntimeError('couldn\'t find file {}!'.format(url))
+   return path
 
 # example usage:
 # $ rosrun or_lemur family-self-setcache.py
