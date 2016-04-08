@@ -26,6 +26,7 @@ class RoadmapHaltonOffDens : public Roadmap<RoadmapArgs>
    unsigned int _num_per_batch;
    double _radius_first_batch;
    unsigned int _seed;
+   bool _seed_set;
    
    // set on initialization
    ompl::base::ScopedState<ompl::base::RealVectorStateSpace> _offset_state;
@@ -39,6 +40,7 @@ public:
       _num_per_batch(0),
       _radius_first_batch(0.0),
       _seed(0),
+      _seed_set(false),
       _offset_state(this->space)
    {
       // check that we're in a real vector state space
@@ -97,6 +99,7 @@ public:
       if (this->initialized)
          throw std::runtime_error("cannot set seed, already initialized!");
       _seed = seed;
+      _seed_set = true;
    }
    
    unsigned int getSeed() const
@@ -110,6 +113,8 @@ public:
          throw std::runtime_error("cannot initialize, num_per_batch not set!");
       if (_radius_first_batch == 0.0)
          throw std::runtime_error("cannot initialize, radius_first_batch not set!");
+      if (!_seed_set)
+         throw std::runtime_error("cannot initialize, seed not set!");
       
       ompl::base::StateSamplerPtr sampler(this->space->allocStateSampler());
       ompl_lemur::SamplerGenMonkeyPatch(sampler) = boost::mt19937(_seed);
