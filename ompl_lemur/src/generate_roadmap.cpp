@@ -117,22 +117,26 @@ int main(int argc, char **argv)
    space_bounds.setLow(0.0);
    space_bounds.setHigh(1.0);
    
-   const std::vector<std::string> & bounds = args["bounds"].as< std::vector<std::string> >();
-   for (unsigned int ui=0; ui<bounds.size(); ui++)
+   if (args.count("bounds"))
    {
-      int idof;
-      double lower;
-      double upper;
-      int n;
-      int ret;
-      ret = sscanf(bounds[ui].c_str(), "%d:%lf,%lf%n", &idof, &lower, &upper, &n);
-      if (ret != 3 || n != (int)bounds[ui].size() || idof<0 || dim<=idof)
+      const std::vector<std::string> & bounds = args["bounds"].as< std::vector<std::string> >();
+      
+      for (unsigned int ui=0; ui<bounds.size(); ui++)
       {
-         OMPL_ERROR("--bounds %s not properly formatted.", bounds[ui].c_str());
-         return 1;
+         int idof;
+         double lower;
+         double upper;
+         int n;
+         int ret;
+         ret = sscanf(bounds[ui].c_str(), "%d:%lf,%lf%n", &idof, &lower, &upper, &n);
+         if (ret != 3 || n != (int)bounds[ui].size() || idof<0 || dim<=idof)
+         {
+            OMPL_ERROR("--bounds %s not properly formatted.", bounds[ui].c_str());
+            return 1;
+         }
+         space_bounds.setLow(idof, lower);
+         space_bounds.setHigh(idof, upper);
       }
-      space_bounds.setLow(idof, lower);
-      space_bounds.setHigh(idof, upper);
    }
    
    space->as<ompl::base::RealVectorStateSpace>()->setBounds(space_bounds);
@@ -178,16 +182,19 @@ int main(int argc, char **argv)
       return 1;
    }
    
-   const std::vector<std::string> & params = args["roadmap-param"].as< std::vector<std::string> >();
-   for (unsigned int ui=0; ui<params.size(); ui++)
+   if (args.count("roadmap-param"))
    {
-      size_t eq = params[ui].find('=');
-      if (eq == params[ui].npos)
+      const std::vector<std::string> & params = args["roadmap-param"].as< std::vector<std::string> >();
+      for (unsigned int ui=0; ui<params.size(); ui++)
       {
-         OMPL_ERROR("--roadmap-param has bad format!");
-         return 1;
+         size_t eq = params[ui].find('=');
+         if (eq == params[ui].npos)
+         {
+            OMPL_ERROR("--roadmap-param has bad format!");
+            return 1;
+         }
+         p_mygen->params.setParam(params[ui].substr(0,eq), params[ui].substr(eq+1));
       }
-      p_mygen->params.setParam(params[ui].substr(0,eq), params[ui].substr(eq+1));
    }
    
    std::size_t num_batches = args["num-batches"].as<std::size_t>();
@@ -220,7 +227,11 @@ int main(int argc, char **argv)
    else
    {
       fp.open(out_file.c_str());
-      assert(fp.is_open());
+      if (!fp.is_open())
+      {
+         OMPL_ERROR("could not open file!");
+         return 1;
+      }
       outp = &fp;
    }
    
