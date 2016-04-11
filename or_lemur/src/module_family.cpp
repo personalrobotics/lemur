@@ -20,9 +20,13 @@
 
 
 or_lemur::FamilyModule::FamilyModule(OpenRAVE::EnvironmentBasePtr penv):
-   OpenRAVE::ModuleBase(penv), _initialized(false), _has_use_baked_checker(false)
+   OpenRAVE::ModuleBase(penv),
+   _initialized(false),
+   _has_use_baked_checker(false),
+   _cost_per_ilc(60.0e-6)
 {
    RegisterCommand("GetInstanceId",boost::bind(&or_lemur::FamilyModule::CmdGetInstanceId,this,_1,_2),"GetInstanceId");
+   RegisterCommand("SetCostPerIlc",boost::bind(&or_lemur::FamilyModule::CmdSetCostPerIlc,this,_1,_2),"SetCostPerIlc");
    RegisterCommand("GetFamilyId",boost::bind(&or_lemur::FamilyModule::CmdGetFamilyId,this,_1,_2),"GetFamilyId");
    RegisterCommand("Let",boost::bind(&or_lemur::FamilyModule::CmdLet,this,_1,_2),"Let");
    RegisterCommand("NamesOf",boost::bind(&or_lemur::FamilyModule::CmdNamesOf,this,_1,_2),"NamesOf");
@@ -43,6 +47,12 @@ std::string or_lemur::FamilyModule::GetInstanceId()
    std::stringstream ss;
    ss << this;
    return ss.str();
+}
+
+
+void or_lemur::FamilyModule::SetCostPerIlc(double cost_per_ilc)
+{
+   _cost_per_ilc = cost_per_ilc;
 }
 
 
@@ -880,12 +890,12 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
             boost::shared_ptr<void> baked_check = (*baker)(pairs);
             
             indicators.insert(std::make_pair(set, std::make_pair(
-               1.0+pairs.size(), or_lemur::BakedCheckIndicator(robot, *baked_checker, baked_check))));
+               _cost_per_ilc*(1.0+pairs.size()), or_lemur::BakedCheckIndicator(robot, *baked_checker, baked_check))));
          }
          else
          {
             indicators.insert(std::make_pair(set, std::make_pair(
-               1.0+pairs.size(), or_lemur::AllPairsIndicator(robot, pairs))));
+               _cost_per_ilc*(1.0+pairs.size()), or_lemur::AllPairsIndicator(robot, pairs))));
          }
       }
    }
@@ -920,6 +930,20 @@ or_lemur::FamilyModule::GetCanonicalNames(const Family & family)
 bool or_lemur::FamilyModule::CmdGetInstanceId(std::ostream & soutput, std::istream & sinput)
 {
    soutput << GetInstanceId();
+   return true;
+}
+
+
+bool or_lemur::FamilyModule::CmdSetCostPerIlc(std::ostream & soutput, std::istream & sinput)
+{
+   double cost_per_ilc;
+   sinput >> cost_per_ilc;
+   if (sinput.fail())
+   {
+      RAVELOG_ERROR("SetCostPerIlc input error.\n");
+      return false;
+   }
+   SetCostPerIlc(cost_per_ilc);
    return true;
 }
 

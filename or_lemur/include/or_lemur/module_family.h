@@ -58,7 +58,13 @@ public:
    
    std::string GetInstanceId();
    
+   void SetCostPerIlc(double cost_per_ilc);
+   
    // on environment add/remove
+   // arguments:
+   // --robot-name
+   // --use-baked-checker (optional) (can be on,yes,1,true
+   //                                     or off,no,0,false)
    int main(const std::string & cmd);
    void Destroy();
    
@@ -98,6 +104,8 @@ public:
 
    bool CmdGetInstanceId(std::ostream & soutput, std::istream & sinput);
    
+   bool CmdSetCostPerIlc(std::ostream & soutput, std::istream & sinput);
+   
    bool CmdGetFamilyId(std::ostream & soutput, std::istream & sinput);
 
    // assignment statement
@@ -125,6 +133,9 @@ private:
    std::vector<int> _active_dofs;
    std::string _id;
    std::vector<int> _proxidxs;
+   
+   // this scales the call costs returned by GetIndicators()
+   double _cost_per_ilc;
    
    // types
    
