@@ -24,7 +24,7 @@ namespace or_lemur
 //      double distance
 // last, size_t: number of bytes in generator state
 // followed by those bytes
-//   
+//
 
 template <class RoadmapArgs>
 class RoadmapCached : public ompl_lemur::Roadmap<RoadmapArgs>
@@ -89,7 +89,7 @@ public:
          if (!_infile.good())
             break;
          _infile_num_batches = mysizet;
-         printf("found a file with %lu batches!\n", _infile_num_batches);
+         RAVELOG_INFO("Found a file with %lu batches.\n", _infile_num_batches);
       }
       while (0);
       
@@ -119,7 +119,7 @@ public:
          size_t num_edges_subgraph;
          _infile.read((char *)&num_vertices_subgraph, sizeof(size_t));
          _infile.read((char *)&num_edges_subgraph, sizeof(size_t));
-         printf("found %lu vertices and %lu edges in cached subgraph ...\n",
+         RAVELOG_INFO("Found %lu vertices and %lu edges in cached subgraph.\n",
             num_vertices_subgraph, num_edges_subgraph);
          
          // load vertices
@@ -221,7 +221,7 @@ public:
       if (_roadmap_wrapped->num_batches_generated <= _infile_num_batches)
          return;
       
-      printf("saving file ...\n");
+      RAVELOG_INFO("Saving file ...\n");
       
       std::string path = OpenRAVE::RaveFindDatabaseFile(_cache_filename, false); // bRead
       if (!path.size())

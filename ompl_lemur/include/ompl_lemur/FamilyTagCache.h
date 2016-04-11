@@ -156,6 +156,8 @@ public:
       for (typename std::map<size_t, CachedSet>::iterator
          iset=_cached_sets.begin(); iset!=_cached_sets.end(); iset++)
       {
+         OMPL_INFORM("Loading batch %lu for set \"%s\" from file \"%s\" ...",
+            batch, iset->second.name.c_str(), iset->second.filename.c_str());
          if (!iset->second.fp)
             continue;
          // read batch header

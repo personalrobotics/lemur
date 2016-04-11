@@ -208,7 +208,11 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
             // retrieve the set from the family by header
             set_cache.set = mod_family->GetSetFromHeader(set_cache.set_header);
             if (!set_cache.set)
+            {
+               RAVELOG_ERROR("SetCache file %s loading failed!\n",
+                  set_cache.filename.c_str());
                return false;
+            }
             
             if (set_cache.name != "")
             {

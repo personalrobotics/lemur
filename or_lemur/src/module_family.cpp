@@ -832,16 +832,16 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
    }
    if (baker && baked_checker)
    {
-      RAVELOG_INFO("Found baking collision checker interface.\n");
+      RAVELOG_INFO("Using baking collision checker interface.\n");
    }
    else
    {
       if (_has_use_baked_checker && _use_baked_checker)
       {
-         RAVELOG_ERROR("No baking collision checker interface found.\n");
-         throw OpenRAVE::openrave_exception("No baking collision checker interface found");
+         RAVELOG_ERROR("No baking collision checker interface found, although it was required.\n");
+         throw OpenRAVE::openrave_exception("No baking collision checker interface found, although it was required");
       }
-      RAVELOG_INFO("No baking collision checker interface found.\n");
+      RAVELOG_INFO("Not using baking collision checker interface (ignored or not found).\n");
    }
 
    // get live checks

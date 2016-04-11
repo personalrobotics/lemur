@@ -95,7 +95,7 @@ public:
    
    void setSeed(unsigned int seed)
    {
-      if (seed == _seed)
+      if (_seed_set && seed == _seed)
          return;
       if (this->initialized)
          throw std::runtime_error("cannot set seed, already initialized!");
