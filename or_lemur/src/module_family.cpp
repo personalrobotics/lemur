@@ -818,29 +818,33 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
    }
    
    // check whether the collision checker supports baked checks
-   boost::function< boost::shared_ptr<void> (const std::set< std::pair<OpenRAVE::KinBody::LinkConstPtr,OpenRAVE::KinBody::LinkConstPtr> > &)> * baker = 0;
-   boost::function< bool (boost::shared_ptr<void>, OpenRAVE::CollisionReportPtr)> * baked_checker = 0;
+   OpenRAVE::CollisionCheckerBasePtr cc;
+   boost::function< void ()> * fn_bake_begin = 0;
+   boost::function< OpenRAVE::KinBodyPtr ()> * fn_bake_end = 0;
+   boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> * fn_check_baked_collision = 0;
    if (!_has_use_baked_checker || _use_baked_checker)
    {
-      OpenRAVE::CollisionCheckerBasePtr cc = GetEnv()->GetCollisionChecker();
+      cc = GetEnv()->GetCollisionChecker();
       std::stringstream sinput;
       std::stringstream soutput;
-      sinput << "GetBakerFunctions";
+      sinput << "GetBakingFunctions";
       try
       {
          if (cc->SendCommand(soutput, sinput))
          {
-            soutput >> (void *&)baker;
-            soutput >> (void *&)baked_checker;
+            soutput >> (void *&)fn_bake_begin;
+            soutput >> (void *&)fn_bake_end;
+            soutput >> (void *&)fn_check_baked_collision;
          }
       }
       catch (const OpenRAVE::openrave_exception & exc)
       {
-         baker = 0;
-         baked_checker = 0;
+         fn_bake_begin = 0;
+         fn_bake_end = 0;
+         fn_check_baked_collision = 0;
       }
    }
-   if (baker && baked_checker)
+   if (fn_bake_begin && fn_bake_end && fn_check_baked_collision)
    {
       RAVELOG_INFO("Using baking collision checker interface.\n");
    }
@@ -885,12 +889,18 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
       }
       else // all found!
       {
-         if (baker && baked_checker)
+         if (fn_bake_begin && fn_bake_end && fn_check_baked_collision)
          {
-            boost::shared_ptr<void> baked_check = (*baker)(pairs);
+            (*fn_bake_begin)();
+            for (std::set< std::pair<OpenRAVE::KinBody::LinkConstPtr, OpenRAVE::KinBody::LinkConstPtr> >::iterator
+               it=pairs.begin(); it!=pairs.end(); it++)
+            {
+               cc->CheckCollision(it->first, it->second);
+            }
+            OpenRAVE::KinBodyPtr baked_kinbody = (*fn_bake_end)();
             
             indicators.insert(std::make_pair(set, std::make_pair(
-               _cost_per_ilc*(1.0+pairs.size()), or_lemur::BakedCheckIndicator(robot, *baked_checker, baked_check))));
+               _cost_per_ilc*(1.0+pairs.size()), or_lemur::BakedCheckIndicator(robot, *fn_check_baked_collision, baked_kinbody))));
          }
          else
          {

@@ -21,11 +21,11 @@ class BakedCheckIndicator
 {
 public:
    const OpenRAVE::RobotBasePtr _robot;
-   const boost::function< bool (boost::shared_ptr<void>, OpenRAVE::CollisionReportPtr)> _baked_checker;
-   const boost::shared_ptr<void> _baked_check;
+   const boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> _baked_checker;
+   const OpenRAVE::KinBodyConstPtr _baked_check;
    BakedCheckIndicator(const OpenRAVE::RobotBasePtr & robot,
-      const boost::function< bool (boost::shared_ptr<void>, OpenRAVE::CollisionReportPtr)> baked_checker,
-      const boost::shared_ptr<void> baked_check):
+      const boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> baked_checker,
+      const OpenRAVE::KinBodyConstPtr baked_check):
       _robot(robot), _baked_checker(baked_checker), _baked_check(baked_check)
    {
    }
