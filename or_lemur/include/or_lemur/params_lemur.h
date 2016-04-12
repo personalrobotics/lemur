@@ -66,6 +66,9 @@ public:
    bool has_solve_all;
    bool solve_all;
    
+   bool has_do_baked;
+   bool do_baked;
+   
    LEMURParameters():
       has_roadmap_type(false),
       has_do_roadmap_save(false),
@@ -83,7 +86,8 @@ public:
       has_time_limit(false),
       has_search_type(false),
       has_eval_type(false),
-      has_solve_all(false)
+      has_solve_all(false),
+      has_do_baked(false)
    {
       // top-level tags we can process
       _vXMLParameters.push_back("roadmap_type");
@@ -104,6 +108,7 @@ public:
       _vXMLParameters.push_back("search_type");
       _vXMLParameters.push_back("eval_type");
       _vXMLParameters.push_back("solve_all");
+      _vXMLParameters.push_back("do_baked");
    }
    
 private:
@@ -154,6 +159,8 @@ protected:
          sout << "<eval_type>" << eval_type << "</eval_type>";
       if (has_solve_all)
          sout << "<solve_all>" << (solve_all?"true":"false") << "</solve_all>";
+      if (has_do_baked)
+         sout << "<do_baked>" << (do_baked?"true":"false") << "</do_baked>";
       return !!sout;
    }
    
@@ -184,7 +191,8 @@ protected:
          || name == "time_limit"
          || name == "search_type"
          || name == "eval_type"
-         || name == "solve_all")
+         || name == "solve_all"
+         || name == "do_baked")
       {
          lemur_deserializing = name;
          _ss.str("");
@@ -308,6 +316,14 @@ protected:
             _ss >> std::boolalpha >> solve_all;
             _ss.copyfmt(state);
             has_solve_all = true;
+         }
+         if (lemur_deserializing == "do_baked")
+         {
+            std::ios state(0);
+            state.copyfmt(_ss);
+            _ss >> std::boolalpha >> do_baked;
+            _ss.copyfmt(state);
+            has_do_baked = true;
          }
       }
       else

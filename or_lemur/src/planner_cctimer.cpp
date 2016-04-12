@@ -63,7 +63,7 @@ or_lemur::CCTimer::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBas
    
    // set up si / checker
    ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
-   ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size()));
+   ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size(), false));
    ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_checker));
    ompl_si->setup();
    

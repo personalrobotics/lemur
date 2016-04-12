@@ -117,7 +117,10 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
       ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
    }
    
-   ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size()));
+   bool do_baked = false;
+   if (params->has_do_baked && params->do_baked)
+      do_baked = true;
+   ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size(), do_baked));
    
    double check_cost;
    if (params->has_check_cost)
