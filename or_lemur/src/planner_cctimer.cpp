@@ -92,6 +92,8 @@ or_lemur::CCTimer::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    boost::chrono::high_resolution_clock::time_point time_begin;
    boost::chrono::high_resolution_clock::time_point time_end;
    
+   ompl_checker->start();
+   
    for (unsigned int count=0; count<10000; count++)
    {
       sampler->sampleUniform(state.get());
@@ -111,6 +113,8 @@ or_lemur::CCTimer::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
          dur_invalids += time_end - time_begin;
       }
    }
+   
+   ompl_checker->stop();
    
    printf("num valids: %d, average valid check time: %f s\n",
       num_valids, boost::chrono::duration<double>(dur_valids).count()/num_valids);

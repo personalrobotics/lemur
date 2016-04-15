@@ -26,8 +26,10 @@ public:
    mutable boost::chrono::high_resolution_clock::duration dur_checks;
    // optional baked stuff
    const bool do_baked;
+   boost::function<void ()> bake_begin;
+   boost::function<OpenRAVE::KinBodyPtr ()> bake_end;
+   boost::function<bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> baked_checker;
    OpenRAVE::KinBodyPtr baked_kinbody;
-   boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> baked_checker;
    OrChecker(
       const ompl::base::SpaceInformationPtr & si,
       const OpenRAVE::EnvironmentBasePtr env,
@@ -68,15 +70,25 @@ public:
          soutput >> (void *&)fn_bake_begin;
          soutput >> (void *&)fn_bake_end;
          soutput >> (void *&)fn_check_baked_collision;
-         
-         (*fn_bake_begin)();
-         env->CheckCollision(robot);
-         robot->CheckSelfCollision();
-         baked_kinbody = (*fn_bake_end)();
-         
+         bake_begin = *fn_bake_begin;
+         bake_end = *fn_bake_end;
          baked_checker = *fn_check_baked_collision;
       }
       
+   }
+   void start()
+   {
+      if (do_baked)
+      {
+         bake_begin();
+         env->CheckCollision(robot);
+         robot->CheckSelfCollision();
+         baked_kinbody = bake_end();
+      }
+   }
+   void stop()
+   {
+      baked_kinbody.reset();
    }
    bool isValid(const ompl::base::State * state) const
    {

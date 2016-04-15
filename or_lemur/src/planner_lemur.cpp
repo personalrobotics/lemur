@@ -236,11 +236,15 @@ or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
       ompl_planner->as<ompl_lemur::LEMUR>()->os_alglog = &fp_alglog;
    }
    
+   ompl_checker->start();
+   
    ompl::base::PlannerStatus ompl_status;
    ompl::base::PlannerTerminationCondition ptc(ompl::base::plannerNonTerminatingCondition());
    if (params->has_time_limit)
       ptc = ompl::base::timedPlannerTerminationCondition(params->time_limit);
    ompl_status = ompl_planner->solve(ptc);
+   
+   ompl_checker->stop();
    
    if (params->has_do_roadmap_save && params->do_roadmap_save)
    {
