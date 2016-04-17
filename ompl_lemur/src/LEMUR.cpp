@@ -420,6 +420,8 @@ void ompl_lemur::LEMUR::setProblemDefinition(
    ompl::base::Planner::setProblemDefinition(pdef);
    
    // ensure roadmap is initialized
+   if (!_roadmap)
+      throw std::runtime_error("no roadmap set!");
    if (!_roadmap->initialized)
       _roadmap->initialize();
    
