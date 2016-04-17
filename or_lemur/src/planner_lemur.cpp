@@ -103,39 +103,25 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
       persist_planner = true;
    
    if (persist_planner)
-      RAVELOG_WARN("Warning, persisting the planner is experimental and does not check for consistency!\n");
+      RAVELOG_WARN("Warning, persisting the planner is experimental and does not check for space or parameter consistency!\n");
    
    if (!ompl_planner || !persist_planner)
    {
-      // set up ompl space
-      ompl_space.reset(new ompl::base::RealVectorStateSpace(robot_adofs.size()));
-      ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
-      ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / ompl_space->getMaximumExtent());
-      ompl_space->setup();
+      bool do_baked = false;
+      if (params->has_do_baked && params->do_baked)
+         do_baked = true;
       
-      // set up si / checker
-      ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
-   }
+      bool success = or_lemur::create_space(robot, robot_adofs, true, do_baked, ompl_si);
+      if (!success)
+         return false;
+      
+      ompl_checker = boost::static_pointer_cast<or_lemur::OrChecker>(ompl_si->getStateValidityChecker());
+      
+      // substitute the native checker with a binary utility checker
+      ompl_binary_checker.reset(new ompl_lemur::BinaryUtilityChecker(ompl_si, ompl_checker, 1.0)); // reset check cost later
+      ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_binary_checker));
+      ompl_si->setup();
    
-   bool do_baked = false;
-   if (params->has_do_baked && params->do_baked)
-      do_baked = true;
-   ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size(), do_baked));
-   
-   double check_cost;
-   if (params->has_check_cost)
-      check_cost = params->check_cost;
-   else
-   {
-      check_cost = ompl_space->getLongestValidSegmentLength();
-      RAVELOG_INFO("Using simple effort model with default check_cost=%f.\n", check_cost);
-   }
-   ompl_binary_checker.reset(new ompl_lemur::BinaryUtilityChecker(ompl_si, ompl_checker, check_cost));
-   ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_binary_checker));
-   ompl_si->setup();
-   
-   if (!ompl_planner || !persist_planner)
-   {
       // set up planner
       ompl_planner.reset(new ompl_lemur::LEMUR(ompl_si));
       
@@ -169,6 +155,14 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
       ompl_planner->registerRoadmapType("CachedRGGDensConst",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGGDensConst>()));
+   }
+   
+   if (params->has_check_cost)
+      ompl_binary_checker->_check_cost = params->check_cost;
+   else
+   {
+      ompl_binary_checker->_check_cost = ompl_si->getStateSpace()->getLongestValidSegmentLength();
+      RAVELOG_INFO("Using simple effort model with default check_cost=%f.\n", ompl_binary_checker->_check_cost);
    }
    
    // planner params
@@ -297,8 +291,10 @@ or_lemur::LEMUR::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    traj->Init(robot->GetActiveConfigurationSpecification());
    for (unsigned int i=0; i<gpath->getStateCount(); i++)
    {
-      ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s(ompl_space, gpath->getState(i));
-      traj->Insert(i, std::vector<OpenRAVE::dReal>(&s[0], &s[0]+robot->GetActiveDOF()));
+      std::vector<double> values;
+      ompl_si->getStateSpace()->copyToReals(values, gpath->getState(i));
+      // TODO: this fails if openrave was compiled with floats!
+      traj->Insert(i, values);
    }
    
    return OpenRAVE::PS_HasSolution;

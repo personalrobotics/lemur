@@ -147,14 +147,10 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       fam->robot = robot;
       fam->active_dofs = robot->GetActiveDOFIndices();
       
-      // construct ompl space
-      fam->ompl_space.reset(new ompl::base::RealVectorStateSpace(fam->active_dofs.size()));
-      fam->ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
-      fam->ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / fam->ompl_space->getMaximumExtent());
-      fam->ompl_space->setup();
-      
-      // begin working on spaceinfo
-      fam->ompl_si.reset(new ompl::base::SpaceInformation(fam->ompl_space));
+      // construct ompl spaceinfo (with no checker)
+      bool success = or_lemur::create_space(robot, fam->active_dofs, false, false, fam->ompl_si);
+      if (!success)
+         return false;
       
       // initialize setcaches
       for (unsigned int ui=0; ui<params->family_setcaches.size(); ui++)
@@ -619,8 +615,10 @@ or_lemur::FamilyPlanner::PlanPath(OpenRAVE::TrajectoryBasePtr traj)
    traj->Init(robot->GetActiveConfigurationSpecification());
    for (unsigned int i=0; i<gpath->getStateCount(); i++)
    {
-      ompl::base::ScopedState<ompl::base::RealVectorStateSpace> s(fam->ompl_space, gpath->getState(i));
-      traj->Insert(i, std::vector<OpenRAVE::dReal>(&s[0], &s[0]+robot->GetActiveDOF()));
+      std::vector<double> values;
+      fam->ompl_si->getStateSpace()->copyToReals(values, gpath->getState(i));
+      // TODO: this fails if openrave was compiled with floats!
+      traj->Insert(i, values);
    }
    
    fam->ompl_family_checker->stop_checking();

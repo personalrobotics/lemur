@@ -7,12 +7,31 @@
 namespace or_lemur
 {
 
-ompl::base::RealVectorBounds ompl_bounds(OpenRAVE::RobotBasePtr robot);
+ompl::base::RealVectorBounds ompl_bounds(
+   const OpenRAVE::RobotBasePtr & robot,
+   const std::vector<int> & dofs);
 
-double ompl_resolution(OpenRAVE::RobotBasePtr robot);
+double ompl_resolution(
+   const OpenRAVE::RobotBasePtr & robot,
+   const std::vector<int> & dofs);
 
 bool ompl_set_roots(ompl::base::ProblemDefinitionPtr ompl_pdef,
    OpenRAVE::PlannerBase::PlannerParametersConstPtr params);
+
+/*! \brief Create an OMPL space/spaceinfo (and accompanying validity
+ *         checker)
+ * 
+ * The validity checker is guaranteed to be a derived class of
+ * or_lemur::OrChecker.
+ * 
+ * If do_checker is set, space_info will be setup().
+ */
+bool create_space(
+   const OpenRAVE::RobotBasePtr & robot,
+   const std::vector<int> & dofs,
+   bool do_checker,
+   bool do_baked,
+   ompl::base::SpaceInformationPtr & out_space_info);
 
 // this only works for real vector state spaces
 // with baking support
@@ -108,6 +127,8 @@ public:
    }
 };
 
+typedef boost::shared_ptr<OrChecker> OrCheckerPtr;
+
 class OrIndicatorChecker: public ompl::base::StateValidityChecker
 {
 public:
@@ -135,5 +156,7 @@ public:
       return is_valid;
    }
 };
+
+typedef boost::shared_ptr<OrIndicatorChecker> OrIndicatorCheckerPtr;
 
 } // namespace or_lemur

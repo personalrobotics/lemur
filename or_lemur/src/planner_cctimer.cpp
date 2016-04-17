@@ -56,16 +56,9 @@ or_lemur::CCTimer::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBas
    const std::vector<int> robot_adofs = inrobot->GetActiveDOFIndices();
    
    // set up ompl space
-   ompl_space.reset(new ompl::base::RealVectorStateSpace(robot_adofs.size()));
-   ompl_space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot));
-   ompl_space->setLongestValidSegmentFraction(ompl_resolution(robot) / ompl_space->getMaximumExtent());
-   ompl_space->setup();
-   
-   // set up si / checker
-   ompl_si.reset(new ompl::base::SpaceInformation(ompl_space));
-   ompl_checker.reset(new or_lemur::OrChecker(ompl_si, env, robot, robot_adofs.size(), false));
-   ompl_si->setStateValidityChecker(ompl::base::StateValidityCheckerPtr(ompl_checker));
-   ompl_si->setup();
+   bool success = or_lemur::create_space(robot, robot_adofs, true, false, ompl_si);
+   if (!success)
+      return false;
    
    return true;
 }

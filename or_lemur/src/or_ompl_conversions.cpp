@@ -19,24 +19,28 @@
 
 #include <or_lemur/or_ompl_conversions.h>
 
-ompl::base::RealVectorBounds or_lemur::ompl_bounds(OpenRAVE::RobotBasePtr robot)
+ompl::base::RealVectorBounds or_lemur::ompl_bounds(
+   const OpenRAVE::RobotBasePtr & robot,
+   const std::vector<int> & dofs)
 {
-   ompl::base::RealVectorBounds bounds(robot->GetActiveDOF());
+   ompl::base::RealVectorBounds bounds(dofs.size());
    std::vector<OpenRAVE::dReal> lowers;
    std::vector<OpenRAVE::dReal> uppers;
-   robot->GetActiveDOFLimits(lowers, uppers);
-   for (int i=0; i<robot->GetActiveDOF(); i++)
+   robot->GetDOFLimits(lowers, uppers, dofs);
+   for (std::size_t idof=0; idof<dofs.size(); idof++)
    {
-      bounds.setLow(i, lowers[i]);
-      bounds.setHigh(i, uppers[i]);
+      bounds.setLow(idof, lowers[idof]);
+      bounds.setHigh(idof, uppers[idof]);
    }
    return bounds;
 }
 
-double or_lemur::ompl_resolution(OpenRAVE::RobotBasePtr robot)
+double or_lemur::ompl_resolution(
+   const OpenRAVE::RobotBasePtr & robot,
+   const std::vector<int> & dofs)
 {
    std::vector<OpenRAVE::dReal> dof_resolutions;
-   robot->GetActiveDOFResolutions(dof_resolutions);
+   robot->GetDOFResolutions(dof_resolutions, dofs);
    double resolution = HUGE_VAL;
    for (unsigned int i=0; i<dof_resolutions.size(); i++)
       resolution = dof_resolutions[i] < resolution ? dof_resolutions[i] : resolution;
@@ -83,5 +87,52 @@ bool or_lemur::ompl_set_roots(ompl::base::ProblemDefinitionPtr ompl_pdef,
       gs->addState(s_goal);
    }
    ompl_pdef->setGoal(ompl::base::GoalPtr(gs));
+   return true;
+}
+
+bool or_lemur::create_space(
+   const OpenRAVE::RobotBasePtr & robot,
+   const std::vector<int> & dofs,
+   bool do_checker,
+   bool do_baked,
+   ompl::base::SpaceInformationPtr & out_space_info)
+{
+   // determine whether various dofs are circular
+   std::vector<bool> is_circular(dofs.size());
+   bool any_is_circular = false;
+   for (std::size_t idof=0; idof<dofs.size(); idof++)
+   {
+      OpenRAVE::RobotBase::JointPtr joint = robot->GetJointFromDOFIndex(dofs[idof]);
+      int iaxis = dofs[idof] - joint->GetDOFIndex();
+      is_circular[idof] = joint->IsCircular(iaxis);
+      if (is_circular[idof])
+         any_is_circular = true;
+   }
+   
+   if (any_is_circular)
+   {
+      RAVELOG_ERROR("or_lemur does not currently support circular joints!\n");
+      return false;
+   }
+   
+   // construct RealVectorStateSpace
+   ompl::base::StateSpacePtr space(new ompl::base::RealVectorStateSpace(dofs.size()));
+   space->as<ompl::base::RealVectorStateSpace>()->setBounds(ompl_bounds(robot, dofs));
+   space->setLongestValidSegmentFraction(ompl_resolution(robot,dofs) / space->getMaximumExtent());
+   space->setup();
+   
+   // set up si
+   out_space_info.reset(new ompl::base::SpaceInformation(space));
+   
+   // set up checker
+   if (do_checker)
+   {
+      ompl::base::StateValidityCheckerPtr checker(
+         new or_lemur::OrChecker(out_space_info,
+         robot->GetEnv(), robot, dofs.size(), do_baked));
+      out_space_info->setStateValidityChecker(checker);
+      out_space_info->setup();
+   }
+   
    return true;
 }

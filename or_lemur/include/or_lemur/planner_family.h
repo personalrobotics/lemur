@@ -66,7 +66,6 @@ public:
       or_lemur::FamilyModule::Family familyspec;
       std::map<or_lemur::FamilyModule::SetPtr,std::string> familyspec_names;
       // the objects used to interface with ompl
-      ompl::base::StateSpacePtr ompl_space;
       ompl::base::SpaceInformationPtr ompl_si;
       boost::shared_ptr<ompl_lemur::Family> ompl_family;
       ompl_lemur::FamilyUtilityCheckerPtr ompl_family_checker;
