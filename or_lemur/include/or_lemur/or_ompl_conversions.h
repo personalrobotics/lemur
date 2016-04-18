@@ -7,10 +7,6 @@
 namespace or_lemur
 {
 
-ompl::base::RealVectorBounds ompl_bounds(
-   const OpenRAVE::RobotBasePtr & robot,
-   const std::vector<int> & dofs);
-
 double ompl_resolution(
    const OpenRAVE::RobotBasePtr & robot,
    const std::vector<int> & dofs);

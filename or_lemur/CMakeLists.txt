@@ -39,6 +39,7 @@ add_library(${PROJECT_NAME}
    src/planner_lemur.cpp
    src/planner_family.cpp
    src/planner_cctimer.cpp
+   src/SemiTorusStateSpace.cpp
    )
 
 # openrave bindings
