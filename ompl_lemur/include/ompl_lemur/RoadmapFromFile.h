@@ -68,10 +68,18 @@ public:
 
    void initialize()
    {
+      std::vector<std::string> missings;
       if (_filename == "")
-         throw std::runtime_error("cannot initialize, filename not set!");
+         missings.push_back("filename");
       if (_root_radius == 0.0)
-         throw std::runtime_error("cannot initialize, root_radius not set!");
+         missings.push_back("root_radius");
+      if (missings.size())
+      {
+         std::string str = "Cannot initialize, parameters not set:";
+         for (unsigned int ui=0; ui<missings.size(); ui++)
+            str += " " + missings[ui];
+         throw std::runtime_error(str);
+      }
       this->initialized = true;
    }
    

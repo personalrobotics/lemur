@@ -110,12 +110,20 @@ public:
    
    void initialize()
    {
+      std::vector<std::string> missings;
       if (_num == 0)
-         throw std::runtime_error("cannot initialize, num not set!");
+         missings.push_back("num");
       if (_radius == 0.0)
-         throw std::runtime_error("cannot initialize, radius not set!");
+         missings.push_back("radius");
       if (!_seed_set)
-         throw std::runtime_error("cannot initialize, seed not set!");
+         missings.push_back("seed");
+      if (missings.size())
+      {
+         std::string str = "Cannot initialize, parameters not set:";
+         for (unsigned int ui=0; ui<missings.size(); ui++)
+            str += " " + missings[ui];
+         throw std::runtime_error(str);
+      }
       
       ompl_lemur::SamplerGenMonkeyPatch(_sampler) = boost::mt19937(_seed);
       

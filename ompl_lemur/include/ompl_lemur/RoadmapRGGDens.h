@@ -111,12 +111,20 @@ public:
 
    void initialize()
    {
+      std::vector<std::string> missings;
       if (_num_per_batch == 0)
-         throw std::runtime_error("cannot initialize, num not set!");
+         missings.push_back("num_per_batch");
       if (_radius_first_batch == 0.0)
-         throw std::runtime_error("cannot initialize, radius_first_batch not set!");
+         missings.push_back("radius_first_batch");
       if (!_seed_set)
-         throw std::runtime_error("cannot initialize, seed not set!");
+         missings.push_back("seed");
+      if (missings.size())
+      {
+         std::string str = "Cannot initialize, parameters not set:";
+         for (unsigned int ui=0; ui<missings.size(); ui++)
+            str += " " + missings[ui];
+         throw std::runtime_error(str);
+      }
       
       _gamma = _radius_first_batch / pow(log(_num_per_batch)/_num_per_batch, 1./_dim);
       printf("RoadmapRGGDens calculated gamma=%f\n", _gamma);

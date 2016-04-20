@@ -77,10 +77,18 @@ public:
 
    void initialize()
    {
+      std::vector<std::string> missings;
       if (_num_per_batch == 0)
-         throw std::runtime_error("cannot initialize, num_per_batch not set!");
+         missings.push_back("num_per_batch");
       if (_radius_first_batch == 0.0)
-         throw std::runtime_error("cannot initialize, radius_first_batch not set!");
+         missings.push_back("radius_first_batch");
+      if (missings.size())
+      {
+         std::string str = "Cannot initialize, parameters not set:";
+         for (unsigned int ui=0; ui<missings.size(); ui++)
+            str += " " + missings[ui];
+         throw std::runtime_error(str);
+      }
       this->initialized = true;
    }
 
