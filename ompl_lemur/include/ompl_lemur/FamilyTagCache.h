@@ -10,6 +10,28 @@ namespace ompl_lemur
 /*! \brief Tag cache which uses a family checker to save/load
  *         particular sets.
  * 
+ * The tag cache is constructed outside LEMUR, and provided by pointer
+ * via its LEMUR::_tag_cache public member.
+ * 
+ * The outside code should configure it by providing a pointer to the
+ * ompl_lemur::FamilyUtilityChecker object which maintains tags for the
+ * state space.
+ * It can then call FamilyTagCache::addCachedSet() to load particular
+ * cache files.
+ * 
+ * LEMUR will call the tag cache instance's load() and save() methods
+ * during planning, or when requested (e.g. via a call to its
+ * LEMUR::saveTagCache() method).
+ * Since the number of tags managed by the underlying checker will
+ * grow during the planning episode,
+ * each call to loadBegin() or saveBegin() will resize the appropriate
+ * load_valid, load_invalid, and save maps (with 0 values).
+ * Then, during the actual load of individual vertices/edges,
+ * the correct transitions will be calculated on-demand
+ * (and potentially new tags will be created).
+ * 
+ * This will also create associated tags in the underlying checker.
+ * 
  * This may throw on addCachedSet (e.g. if the set was not found).
  * 
  * On a load/save file error, this class will log the error and
@@ -34,7 +56,9 @@ public:
       size_t var;
       std::vector<size_t> load_valid_map; // map if state is valid
       std::vector<size_t> load_invalid_map; // map if state is invalid
+#if 0
       std::vector<char> save_map; // from tag to 'U' 'V' or 'I'
+#endif
       // live stuff
       FILE * fp;
    };
@@ -55,58 +79,19 @@ public:
       newset.fp = 0;
       
       // find var for this target set
-      newset.var = _checker->_sets.size();
-      for (size_t var=0; var<_checker->_sets.size(); var++)
-         if (_checker->_sets[var] == set_name)
-            newset.var = var;
-      if (newset.var == _checker->_sets.size())
-         throw std::runtime_error("set target not found!");
+      // this will throw if it's not found!
+      newset.var = _checker->getSetIndex(set_name);
       
+#if 0
       // compute save maps
       newset.save_map.resize(num_vertices(_checker->_g));
+#endif
       
       // compute load maps
-      newset.load_valid_map.resize(num_vertices(_checker->_g));
-      newset.load_invalid_map.resize(num_vertices(_checker->_g));
-      
-      // consider all starting tags
-      for (size_t tag=0; tag<newset.load_valid_map.size(); tag++)
-      {
-         ompl_lemur::FamilyUtilityChecker::Vertex vtag = vertex(tag, _checker->_g);
-         
-         // save map
-         if (!_checker->_g[vtag].knowns[newset.var])
-            newset.save_map[tag] = 'U';
-         else if (_checker->_g[vtag].values[newset.var])
-            newset.save_map[tag] = 'V';
-         else
-            newset.save_map[tag] = 'I';
-         
-         // load map
-         newset.load_valid_map[tag] = tag;
-         newset.load_invalid_map[tag] = tag;
-         
-         // if this tag already knows the status of this check,
-         // then we dont need to figure anything else out!
-         // (actually, if the cache loads something inconsistent,
-         //  maybe we'd like to error out? maybe transition to tag=0?)
-         if (_checker->_g[vtag].knowns[newset.var])
-            continue;
-         
-         // ok, so this tag doesn't know yet -- what would happen
-         // in each case?
-         ompl_lemur::FamilyUtilityChecker::OutEdgeIter ei, ei_end;
-         for (boost::tie(ei,ei_end)=out_edges(vtag,_checker->_g); ei!=ei_end; ++ei)
-         {
-            if (_checker->_g[*ei].var != newset.var)
-               continue;
-            size_t tag_result = target(*ei, _checker->_g);
-            if (_checker->_g[*ei].value)
-               newset.load_valid_map[tag] = tag_result;
-            else
-               newset.load_invalid_map[tag] = tag_result;
-         }
-      }
+      // these are now extended on loadBegin() from the underlying checker's numTags()
+      // and then calculated on-demand!
+      //newset.load_valid_map.resize(num_vertices(_checker->_g));
+      //newset.load_invalid_map.resize(num_vertices(_checker->_g));
       
       _cached_sets.insert(std::make_pair(newset.var, newset));
    }
@@ -141,6 +126,9 @@ public:
             iset->second.fp = 0;
             continue;
          }
+         // extend the load maps with 0's
+         iset->second.load_valid_map.resize(_checker->numTags(), 0);
+         iset->second.load_invalid_map.resize(_checker->numTags(), 0);
       }
    }
    
@@ -196,11 +184,28 @@ public:
             }
             for (size_t i=0; i<bytes; i++,v_index++)
             {
+               size_t new_tag;
                switch (buffer[i])
                {
                case 'U': break;
-               case 'V': v_tag_map[v_index] = iset->second.load_valid_map[v_tag_map[v_index]]; break;
-               case 'I': v_tag_map[v_index] = iset->second.load_invalid_map[v_tag_map[v_index]]; break;
+               case 'V':
+                  new_tag = iset->second.load_valid_map[v_tag_map[v_index]];
+                  if (!new_tag)
+                  {
+                     new_tag = _checker->tagIfSetKnown(v_tag_map[v_index], iset->second.var, true);
+                     iset->second.load_valid_map[v_tag_map[v_index]] = new_tag;
+                  }
+                  v_tag_map[v_index] = new_tag;
+                  break;
+               case 'I':
+                  new_tag = iset->second.load_invalid_map[v_tag_map[v_index]];
+                  if (!new_tag)
+                  {
+                     new_tag = _checker->tagIfSetKnown(v_tag_map[v_index], iset->second.var, false);
+                     iset->second.load_valid_map[v_tag_map[v_index]] = new_tag;
+                  }
+                  v_tag_map[v_index] = new_tag;
+                  break;
                default:
                   OMPL_ERROR("Unknown character: %c", buffer[i]);
                }
@@ -230,11 +235,28 @@ public:
             }
             for (size_t i=0; i<bytes; i++,e_index++)
             {
+               size_t new_tag;
                switch (buffer[i])
                {
                case 'U': break;
-               case 'V': e_tag_map[e_index] = iset->second.load_valid_map[e_tag_map[e_index]]; break;
-               case 'I': e_tag_map[e_index] = iset->second.load_invalid_map[e_tag_map[e_index]]; break;
+               case 'V':
+                  new_tag = iset->second.load_valid_map[e_tag_map[e_index]];
+                  if (!new_tag)
+                  {
+                     new_tag = _checker->tagIfSetKnown(e_tag_map[e_index], iset->second.var, true);
+                     iset->second.load_valid_map[e_tag_map[e_index]] = new_tag;
+                  }
+                  e_tag_map[e_index] = new_tag;
+                  break;
+               case 'I':
+                  new_tag = iset->second.load_invalid_map[e_tag_map[e_index]];
+                  if (!new_tag)
+                  {
+                     new_tag = _checker->tagIfSetKnown(e_tag_map[e_index], iset->second.var, false);
+                     iset->second.load_valid_map[e_tag_map[e_index]] = new_tag;
+                  }
+                  e_tag_map[e_index] = new_tag;
+                  break;
                default:
                   OMPL_ERROR("Unknown character: %c", buffer[i]);
                }
@@ -283,6 +305,8 @@ public:
       VTagMap v_tag_map, size_t v_from, size_t v_to,
       ETagMap e_tag_map, size_t e_from, size_t e_to)
    {
+      printf("new save not implemented!\n");
+#if 0
       for (typename std::map<size_t, CachedSet>::iterator
          iset=_cached_sets.begin(); iset!=_cached_sets.end(); iset++)
       {
@@ -308,6 +332,7 @@ public:
          }
          fprintf(iset->second.fp, "\n");
       }
+#endif
    }
    
    void saveEnd()

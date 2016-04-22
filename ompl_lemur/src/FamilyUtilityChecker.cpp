@@ -107,101 +107,16 @@ void ompl_lemur::FamilyUtilityChecker::initialize()
          break;
    }
    OMPL_INFORM("Truth table has %lu rows.", _truth_table.size());
+
+   // start with the full unknown state, tag 0
+   BeliefState state_initial;
+   state_initial.first.resize(_sets.size(),false);
+   state_initial.second.resize(_sets.size(),false);
+   _belief_states.push_back(state_initial);
+   _belief_state_map[state_initial] = 0;
    
-   Vertex v = add_vertex(_g);
-   _g[v].knowns.resize(_sets.size(),false);
-   _g[v].values.resize(_sets.size(),false);
-   
-   for (size_t vidx=0; vidx<num_vertices(_g); vidx++)
-   {
-      Vertex v_source = vertex(vidx, _g);
-      for (size_t ivar=0; ivar<_sets.size(); ivar++)
-      {
-         if (_g[v_source].knowns[ivar])
-            continue;
-         Edge edges[2]; // for later cross-linking
-         for (int ival=0; ival<2; ival++)
-         {
-            bool value = (ival==0) ? false : true;
-            
-            // what would this imply?
-            std::vector<bool> implied_knowns = _g[v_source].knowns;
-            std::vector<bool> implied_values = _g[v_source].values;
-            implied_knowns[ivar] = true;
-            implied_values[ivar] = value;
-            
-            // what rows are consistent?
-            std::vector<bool> seen_true(_sets.size(),false);
-            std::vector<bool> seen_false(_sets.size(),false);
-            for (size_t irow=0; irow<_truth_table.size(); irow++)
-            {
-               // is this row inconsistent? then skip
-               size_t ivar_incon;
-               for (ivar_incon=0; ivar_incon<_sets.size(); ivar_incon++)
-                  if (implied_knowns[ivar_incon] && implied_values[ivar_incon] != _truth_table[irow][ivar_incon])
-                     break;
-               if (ivar_incon<_sets.size())
-                  continue;
-               // ok, this is consistent
-               for (size_t ivar2=0; ivar2<_sets.size(); ivar2++)
-               {
-                  if (_truth_table[irow][ivar2])
-                     seen_true[ivar2] = true;
-                  else
-                     seen_false[ivar2] = true;
-               }
-            }
-            
-            // update implied stuff
-            for (size_t ivar2=0; ivar2<_sets.size(); ivar2++)
-            {
-               if (implied_knowns[ivar2])
-                  continue;
-               if (seen_true[ivar2] && seen_false[ivar2])
-                  continue;
-               implied_knowns[ivar2] = true;
-               implied_values[ivar2] = seen_true[ivar2];
-            }
-            
-            // does this implied vertex already exist?
-            VertexIter vi, vi_end;
-            for (boost::tie(vi,vi_end)=vertices(_g); vi!=vi_end; ++vi)
-            {
-               if (_g[*vi].knowns != implied_knowns)
-                  continue;
-               size_t i_mismatch;
-               for (i_mismatch=0; i_mismatch<_sets.size(); i_mismatch++)
-               {
-                  if (!implied_knowns[i_mismatch])
-                     continue;
-                  if (_g[*vi].values[i_mismatch] != implied_values[i_mismatch])
-                     break;
-               }
-               if (!(i_mismatch<_sets.size()))
-                  break;
-            }
-            Vertex v_implied;
-            if (vi!=vi_end)
-               v_implied = *vi;
-            else
-            {
-               v_implied = add_vertex(_g);
-               _g[v_implied].knowns = implied_knowns;
-               _g[v_implied].values = implied_values;
-            }
-            
-            // add new edge
-            edges[ival] = add_edge(v_source, v_implied, _g).first;
-            _g[edges[ival]].var = ivar;
-            _g[edges[ival]].value = value;
-            //_g[edges[ival]].check_cost = _var_costs[ivar];
-         }
-         _g[edges[0]].edge_other = edges[1];
-         _g[edges[1]].edge_other = edges[0];
-      }
-   }
-   
-   OMPL_INFORM("Family graph has %lu vertices.", num_vertices(_g));
+   // corresponding non-computed policy
+   _policy.push_back(BeliefStatePolicy());
 }
 
 void ompl_lemur::FamilyUtilityChecker::start_checking(std::string set_target,
@@ -232,51 +147,10 @@ void ompl_lemur::FamilyUtilityChecker::start_checking(std::string set_target,
       throw std::runtime_error("set target not found!");
    }
    
-   // copy check costs into edges
-   EdgeIter ei, ei_end;
-   for (boost::tie(ei,ei_end)=edges(_g); ei!=ei_end; ++ei)
-      _g[*ei].check_cost = _checkers[_g[*ei].var].first; // check_cost
-   
-   // do manual reverse dijkstra's algorithm
-   pr_bgl::heap_indexed<double> heap;
-   VertexIter vi, vi_end;
-   for (boost::tie(vi,vi_end)=vertices(_g); vi!=vi_end; ++vi)
+   // invalidate policies
+   for (unsigned int ui=0; ui<_policy.size(); ui++)
    {
-      if (_g[*vi].knowns[_var_target] && _g[*vi].values[_var_target])
-      {
-         _g[*vi].cost_to_go = 0.0;
-         _g[*vi].checks_to_go = 0;
-         size_t vidx = get(get(boost::vertex_index,_g), *vi);
-         heap.insert(vidx, 0.0);
-      }
-      else
-      {
-         _g[*vi].cost_to_go = std::numeric_limits<double>::infinity();
-         _g[*vi].checks_to_go = std::numeric_limits<size_t>::max();
-      }
-   }
-   while (heap.size())
-   {
-      // pop
-      Vertex v = vertex(heap.top_idx(), _g);
-      heap.remove_min();
-      InEdgeIter ei, ei_end;
-      for (boost::tie(ei,ei_end)=in_edges(v,_g); ei!=ei_end; ++ei)
-      {
-         assert(target(*ei,_g)==v);
-         Vertex v_source = source(*ei,_g);
-         double cost_source = _g[v].cost_to_go + _g[*ei].check_cost;
-         if (!(cost_source < _g[v_source].cost_to_go))
-            continue;
-         _g[v_source].cost_to_go = cost_source;
-         _g[v_source].checks_to_go = _g[v].checks_to_go + 1;
-         _g[v_source].edge_next = *ei;
-         size_t vidx_source = get(get(boost::vertex_index,_g), v_source);
-         if (heap.contains(vidx_source))
-            heap.update(vidx_source, cost_source);
-         else
-            heap.insert(vidx_source, cost_source);
-      }
+      _policy[ui].computed = false;
    }
    
    // notify planners that values must be recomputed
@@ -297,48 +171,282 @@ bool ompl_lemur::FamilyUtilityChecker::hasChanged()
    
 bool ompl_lemur::FamilyUtilityChecker::isKnown(size_t tag) const
 {
-   Vertex v = vertex(tag, _g);
-   if (_g[v].checks_to_go == 0)
-      return true;
-   if (_g[v].checks_to_go == std::numeric_limits<size_t>::max())
-      return true;
-   return false;
+   const BeliefState & bstate = _belief_states[tag];
+   return bstate.first[_var_target];
 }
 
 bool ompl_lemur::FamilyUtilityChecker::isKnownInvalid(size_t tag) const
 {
-   Vertex v = vertex(tag, _g);
-   if (_g[v].checks_to_go == std::numeric_limits<size_t>::max())
-      return true;
-   return false;
+   const BeliefState & bstate = _belief_states[tag];
+   if (!bstate.first[_var_target])
+      return false;
+   if (bstate.second[_var_target])
+      return false;
+   return true;
 }
 
 double ompl_lemur::FamilyUtilityChecker::getPartialEvalCost(size_t tag, const ompl::base::State * state) const
 {
-   Vertex v = vertex(tag, _g);
-   return _g[v].cost_to_go;
+   const BeliefState & bstate = _belief_states[tag];
+   if (bstate.first[_var_target])
+      return 0.0;
+   if (!_policy[tag].computed)
+      compute_policy(tag);
+   return _policy[tag].cost_to_go;
 }
 
 bool ompl_lemur::FamilyUtilityChecker::isValidPartialEval(size_t & tag, const ompl::base::State * state) const
 {
-   Vertex v = vertex(tag, _g);
-   assert(_g[v].checks_to_go != 0);
-   assert(_g[v].checks_to_go != std::numeric_limits<size_t>::max());
-   bool ret = true;
-   while (_g[v].checks_to_go)
+   // continue going as planned!
+   for (;;)
    {
-      Edge e = _g[v].edge_next;
-      //printf("checking against ivar=%lu desired=%c ...\n",
-      //   _g[e].var, _g[e].value ? 'T' : 'F');
-      bool valid = _checkers[_g[e].var].second->isValid(state);
-      if (valid != _g[e].value)
+      const BeliefState bstate = _belief_states[tag];
+      if (!_policy[tag].computed)
+         compute_policy(tag);
+      
+      bool result_desired = _policy[tag].result_desired;
+      bool valid = _checkers[_policy[tag].iset].second->isValid(state);
+      
+      // update
+      size_t tag_on_result = valid ? _policy[tag].tag_on_valid : _policy[tag].tag_on_invalid;
+      if (!tag_on_result)
       {
-         v = target(_g[e].edge_other, _g);
-         ret = false;
+         tag_on_result = tagIfSetKnown(tag, _policy[tag].iset, valid);
+         
+         // update tag_on_result
+         if (valid)
+            _policy[tag].tag_on_valid = tag_on_result;
+         else
+            _policy[tag].tag_on_invalid = tag_on_result;
+      }
+      
+      tag = tag_on_result;
+      
+      // should we continue?
+      if (valid != result_desired)
+         return false;
+      
+      // are we done?
+      if (isKnown(tag))
+         return !isKnownInvalid(tag);
+   }
+}
+
+// this is called if _policy[tag].computed is false
+// right now, this is completely self-contained ...
+void ompl_lemur::FamilyUtilityChecker::compute_policy(size_t tag) const
+{
+   const BeliefState & initial_bstate = _belief_states[tag];
+   
+   // TODO: do we already know for this tag?
+   
+   std::vector< BeliefState > my_states;
+   std::map< BeliefState, size_t > my_state_map;
+   
+   // points back to initial_state
+   // (parent_idx, (iset,result))
+   std::vector< std::pair<size_t,std::pair<size_t,bool> > > my_parents;
+   
+   // do forward dijkstra's search
+   // index: index into my_states
+   // cost: cost so far (from belief_state)
+   pr_bgl::heap_indexed<double> heap;
+   
+   BeliefState initial_bstate_copy = initial_bstate;
+   my_states.push_back(initial_bstate_copy);
+   my_parents.push_back(std::make_pair(0,std::make_pair(0,false)));
+   my_state_map[initial_bstate] = 0;
+   heap.insert(0, 0.0);
+   
+   size_t popped_idx;
+   double popped_distance;
+   bool goal_found = false;
+   while (heap.size())
+   {
+      // pop
+      popped_idx = heap.top_idx();
+      popped_distance = heap.top_key();
+      const BeliefState popped_bstate = my_states[popped_idx];
+      heap.remove_min();
+      
+      // are we done??
+      if (popped_bstate.first[_var_target] && popped_bstate.second[_var_target])
+      {
+         goal_found = true;
          break;
       }
-      v = target(e, _g);
+      
+      // consider all potential tests and results
+      for (size_t iset=0; iset<_sets.size(); iset++)
+      {
+         // obviously, skip tests for states we already know
+         if (popped_bstate.first[iset])
+            continue;
+         for (int iresult=0; iresult<2; iresult++)
+         {
+            bool result = (iresult==0) ? false : true;
+            
+            // new belief
+            BeliefState new_bstate = popped_bstate;
+            new_bstate.first[iset] = true; // known
+            new_bstate.second[iset] = result;
+            
+            // compute implications
+            // for each var, which consistent truth table rows have it true or false?
+            std::vector<bool> seen_true(_sets.size(),false);
+            std::vector<bool> seen_false(_sets.size(),false);
+            for (size_t irow=0; irow<_truth_table.size(); irow++)
+            {
+               // is this row inconsistent? then skip
+               size_t ivar_incon;
+               for (ivar_incon=0; ivar_incon<_sets.size(); ivar_incon++)
+                  if (new_bstate.first[ivar_incon] && new_bstate.second[ivar_incon] != _truth_table[irow][ivar_incon])
+                     break;
+               if (ivar_incon<_sets.size())
+                  continue;
+               // ok, this is consistent
+               for (size_t ivar2=0; ivar2<_sets.size(); ivar2++)
+               {
+                  if (_truth_table[irow][ivar2])
+                     seen_true[ivar2] = true;
+                  else
+                     seen_false[ivar2] = true;
+               }
+            }
+            
+            // update new_state with implied stuff
+            for (size_t ivar2=0; ivar2<_sets.size(); ivar2++)
+            {
+               if (new_bstate.first[ivar2])
+                  continue;
+               if (seen_true[ivar2] && seen_false[ivar2])
+                  continue;
+               new_bstate.first[ivar2] = true;
+               new_bstate.second[ivar2] = seen_true[ivar2];
+            }
+            
+            // if this implies the target is false, then don't even bother!
+            if (new_bstate.first[_var_target] && !new_bstate.second[_var_target])
+               continue;
+            
+            // compute the cost to get to this vertex
+            double new_distance = popped_distance + _checkers[iset].first;
+            
+            // de-duplicate new state, get its index
+            size_t new_idx;
+            std::map< BeliefState, size_t >::iterator needle = my_state_map.find(new_bstate);
+            if (needle != my_state_map.end())
+            {
+               new_idx = needle->second;
+               // if it's in the heap, then we might have found a new value for it!
+               if (heap.contains(new_idx))
+               {
+                  if (new_distance < heap.key_of(new_idx))
+                  {
+                     heap.update(new_idx, new_distance);
+                     my_parents[new_idx] = std::make_pair(popped_idx,std::make_pair(iset,result));
+                  }
+               }
+            }
+            else
+            {
+               // never seen before state;
+               // add it to my_states with the correct cost,
+               // and add it to the open list (heap)
+               new_idx = my_states.size();
+               my_states.push_back(new_bstate);
+               my_parents.push_back(std::make_pair(popped_idx,std::make_pair(iset,result)));
+               my_state_map[new_bstate] = new_idx;
+               heap.insert(new_idx, new_distance); // check_cost
+            }
+         }
+      }
    }
-   tag = get(get(boost::vertex_index,_g), v);
-   return ret;
+   
+   if (!goal_found)
+      throw std::runtime_error("borking (no path found?)");
+   
+   // walk backwards
+   size_t child = popped_idx;
+   while (my_parents[child].first)
+      child = my_parents[child].first;
+
+   _policy[tag].computed = true;
+   _policy[tag].cost_to_go = popped_distance;
+   _policy[tag].iset = my_parents[child].second.first;
+   _policy[tag].result_desired = my_parents[child].second.second;
+   _policy[tag].tag_on_valid = 0;
+   _policy[tag].tag_on_invalid = 0;
+}
+
+size_t ompl_lemur::FamilyUtilityChecker::getSetIndex(const std::string & set_name) const
+{
+   size_t iset;
+   for (iset=0; iset<_sets.size(); iset++)
+      if (_sets[iset] == set_name)
+         break;
+   if (iset<_sets.size())
+      return iset;
+   else
+      throw std::runtime_error("set not found!");
+}
+
+size_t ompl_lemur::FamilyUtilityChecker::tagIfSetKnown(size_t tag_in, size_t iset, bool value) const
+{
+   const BeliefState bstate = _belief_states[tag_in];
+   
+   // compute resulting belief (it could be new!)
+   BeliefState new_bstate = bstate;
+   new_bstate.first[iset] = true; // known
+   new_bstate.second[iset] = value;
+   
+   // compute implications
+   // for each var, which consistent truth table rows have it true or false?
+   std::vector<bool> seen_true(_sets.size(),false);
+   std::vector<bool> seen_false(_sets.size(),false);
+   for (size_t irow=0; irow<_truth_table.size(); irow++)
+   {
+      // is this row inconsistent? then skip
+      size_t ivar_incon;
+      for (ivar_incon=0; ivar_incon<_sets.size(); ivar_incon++)
+         if (new_bstate.first[ivar_incon] && new_bstate.second[ivar_incon] != _truth_table[irow][ivar_incon])
+            break;
+      if (ivar_incon<_sets.size())
+         continue;
+      // ok, this is consistent
+      for (size_t ivar2=0; ivar2<_sets.size(); ivar2++)
+      {
+         if (_truth_table[irow][ivar2])
+            seen_true[ivar2] = true;
+         else
+            seen_false[ivar2] = true;
+      }
+   }
+   
+   // update new_state with implied stuff
+   for (size_t ivar2=0; ivar2<_sets.size(); ivar2++)
+   {
+      if (new_bstate.first[ivar2])
+         continue;
+      if (seen_true[ivar2] && seen_false[ivar2])
+         continue;
+      new_bstate.first[ivar2] = true;
+      new_bstate.second[ivar2] = seen_true[ivar2];
+   }
+   
+   // check if it's in our set of existing tags ...
+   // get the new tag in any case
+   std::map< BeliefState, size_t >::iterator needle = _belief_state_map.find(new_bstate);
+   if (needle != _belief_state_map.end())
+   {
+      return needle->second;
+   }
+   else
+   {
+      size_t new_tag = _belief_states.size();
+      _belief_states.push_back(new_bstate);
+      _belief_state_map[new_bstate] = new_tag;
+      _policy.push_back(BeliefStatePolicy());
+      return new_tag;
+   }
 }
