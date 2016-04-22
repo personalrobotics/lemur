@@ -440,15 +440,20 @@ void ompl_lemur::LEMUR::setProblemDefinition(
       for (boost::tie(oei,oei_end)=edges(og); oei!=oei_end; oei++)
          for (unsigned int ui=0; ui<og[*oei].edge_states.size(); ui++)
             space->freeState(og[*oei].edge_states[ui]);
+      
       // clear and free all non-singleroot vertices
       OverVertexIter ovi, ovi_end, ovi_next;
       boost::tie(ovi,ovi_end) = vertices(og);
       for (ovi_next=ovi; ovi!=ovi_end; ovi=ovi_next)
       {
          ++ovi_next;
+         // skip the two persistent singleroot vertices
          if (*ovi == ov_singlestart) continue;
          if (*ovi == ov_singlegoal) continue;
-         space->freeState(og[*ovi].state);
+         // if this is not an anchor, clear the state
+         if (og[*ovi].core_vertex == boost::graph_traits<Graph>::null_vertex())
+            space->freeState(og[*ovi].state);
+         // remove vertex from overlay graph
          clear_vertex(*ovi, og);
          remove_vertex(*ovi, og);
       }
@@ -595,25 +600,6 @@ void ompl_lemur::LEMUR::setProblemDefinition(
          og[e].num_edge_states = 0;
          og[e].edge_tag = 0;
       }
-   }
-   
-   // ompl::base::SpaceInformationPtr si_new = pdef->getSpaceInformation();
-   //if (si_new != family_effort_model.si_target)
-   if (_utility_checker->hasChanged())
-   {
-      overlay_apply();
-      
-      // route target si to family effort model
-      // this will re-run reverse dijkstra's on the family graph
-      //family_effort_model.set_target(si_new);
-      
-      // recalculate wlazy if necessary
-      // we probably always need to recalc wlazy for overlay states!
-      EdgeIter ei, ei_end;
-      for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
-         calculate_w_lazy(*ei);
-      
-      overlay_unapply();
    }
 }
 
@@ -1292,6 +1278,23 @@ ompl_lemur::LEMUR::solve(
       _dur_selector = boost::chrono::high_resolution_clock::duration();
       _dur_selector_notify = boost::chrono::high_resolution_clock::duration();
       time_total_begin = boost::chrono::high_resolution_clock::now();
+   }
+   
+   if (_utility_checker->hasChanged())
+   {
+      overlay_apply();
+      
+      // route target si to family effort model
+      // this will re-run reverse dijkstra's on the family graph
+      //family_effort_model.set_target(si_new);
+      
+      // recalculate wlazy if necessary
+      // we probably always need to recalc wlazy for overlay states!
+      EdgeIter ei, ei_end;
+      for (boost::tie(ei,ei_end)=edges(g); ei!=ei_end; ++ei)
+         calculate_w_lazy(*ei);
+      
+      overlay_unapply();
    }
    
    // ok, do some sweet sweet lazy search!
