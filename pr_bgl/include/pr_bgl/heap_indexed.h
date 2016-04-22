@@ -46,16 +46,23 @@ public:
    heap_indexed(): backing(1,element(KeyType(),0)), locs(0) {}
    
    // simple queries
-   size_t size()
+   inline size_t size() const
    {
       return backing.size() - 1;
    }
-   bool contains(size_t idx)
+   inline bool contains(size_t idx) const
    {
       if (idx < locs.size() && locs[idx])
          return true;
       else
          return false;
+   }
+   
+   // assumes contains
+   inline KeyType key_of(size_t idx) const
+   {
+      size_t loc = locs[idx];
+      return backing[loc].key;
    }
    
    // make an inconsistent heap consistent
@@ -113,7 +120,7 @@ public:
    }
    
    // only valid if contains(idx) is false
-   void insert(size_t idx, KeyType key)
+   inline void insert(size_t idx, KeyType key)
    {
       // resize loc if necessary
       if (locs.size() < idx+1)
@@ -127,7 +134,7 @@ public:
    }
    
    // only valid if contains(idx) is true
-   void update(size_t idx, KeyType key)
+   inline void update(size_t idx, KeyType key)
    {
       size_t loc = locs[idx];
       if (key < backing[loc].key)
@@ -145,7 +152,7 @@ public:
    }
    
    // only valid if its in the heap
-   void remove(size_t idx)
+   inline void remove(size_t idx)
    {
       size_t loc = locs[idx];
       KeyType key = backing[loc].key;
@@ -171,15 +178,15 @@ public:
    }
    
    // assumes non-empty
-   KeyType top_key()
+   inline KeyType top_key() const
    {
       return backing[1].key;
    }
-   size_t top_idx()
+   inline size_t top_idx() const
    {
       return backing[1].idx;
    }
-   void remove_min()
+   inline void remove_min()
    {
       // remove
       locs[top_idx()] = 0;
@@ -196,7 +203,7 @@ public:
          down_heap(backing[1].idx, backing[1].key, 1);
    }
    
-   void print()
+   void print() const
    {
       printf("backing:");
       for (size_t ui=0; ui<backing.size(); ui++)
