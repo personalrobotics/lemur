@@ -38,6 +38,8 @@ elif args.urdf is not None and args.srdf is not None:
    fn_urdf = rr_get_filename(args.urdf)
    fn_srdf = rr_get_filename(args.srdf)
    robot = env.GetRobot(or_urdf.SendCommand('load {} {}'.format(fn_urdf,fn_srdf)))
+else:
+   raise RuntimeError('either --robot-xml or --urdf and --srdf must be passed!')
 
 # set manipulator / active dofs
 if args.manip is not None:
