@@ -46,6 +46,7 @@
 #include <ompl_lemur/RoadmapHalton.h>
 #include <ompl_lemur/RoadmapHaltonDens.h>
 #include <ompl_lemur/RoadmapHaltonOffDens.h>
+#include <ompl_lemur/RoadmapHaltonOffLLDens.h>
 #include <ompl_lemur/RoadmapRGG.h>
 #include <ompl_lemur/RoadmapRGGDens.h>
 #include <ompl_lemur/RoadmapRGGDensConst.h>
@@ -131,6 +132,7 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHalton>("Halton");
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonDens>("HaltonDens");
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonOffDens>("HaltonOffDens");
+      ompl_planner->registerRoadmapType<ompl_lemur::RoadmapHaltonOffLLDens>("HaltonOffLLDens");
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGG>("RGG");
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDens>("RGGDens");
       ompl_planner->registerRoadmapType<ompl_lemur::RoadmapRGGDensConst>("RGGDensConst");
@@ -146,6 +148,9 @@ or_lemur::LEMUR::InitPlan(OpenRAVE::RobotBasePtr inrobot, OpenRAVE::PlannerBase:
       ompl_planner->registerRoadmapType("CachedHaltonOffDens",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonOffDens>()));
+      ompl_planner->registerRoadmapType("CachedHaltonOffLLDens",
+         or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
+            ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapHaltonOffLLDens>()));
       ompl_planner->registerRoadmapType("CachedRGG",
          or_lemur::RoadmapCachedFactory<ompl_lemur::LEMUR::RoadmapArgs>(
             ompl_lemur::RoadmapFactory<ompl_lemur::LEMUR::RoadmapArgs,ompl_lemur::RoadmapRGG>()));

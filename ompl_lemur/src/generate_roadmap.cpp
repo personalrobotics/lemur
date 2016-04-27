@@ -33,6 +33,7 @@
 #include <ompl_lemur/RoadmapHalton.h>
 #include <ompl_lemur/RoadmapHaltonDens.h>
 #include <ompl_lemur/RoadmapHaltonOffDens.h>
+#include <ompl_lemur/RoadmapHaltonOffLLDens.h>
 #include <ompl_lemur/RoadmapRGG.h>
 #include <ompl_lemur/RoadmapRGGDens.h>
 #include <ompl_lemur/RoadmapRGGDensConst.h>
@@ -176,6 +177,8 @@ int main(int argc, char **argv)
       p_mygen.reset(new ompl_lemur::RoadmapHaltonDens<RoadmapArgs>(rmargs));
    else if (args["roadmap-type"].as<std::string>() == "HaltonOffDens")
       p_mygen.reset(new ompl_lemur::RoadmapHaltonOffDens<RoadmapArgs>(rmargs));
+   else if (args["roadmap-type"].as<std::string>() == "HaltonOffLLDens")
+      p_mygen.reset(new ompl_lemur::RoadmapHaltonOffLLDens<RoadmapArgs>(rmargs));
    else
    {
       OMPL_ERROR("--roadmap-type unknown!");
