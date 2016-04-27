@@ -37,6 +37,9 @@ class RoadmapCached : public ompl_lemur::Roadmap<RoadmapArgs>
    const boost::shared_ptr< ompl_lemur::Roadmap<RoadmapArgs> > _roadmap_wrapped;
    unsigned int _dim;
    
+   // parameters
+   bool _is_cache_required;
+
    // determined on initialization
    std::string _cache_filename;
    
@@ -54,19 +57,37 @@ public:
          "Cached" + roadmap_wrapped->name,
          roadmap_wrapped->max_batches),
       _roadmap_wrapped(roadmap_wrapped),
-      _dim(roadmap_wrapped->space->getDimension())
+      _dim(roadmap_wrapped->space->getDimension()),
+      _is_cache_required(false)
    {
       // check that we're in a real vector state space
       // for now, we only know how to serialize/deserialize these states!
       if (roadmap_wrapped->space->getType() != ompl::base::STATE_SPACE_REAL_VECTOR)
          throw std::runtime_error("RoadmapCached only supports real vector state spaces!");
       
-      // we don't have settable parameters;
       // cache_filename will be set on initialization based on wrapped roadmap's params
       this->params.include(_roadmap_wrapped->params);
+
+      this->template declareParam<bool>("is_cache_required", this,
+         &RoadmapCached::setIsCacheRequired,
+         &RoadmapCached::getIsCacheRequired);
    }
    ~RoadmapCached() {}
    
+   void setIsCacheRequired(bool is_cache_required)
+   {
+      if (is_cache_required == _is_cache_required)
+         return;
+      if (this->initialized)
+         throw std::runtime_error("cannot set is_cache_required, already initialized!");
+      _is_cache_required = is_cache_required;
+   }
+   
+   bool getIsCacheRequired() const
+   {
+      return _is_cache_required;
+   }
+
    void initialize()
    {
       // compute the cache filename for this wrapped roadmap
@@ -75,23 +96,39 @@ public:
       _cache_filename = "or_lemur/roadmap-" + OpenRAVE::utils::GetMD5HashString(id) + ".bin";
             
       _infile_num_batches = 0; // assume read failure
+      bool file_found = false;
       do
       {
          size_t mysizet;
          // search for file in openrave databases path
          std::string path = OpenRAVE::RaveFindDatabaseFile(_cache_filename, true); // bRead
          if (!path.size())
+         {
+            RAVELOG_WARN("Could not find cached roadmap file: %s\n", _cache_filename.c_str());
             break;
+         }
          _infile.open(path.c_str(), std::ofstream::binary);
          if (!_infile.is_open())
+         {
+            RAVELOG_WARN("Could not open cached roadmap file: %s\n", _cache_filename.c_str());
             break;
+         }
          _infile.read((char *)&mysizet, sizeof(mysizet));
          if (!_infile.good())
+         {
+            RAVELOG_WARN("Could not read cached roadmap file: %s\n", _cache_filename.c_str());
             break;
+         }
          _infile_num_batches = mysizet;
+         file_found = true;
          RAVELOG_INFO("Found a file with %lu batches.\n", _infile_num_batches);
       }
       while (0);
+
+      if (!file_found && _is_cache_required)
+      {
+         throw std::runtime_error("RoadmapCached: cache file not found!");
+      }
       
       // initialize wrapped roadmap (so root_radius etc work)
       _roadmap_wrapped->initialize();
