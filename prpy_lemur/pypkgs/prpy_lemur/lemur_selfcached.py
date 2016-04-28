@@ -133,7 +133,7 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
          return traj
 
    @prpy.planning.base.PlanningMethod
-   def PlanToConfiguration(self, robot, q_goal, **kw_args):
+   def PlanToConfiguration(self, robot, goal_config, **kw_args):
       
       params = self.defaults._replace(**kw_args)
       
@@ -149,7 +149,43 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
          # serialize parameters
          orparams = openravepy.Planner.PlannerParameters()
          orparams.SetRobotActiveJoints(robot)
-         orparams.SetGoalConfig(q_goal)
+         orparams.SetGoalConfig(goal_config)
+         xml = self.xml_from_params(params)
+         xml.append('<family_module>{}</family_module>'.format(family.SendCommand('GetInstanceId')))
+         if setcache_path != '':
+            xml.append('<family_setcaches><setcache><filename>{}</filename></setcache></family_setcaches>'.format(setcache_path))
+         orparams.SetExtraParameters('\n'.join(xml))
+         planner.InitPlan(robot, orparams)
+         
+         # plan path
+         traj = openravepy.RaveCreateTrajectory(self.env, '')
+         status = planner.PlanPath(traj)
+         if status == openravepy.PlannerStatus.HasSolution:
+            return traj
+         else:
+            raise prpy.planning.base.PlanningError('LEMUR status: {}'.format(status))
+
+   @prpy.planning.base.PlanningMethod
+   def PlanToConfigurations(self, robot, goal_configs, **kw_args):
+      
+      params = self.defaults._replace(**kw_args)
+      
+      # create family
+      with type(self).AddedFamily(self.env, robot) as family:
+
+         setcache_path = self.get_setcache_path(family, params.roadmap, read_only=True)
+      
+         planner = openravepy.RaveCreatePlanner(self.env, 'FamilyPlanner')
+         if planner is None:
+            raise prpy.planning.base.UnsupportedPlanningError('Unable to create FamilyPlanner planner.')
+         
+         # serialize parameters
+         orparams = openravepy.Planner.PlannerParameters()
+         orparams.SetRobotActiveJoints(robot)
+         goal_configs_stacked = []
+         for goal_config in goal_configs:
+            goal_configs_stacked.extend(goal_config)
+         orparams.SetGoalConfig(goal_configs_stacked)
          xml = self.xml_from_params(params)
          xml.append('<family_module>{}</family_module>'.format(family.SendCommand('GetInstanceId')))
          if setcache_path != '':

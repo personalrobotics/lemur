@@ -1,32 +1,59 @@
 prpy_lemur: LEMUR for PrPy {#index}
 ==========================
 
-[`prpy`][github-prpy] bindings for Chris Dellin's LEMUR planner.  For
+[prpy][github-prpy] bindings for Chris Dellin's LEMUR planner.  For
 now, only a few features are supported.  For example, caching between
 calls (within a single planner instance, or through cached files) is
 not yet supported.
 
-Usage
------
+LEMUR Planner Usage
+-------------------
 
-    # Create a prpy planner instance
-    import prpy_lemur.planning_multiset
-    planner = prpy_lemur.planning_multiset.MultisetPlanner()
+The core planner abides by the standard [prpy][github-prpy] planning
+interface.
 
-    # Plan
-    traj = planner.PlanToConfiguration(robot, q_goal)
+    # Plan for the barrettwam robot arm
+    import openravepy
+    env = openravepy.Environment()
+    robot = env.ReadRobotXMLFile('robots/barrettwam.robot.xml')
+    env.Add(robot)
+    robot.SetActiveDOFs(range(7))
+    
+    # Create a LEMUR prpy planner instance
+    import prpy_lemur
+    planner = prpy_lemur.LEMURPlanner(
+       roadmap=prpy_lemur.roadmaps.Halton(num=1000, radius=2.0))
+    
+    # Invoke a planning method
+    q_start = [-2.0,-0.5,-0.2,-0.5, 0.0, 0.0, 0.0 ]
+    q_goal  = [ 2.0, 0.5, 0.2, 0.5, 0.0, 0.0, 0.0 ]
+    robot.SetActiveDOFValues(q_start)  
+    traj = planner.PlanToConfiguration(robot, q_goal, max_batches=1)
 
 Planning Methods Supported
 --------------------------
 
-We don't currently support many planning methods.  Here is a list:
+These [prpy][github-prpy] planning methods are currently supported:
 
-- `PlanToConfiguration(robot, goal_config)`: SUPPORTED
-- `PlanToConfigurations(robot, goal_configs)`: UNSUPPORTED
-- `PlanToEndEffectorPose(robot, goal_pose)`: UNSUPPORTED
-- `PlanToEndEffectorOffset(robot, direction, min_distance, max_distance)` UNSUPPORTED
-- `PlanToTSR(robot, tsrchains)`: UNSUPPORTED
-- `PlanToBasePose(robot, goal_pose)`: UNSUPPORTED
+- `PlanToConfiguration(robot, goal_config)`
+- `PlanToConfigurations(robot, goal_configs)`
+
+Self-Collision Checked Planner
+------------------------------
+
+`prpy_lemur` also includes experimental bindings for a family planner
+which is able to cache self-collision checks.  First, construct a
+planner of the correct type:
+
+    planner = prpy_lemur.LEMURSelfCachedPlanner(
+       roadmap=prpy_lemur.roadmaps.Halton(num=1000, radius=2.0))
+
+Then, you can perform self-collision checks:
+
+    planner.Generate(robot, num_batches=1)
+
+Future uses of this planner type should now rely on the cached
+collision checks for their plans.
 
 License
 -------

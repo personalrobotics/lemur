@@ -9,17 +9,26 @@ FromFile = nt('FromFile', 'filename root_radius')
 Halton = nt('Halton', 'num radius')
 HaltonDens = nt('HaltonDens', 'num_per_batch radius_first_batch')
 HaltonOffDens = nt('HaltonOffDens', 'num_per_batch radius_first_batch seed')
+HaltonOffLLDens = nt('HaltonOffLLDens', 'num_per_batch radius_first_batch seed')
 RGG = nt('RGG', 'num radius seed')
 RGGDens = nt('RGGDens', 'num_per_batch radius_first_batch seed')
 RGGDensConst = nt('RGGDensConst', 'num_per_batch radius seed')
 
-CachedAAGrid = nt('CachedAAGrid', AAGrid._fields)
-CachedHalton = nt('CachedHalton', Halton._fields)
-CachedHaltonDens = nt('CachedHaltonDens', HaltonDens._fields)
-CachedHaltonOffDens = nt('CachedHaltonOffDens', HaltonOffDens._fields)
-CachedRGG = nt('CachedRGG', RGG._fields)
-CachedRGGDens = nt('CachedRGGDens', RGGDens._fields)
-CachedRGGDensConst = nt('CachedRGGDensConst', RGGDensConst._fields)
+def make_cached(roadmap_type):
+   cached_name = 'Cached{}'.format(roadmap_type.__name__)
+   cached_fields = list(roadmap_type._fields) + ['is_cache_required']
+   cached_type = nt(cached_name, cached_fields)
+   cached_type.__new__.__defaults__ = (False,)
+   return cached_type
+
+CachedAAGrid = make_cached(AAGrid)
+CachedHalton = make_cached(Halton)
+CachedHaltonDens = make_cached(HaltonDens)
+CachedHaltonOffDens = make_cached(HaltonOffDens)
+CachedHaltonOffLLDens = make_cached(HaltonOffLLDens)
+CachedRGG = make_cached(RGG)
+CachedRGGDens = make_cached(RGGDens)
+CachedRGGDensConst = make_cached(RGGDensConst)
 
 def get_roadmap_id(roadmap):
    roadmap_type = type(roadmap).__name__

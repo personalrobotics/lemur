@@ -40,14 +40,38 @@ class LEMURPlanner(prpy.planning.base.BasePlanner):
       return xml
    
    @prpy.planning.base.PlanningMethod
-   def PlanToConfiguration(self, robot, q_goal, **kw_args):
+   def PlanToConfiguration(self, robot, goal_config, **kw_args):
       
       params = self.defaults._replace(**kw_args)
       
       # serialize parameters
       orparams = openravepy.Planner.PlannerParameters()
       orparams.SetRobotActiveJoints(robot)
-      orparams.SetGoalConfig(q_goal)
+      orparams.SetGoalConfig(goal_config)
+      xml = self.xml_from_params(params)
+      orparams.SetExtraParameters('\n'.join(xml))
+      self.planner.InitPlan(robot, orparams)
+      
+      # plan path
+      traj = openravepy.RaveCreateTrajectory(self.env, '')
+      status = self.planner.PlanPath(traj)
+      if status == openravepy.PlannerStatus.HasSolution:
+         return traj
+      else:
+         raise prpy.planning.base.PlanningError('LEMUR status: {}'.format(status))
+
+   @prpy.planning.base.PlanningMethod
+   def PlanToConfigurations(self, robot, goal_configs, **kw_args):
+      
+      params = self.defaults._replace(**kw_args)
+      
+      # serialize parameters
+      orparams = openravepy.Planner.PlannerParameters()
+      orparams.SetRobotActiveJoints(robot)
+      goal_configs_stacked = []
+      for goal_config in goal_configs:
+         goal_configs_stacked.extend(goal_config)
+      orparams.SetGoalConfig(goal_configs_stacked)
       xml = self.xml_from_params(params)
       orparams.SetExtraParameters('\n'.join(xml))
       self.planner.InitPlan(robot, orparams)
