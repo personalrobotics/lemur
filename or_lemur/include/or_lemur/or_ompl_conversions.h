@@ -41,10 +41,14 @@ public:
    mutable boost::chrono::high_resolution_clock::duration dur_checks;
    // optional baked stuff
    const bool do_baked;
+   
    boost::function<void ()> bake_begin;
    boost::function<OpenRAVE::KinBodyPtr ()> bake_end;
    boost::function<bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> baked_checker;
+   
+   OpenRAVE::CollisionCheckerBasePtr baked_cc;
    OpenRAVE::KinBodyPtr baked_kinbody;
+   
    OrChecker(
       const ompl::base::SpaceInformationPtr & si,
       const OpenRAVE::EnvironmentBasePtr env,
@@ -61,48 +65,44 @@ public:
       {
          throw std::runtime_error("state space is not real vector!");
       }
-      
-      if (do_baked)
-      {
-         OpenRAVE::CollisionCheckerBasePtr cc = env->GetCollisionChecker();
-         
-         std::stringstream sinput;
-         std::stringstream soutput;
-         sinput << "GetBakingFunctions";
-         try
-         {
-            if (!cc->SendCommand(soutput, sinput))
-               throw std::runtime_error("collision checker doesn't support baked checks!");
-         }
-         catch (const OpenRAVE::openrave_exception & exc)
-         {
-            throw std::runtime_error("collision checker doesn't support baked checks!");
-         }
-         
-         boost::function< void ()> * fn_bake_begin;
-         boost::function< OpenRAVE::KinBodyPtr ()> * fn_bake_end;
-         boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> * fn_check_baked_collision;
-         soutput >> (void *&)fn_bake_begin;
-         soutput >> (void *&)fn_bake_end;
-         soutput >> (void *&)fn_check_baked_collision;
-         bake_begin = *fn_bake_begin;
-         bake_end = *fn_bake_end;
-         baked_checker = *fn_check_baked_collision;
-      }
-      
    }
    void start()
    {
-      if (do_baked)
+      if (!do_baked)
+         return;
+      // handle baked case
+      OpenRAVE::CollisionCheckerBasePtr cc = env->GetCollisionChecker();
+      if (!cc)
+         throw std::runtime_error("no collision checker set!");
+      // communicate with baked checker
+      bool success;
+      std::stringstream sinput("BakeGetType BakeBegin BakeEnd"), soutput;
+      try
       {
-         bake_begin();
-         env->CheckCollision(robot);
-         robot->CheckSelfCollision();
-         baked_kinbody = bake_end();
+         success = cc->SendCommand(soutput, sinput); // BakeGetType
       }
+      catch (const OpenRAVE::openrave_exception & exc)
+      {
+         throw std::runtime_error("collision checker doesn't support baked checks!");
+      }
+      // start baking
+      if (!success) std::runtime_error("BakeGetType failed!");
+      std::string kinbody_type = soutput.str();
+      success = cc->SendCommand(soutput, sinput); // BakeBegin
+      if (!success) std::runtime_error("BakeBegin failed!");
+      OpenRAVE::KinBodyPtr kb = OpenRAVE::RaveCreateKinBody(env,kinbody_type);
+      if (!baked_kinbody) std::runtime_error("RaveCreateKinBody failed!");
+      env->CheckCollision(robot);
+      robot->CheckSelfCollision();
+      success = cc->SendCommand(soutput, sinput); // BakeEnd
+      if (!success) std::runtime_error("BakeEnd failed!");
+      // success
+      baked_cc = cc;
+      baked_kinbody = kb;
    }
    void stop()
    {
+      baked_cc.reset();
       baked_kinbody.reset();
    }
    bool isValid(const ompl::base::State * state) const
@@ -115,7 +115,7 @@ public:
       robot->SetActiveDOFValues(adofvals, OpenRAVE::KinBody::CLA_Nothing);
       bool collided;
       if (do_baked)
-         collided = baked_checker(baked_kinbody, OpenRAVE::CollisionReportPtr());
+         collided = baked_cc->CheckStandaloneSelfCollision(baked_kinbody);
       else
          collided = env->CheckCollision(robot) || robot->CheckSelfCollision();
       dur_checks += boost::chrono::high_resolution_clock::now() - time_begin;

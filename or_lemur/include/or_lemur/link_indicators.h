@@ -21,10 +21,10 @@ class BakedCheckIndicator
 {
 public:
    const OpenRAVE::RobotBasePtr _robot;
-   const boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> _baked_checker;
+   const OpenRAVE::CollisionCheckerBasePtr _baked_checker;
    const OpenRAVE::KinBodyConstPtr _baked_check;
    BakedCheckIndicator(const OpenRAVE::RobotBasePtr & robot,
-      const boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> baked_checker,
+      const OpenRAVE::CollisionCheckerBasePtr baked_checker,
       const OpenRAVE::KinBodyConstPtr baked_check):
       _robot(robot), _baked_checker(baked_checker), _baked_check(baked_check)
    {
@@ -32,7 +32,7 @@ public:
    bool operator()(const std::vector<OpenRAVE::dReal> & values) const
    {
       _robot->SetActiveDOFValues(values);
-      bool collides = _baked_checker(_baked_check, OpenRAVE::CollisionReportPtr());
+      bool collides = _baked_checker->CheckStandaloneSelfCollision(_baked_check);
       if (collides)
          return false;
       return true;

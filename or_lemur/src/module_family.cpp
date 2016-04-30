@@ -818,33 +818,28 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
    }
    
    // check whether the collision checker supports baked checks
-   OpenRAVE::CollisionCheckerBasePtr cc;
-   boost::function< void ()> * fn_bake_begin = 0;
-   boost::function< OpenRAVE::KinBodyPtr ()> * fn_bake_end = 0;
-   boost::function< bool (OpenRAVE::KinBodyConstPtr, OpenRAVE::CollisionReportPtr)> * fn_check_baked_collision = 0;
-   if (!_has_use_baked_checker || _use_baked_checker)
-   {
-      cc = GetEnv()->GetCollisionChecker();
-      std::stringstream sinput;
-      std::stringstream soutput;
-      sinput << "GetBakingFunctions";
+   OpenRAVE::CollisionCheckerBasePtr cc = GetEnv()->GetCollisionChecker();
+   if (!cc)
+      throw OpenRAVE::openrave_exception("No collision checker set!");
+   
+   // communicate with baked checker
+   std::string baked_kinbody_type;
+   if (!_has_use_baked_checker || _use_baked_checker) do {
+      bool success;
+      std::stringstream sinput("BakeGetType"), soutput;
       try
       {
-         if (cc->SendCommand(soutput, sinput))
-         {
-            soutput >> (void *&)fn_bake_begin;
-            soutput >> (void *&)fn_bake_end;
-            soutput >> (void *&)fn_check_baked_collision;
-         }
+         success = cc->SendCommand(soutput, sinput); // BakeGetType
       }
       catch (const OpenRAVE::openrave_exception & exc)
       {
-         fn_bake_begin = 0;
-         fn_bake_end = 0;
-         fn_check_baked_collision = 0;
+         break;
       }
-   }
-   if (fn_bake_begin && fn_bake_end && fn_check_baked_collision)
+      // start baking
+      if (!success) break;
+      baked_kinbody_type = soutput.str();
+   } while (0);
+   if (baked_kinbody_type.size())
    {
       RAVELOG_INFO("Using baking collision checker interface.\n");
    }
@@ -889,18 +884,21 @@ or_lemur::FamilyModule::GetIndicators(const or_lemur::FamilyModule::Family & fam
       }
       else // all found!
       {
-         if (fn_bake_begin && fn_bake_end && fn_check_baked_collision)
+         if (baked_kinbody_type.size())
          {
-            (*fn_bake_begin)();
+            // start baking (no error checking yet!)
+            std::stringstream sinput("BakeBegin BakeEnd"), soutput;
+            cc->SendCommand(soutput, sinput); // BakeBegin
+            OpenRAVE::KinBodyPtr baked_kinbody = OpenRAVE::RaveCreateKinBody(GetEnv(), baked_kinbody_type);
             for (std::set< std::pair<OpenRAVE::KinBody::LinkConstPtr, OpenRAVE::KinBody::LinkConstPtr> >::iterator
                it=pairs.begin(); it!=pairs.end(); it++)
             {
                cc->CheckCollision(it->first, it->second);
             }
-            OpenRAVE::KinBodyPtr baked_kinbody = (*fn_bake_end)();
+            cc->SendCommand(soutput, sinput); // BakeEnd
             
             indicators.insert(std::make_pair(set, std::make_pair(
-               _cost_per_ilc*(1.0+pairs.size()), or_lemur::BakedCheckIndicator(robot, *fn_check_baked_collision, baked_kinbody))));
+               _cost_per_ilc*(1.0+pairs.size()), or_lemur::BakedCheckIndicator(robot, cc, baked_kinbody))));
          }
          else
          {
