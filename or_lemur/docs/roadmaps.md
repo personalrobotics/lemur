@@ -39,7 +39,8 @@ The generated command line can then be passed to the
        --dim=7 --bounds=0:0.54159265359,5.74159265359 --bounds=1:-1.96,1.96 --bounds=2:-2.73,2.73 --bounds=3:-0.86,3.13 --bounds=4:-4.79,1.3 --bounds=5:-1.56,1.56 --bounds=6:-2.99,2.99
        --roadmap-type=HaltonOffDens
        --roadmap-param=num_per_batch=10000
-       --roadmap-param=radius_first_batch=2.0
+       --roadmap-param=gamma_factor=1.0
+       --roadmap-param=scaling=log_n
        --roadmap-param=seed=0
        --num-batches=1
        --out-file=my-roadmap.graphml --out-format=graphml

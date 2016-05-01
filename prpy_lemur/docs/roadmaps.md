@@ -29,8 +29,7 @@ These roadmap types are supported by `prpy_lemur.roadmaps`:
 * `FromFile(filename, root_radius)`
 * `Halton(num, radius)`
 * `HaltonDens(num_per_batch, radius_first_batch)`
-* `HaltonOffDens(num_per_batch, radius_first_batch, seed)`
-* `HaltonOffLLDens(num_per_batch, radius_first_batch, seed)`
+* `HaltonOffDens(num_per_batch, gamma_factor, scaling, seed)`
 * `RGG(num, radius, seed)`
 * `RGGDens(num_per_batch, radius_first_batch, seed)`
 * `RGGDensConst(num_per_batch, radius, seed)`
@@ -44,6 +43,9 @@ This is the meaning of the various parameters:
 * `res` - the resolution (e.g. in radians) between grid vertices
 * `seed` - the random seed used for the roadmap
 * `radius` - the connection radius used for roadmap edges
+* `gamma_factor` - the multiplicative factor to scale gamma
+* `scaling` - the radius scaling strategy (`log_n`, `loglog_n`,
+  or `1_n`)
 * `radius_first_batch` - the connection radius used for the first batch
   of roadmap edges; subsequent radii are shrunk according to the
   appropriate rule

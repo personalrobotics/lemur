@@ -64,19 +64,6 @@ Roadmap * make_roadmap_gen(const ompl::base::StateSpacePtr & space, std::string 
       return new RoadmapHaltonOffDens<Roadmap>(space, n_perbatch, radius_firstbatch, seed);
    }
 
-   if (parsed.name == "HaltonOffLLDens")
-   {
-      if (parsed.args.size() != 3
-         || parsed.args[0].first != "n_perbatch"
-         || parsed.args[1].first != "radius_firstbatch"
-         || parsed.args[2].first != "seed")
-         throw std::runtime_error("roadmap args incorrect!");
-      unsigned int n_perbatch = atoi(parsed.args[0].second.c_str());
-      double radius_firstbatch = atof(parsed.args[1].second.c_str());
-      unsigned int seed = atoi(parsed.args[2].second.c_str());
-      return new RoadmapHaltonOffLLDens<Roadmap>(space, n_perbatch, radius_firstbatch, seed);
-   }
-
    if (parsed.name == "RGG")
    {
       if (parsed.args.size() != 3

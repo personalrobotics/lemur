@@ -24,11 +24,19 @@ class RoadmapHaltonOffDens : public Roadmap<RoadmapArgs>
    
    // params
    unsigned int _num_per_batch;
-   double _radius_first_batch;
+   double _gamma_factor;
+   enum t_scaling
+   {
+      SCALING_NOTSET,
+      SCALING_LOG_N,
+      SCALING_LOGLOG_N,
+      SCALING_1_N
+   } _scaling;
    unsigned int _seed;
    bool _seed_set;
    
    // set on initialization
+   double _gamma;
    ompl::base::ScopedState<ompl::base::RealVectorStateSpace> _offset_state;
    double * _offset_values;
    
@@ -38,7 +46,8 @@ public:
       _dim(0),
       _bounds(0),
       _num_per_batch(0),
-      _radius_first_batch(0.0),
+      _gamma_factor(0.0),
+      _scaling(SCALING_NOTSET),
       _seed(0),
       _seed_set(false),
       _offset_state(this->space)
@@ -56,9 +65,12 @@ public:
       this->template declareParam<unsigned int>("num_per_batch", this,
          &RoadmapHaltonOffDens<RoadmapArgs>::setNumPerBatch,
          &RoadmapHaltonOffDens<RoadmapArgs>::getNumPerBatch);
-      this->template declareParam<double>("radius_first_batch", this,
-         &RoadmapHaltonOffDens::setRadiusFirstBatch,
-         &RoadmapHaltonOffDens::getRadiusFirstBatch);
+      this->template declareParam<double>("gamma_factor", this,
+         &RoadmapHaltonOffDens::setGammaFactor,
+         &RoadmapHaltonOffDens::getGammaFactor);
+      this->template declareParam<std::string>("scaling", this,
+         &RoadmapHaltonOffDens::setScaling,
+         &RoadmapHaltonOffDens::getScaling);
       this->template declareParam<unsigned int>("seed", this,
          &RoadmapHaltonOffDens::setSeed,
          &RoadmapHaltonOffDens::getSeed);
@@ -78,19 +90,49 @@ public:
       return _num_per_batch;
    }
    
-   void setRadiusFirstBatch(double radius_first_batch)
+   void setGammaFactor(double gamma_factor)
    {
-      if (radius_first_batch == _radius_first_batch)
+      if (gamma_factor == _gamma_factor)
          return;
       if (this->initialized)
-         throw std::runtime_error("cannot set radius_first_batch, already initialized!");
-      _radius_first_batch = radius_first_batch;
+         throw std::runtime_error("cannot set gamma_factor, already initialized!");
+      _gamma_factor = gamma_factor;
    }
    
-   double getRadiusFirstBatch() const
+   double getGammaFactor() const
    {
-      return _radius_first_batch;
+      return _gamma_factor;
    }
+   
+   void setScaling(std::string str_scaling)
+   {
+      enum t_scaling scaling;
+      if (str_scaling == "log_n")
+         scaling=SCALING_LOG_N;
+      else if (str_scaling == "loglog_n")
+         scaling=SCALING_LOGLOG_N;
+      else if (str_scaling == "1_n")
+         scaling=SCALING_1_N;
+      else
+         throw std::runtime_error("cannot set scaling, unknown value!");
+      if (scaling == _scaling)
+         return;
+      if (this->initialized)
+         throw std::runtime_error("cannot set scaling, already initialized!");
+      _scaling = scaling;
+   }
+   
+   std::string getScaling() const
+   {
+      switch (_scaling)
+      {
+      case SCALING_LOG_N: return "log_n";
+      case SCALING_LOGLOG_N: return "loglog_n";
+      case SCALING_1_N: return "1_n";
+      default: return "notset";
+      }
+   }
+     
    
    void setSeed(unsigned int seed)
    {
@@ -112,8 +154,10 @@ public:
       std::vector<std::string> missings;
       if (_num_per_batch == 0)
          missings.push_back("num_per_batch");
-      if (_radius_first_batch == 0.0)
-         missings.push_back("radius_first_batch");
+      if (_gamma_factor == 0.0)
+         missings.push_back("gamma_factor");
+      if (_scaling == SCALING_NOTSET)
+         missings.push_back("scaling");
       if (!_seed_set)
          missings.push_back("seed");
       if (missings.size())
@@ -123,6 +167,9 @@ public:
             str += " " + missings[ui];
          throw std::runtime_error(str);
       }
+      
+      double frac = this->space->getMeasure() / ompl_lemur::util::volume_n_ball(_dim);
+      _gamma = _gamma_factor * 2.0 * pow((1.+1./_dim) * frac, 1./_dim);
       
       ompl::base::StateSamplerPtr sampler(this->space->allocStateSampler());
       ompl_lemur::SamplerGenMonkeyPatch(sampler) = boost::mt19937(_seed);
@@ -139,7 +186,19 @@ public:
    // should be stateless
    double root_radius(std::size_t i_batch)
    {
-      return _radius_first_batch * pow(1./(i_batch+1.), 1./_dim);
+      std::size_t n = (i_batch+1) * _num_per_batch;
+      switch (_scaling)
+      {
+      case SCALING_LOG_N:
+         return _gamma * pow(log(n)/(1.*n), 1./_dim);
+      case SCALING_LOGLOG_N:
+         return _gamma * pow(log(log(n))/(1.*n), 1./_dim);
+      case SCALING_1_N:
+         return _gamma * pow(1./(1.*n), 1./_dim);
+      default:
+         break;
+      }
+      throw std::runtime_error("scaling not set!");
    }
    
    // sets all of these maps
