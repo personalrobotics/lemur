@@ -24,7 +24,6 @@
 
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
-#include <ompl_lemur/FnString.h>
 #include <ompl_lemur/SamplerGenMonkeyPatch.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>

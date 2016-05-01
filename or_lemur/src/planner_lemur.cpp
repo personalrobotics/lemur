@@ -36,7 +36,6 @@
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/TagCache.h>
 #include <ompl_lemur/UtilityChecker.h>
-#include <ompl_lemur/FnString.h>
 #include <ompl_lemur/SpaceID.h>
 #include <ompl_lemur/SamplerGenMonkeyPatch.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>

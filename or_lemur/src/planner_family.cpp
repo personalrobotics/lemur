@@ -39,7 +39,6 @@
 #include <ompl_lemur/UtilityChecker.h>
 #include <ompl_lemur/FamilyUtilityChecker.h>
 #include <ompl_lemur/FamilyTagCache.h>
-#include <ompl_lemur/FnString.h>
 #include <ompl_lemur/SpaceID.h>
 #include <ompl_lemur/SamplerGenMonkeyPatch.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
