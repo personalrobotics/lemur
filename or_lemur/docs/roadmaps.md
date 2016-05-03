@@ -49,5 +49,36 @@ The resulting graph file can the be loaded into any program that
 supports the [GraphML][graphml] format (e.g. [NetworkX][networkx] in
 Python).
 
+Saving Cached Roadmaps
+----------------------
+
+`or_lemur` includes a implementation of cached roadmaps via the or_lemur::RoadmapCached class.  This class stores cache files in `$OPENRAVE_HOME/or_lemur/roadmap-HASH.bin` files, where `HASH` is a function of both the space dimensions/bounds and the roadmap type/parameters.
+
+Both the or_lemur::LEMUR and or_lemur::FamilyPlanner planners will use cached roadmaps if they are requested.  For example, to use the cached version of the `HaltonOffDens` roadmap type, pass the `CachedHaltonOffDens` type instead.
+
+One way to generate a cache file is via the following helper script:
+
+    $ rosrun or_lemur save-roadmap-cache.py
+       --urdf=package://herb_description/robots/herb.urdf
+       --srdf=package://herb_description/robots/herb.srdf --manip=right
+       --roadmap-type=HaltonOffDens
+       --roadmap-param=num_per_batch=10000
+       --roadmap-param=gamma_factor=0.9
+       --roadmap-param=scaling=log_n
+       --roadmap-param=seed=0
+       --num-batches=4
+
+This will produce output which looks something like this:
+
+    [RoadmapCached.h:107 initialize] Could not find cached roadmap file: or_lemur/roadmap-934dda6ac853e0c39f6cf12ad9c941c5.bin
+    [LEMUR.cpp:1489] Densifying roadmap to batch [0] ...
+    [LEMUR.cpp:1489] Densifying roadmap to batch [1] ...
+    [LEMUR.cpp:1489] Densifying roadmap to batch [2] ...
+    [LEMUR.cpp:1489] Densifying roadmap to batch [3] ...
+    [planner_lemur.cpp:248 PlanPath] Saving cached roadmap ...
+    [RoadmapCached.h:261 save_file] Saving file ...
+
+In this example, the generated file is approximately 170MiB for four batches.
+
 [graphml]: http://graphml.graphdrawing.org/
 [networkx]: https://networkx.github.io/

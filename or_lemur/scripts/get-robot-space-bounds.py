@@ -16,7 +16,7 @@ def rr_get_filename(url):
    mod_url = url[len(PACKAGE_PREFIX):]
    return subprocess.check_output(['catkin_find',mod_url]).rstrip('\n')
 
-parser = argparse.ArgumentParser(description='family self setcache')
+parser = argparse.ArgumentParser(description='get robot space bounds')
 parser.add_argument('--robot-xml') # e.g. barrettwam.robot.xml
 parser.add_argument('--urdf') # can be package:// uri
 parser.add_argument('--srdf') # can be package:// uri
@@ -44,7 +44,7 @@ else:
 # set manipulator / active dofs
 if args.manip is not None:
    robot.SetActiveManipulator(args.manip)
-   robot.SetActiveDOFs(robot.GetActiveManipulator().GetArmIndices())
+robot.SetActiveDOFs(robot.GetActiveManipulator().GetArmIndices())
 
 # get bounds
 adofindices = robot.GetActiveDOFIndices()
