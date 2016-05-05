@@ -121,7 +121,7 @@ public:
          }
          _infile_num_batches = mysizet;
          file_found = true;
-         RAVELOG_INFO("Found a file with %lu batches.\n", _infile_num_batches);
+         RAVELOG_INFO("Found a file with %lu batches: %s\n", _infile_num_batches, _cache_filename.c_str());
       }
       while (0);
 

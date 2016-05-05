@@ -21,6 +21,7 @@ parser.add_argument('--robot-xml') # e.g. barrettwam.robot.xml
 parser.add_argument('--urdf') # can be package:// uri
 parser.add_argument('--srdf') # can be package:// uri
 parser.add_argument('--manip')
+parser.add_argument('--joint-resolution', type=float)
 parser.add_argument('--roadmap-type',required=True)
 parser.add_argument('--roadmap-param', action='append')
 parser.add_argument('--num-batches',type=int,required=True)
@@ -45,6 +46,13 @@ elif args.urdf is not None and args.srdf is not None:
    robot = env.GetRobot(or_urdf.SendCommand('load {} {}'.format(fn_urdf,fn_srdf)))
 else:
    raise RuntimeError('either --robot-xml or --urdf and --srdf must be passed!')
+
+if args.joint_resolution is not None:
+   print('setting joint resolution to {} ...'.format(args.joint_resolution))
+   for joint in robot.GetJoints():
+      if joint.GetDOF() != 1:
+         raise RuntimeError('cannot set dof resolution for multi-dof joint!')
+      joint.SetResolution(args.joint_resolution)
 
 # set manipulator / active dofs
 if args.manip is not None:
