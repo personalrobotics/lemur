@@ -604,7 +604,7 @@ void ompl_lemur::LEMUR::setProblemDefinition(
 }
 
 template <class MyGraph, class IncSP, class EvalStrategy>
-bool ompl_lemur::LEMUR::do_lazysp_b(
+bool ompl_lemur::LEMUR::do_lazysp_c(
    MyGraph & g,
    IncSP incsp, EvalStrategy evalstrategy,
    std::vector<Edge> & epath)
@@ -678,6 +678,87 @@ bool ompl_lemur::LEMUR::do_lazysp_b(
    }
 }
 
+template <class MyGraph, class IncSP>
+bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, IncSP incsp, std::vector<Edge> & epath)
+{
+   switch (_eval_type)
+   {
+   case EVAL_TYPE_FWD:
+      return do_lazysp_c(g,
+         incsp,
+         pr_bgl::lazysp_selector_fwd(),
+         epath);
+   case EVAL_TYPE_REV:
+      return do_lazysp_c(g,
+         incsp,
+         pr_bgl::lazysp_selector_rev(),
+         epath);
+   case EVAL_TYPE_ALT:
+      return do_lazysp_c(g,
+         incsp,
+         pr_bgl::lazysp_selector_alt(),
+         epath);
+   case EVAL_TYPE_BISECT:
+      return do_lazysp_c(g,
+         incsp,
+         pr_bgl::lazysp_selector_bisect(),
+         epath);
+   case EVAL_TYPE_FWD_EXPAND:
+      return do_lazysp_c(g,
+         incsp,
+         pr_bgl::lazysp_selector_fwdexpand(),
+         epath);
+#if 0
+   case EVAL_TYPE_PARTITION_ALL: 
+   {
+      double len_ref = 1.0/3.0;
+      
+      boost::chrono::high_resolution_clock::time_point time_selector_init_begin
+         = boost::chrono::high_resolution_clock::now();
+      OMPL_INFORM("computing partition_all from scratch ...");
+      pr_bgl::partition_all_matrix solver(num_vertices(g));
+      // add all edges (both directions)
+      std::pair<EdgeIter,EdgeIter> ep=edges(g);
+      for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
+      {
+         double weight_frac = g[*ei].w_lazy / len_ref;
+         Vertex va = source(*ei,g);
+         Vertex vb = target(*ei,g);
+         if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
+            solver.add_edge(va, vb, weight_frac); // add forward edge a->b
+         if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
+            solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
+      }
+      _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
+   
+      return do_lazysp_c(g,
+         incsp,
+         pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
+            g, get(&EProps::w_lazy,g),
+            len_ref,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
+            true,
+            solver),
+         epath);
+   }
+   case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
+      return do_lazysp_c(g,
+         incsp,
+         pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
+            get(&EProps::w_lazy,g),
+            ompl_lemur::IsEvaledMap(*this),
+            1000, // nsamps
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
+            0), // seed
+         epath);
+#endif
+   default:
+      throw std::runtime_error("no selector set!");
+   }
+}
+
 template <class MyGraph>
 bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
 {
@@ -741,115 +822,14 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<double> v_fvalues(num_vertices(eig));
          std::vector<boost::default_color_type> v_colors(num_vertices(eig));
          
-         switch (_eval_type)
-         {
-         case EVAL_TYPE_FWD:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_selector_fwd(),
-               epath);
-         case EVAL_TYPE_REV:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_selector_rev(),
-               epath);
-         case EVAL_TYPE_ALT:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_selector_alt(),
-               epath);
-         case EVAL_TYPE_BISECT:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_selector_bisect(),
-               epath);
-         case EVAL_TYPE_FWD_EXPAND:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_selector_fwdexpand(),
-               epath);
-#if 0
-         case EVAL_TYPE_PARTITION_ALL: 
-         {
-            double len_ref = 1.0/3.0;
-            
-            boost::chrono::high_resolution_clock::time_point time_selector_init_begin
-               = boost::chrono::high_resolution_clock::now();
-            OMPL_INFORM("computing partition_all from scratch ...");
-            pr_bgl::partition_all_matrix solver(num_vertices(g));
-            // add all edges (both directions)
-            std::pair<EdgeIter,EdgeIter> ep=edges(g);
-            for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
-            {
-               double weight_frac = g[*ei].w_lazy / len_ref;
-               Vertex va = source(*ei,g);
-               Vertex vb = target(*ei,g);
-               if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
-                  solver.add_edge(va, vb, weight_frac); // add forward edge a->b
-               if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
-                  solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
-            }
-            _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
-         
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
-                  g, get(&EProps::w_lazy,g),
-                  len_ref,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  true,
-                  solver),
-               epath);
-         }
-         case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-                  boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-                  boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-               pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
-                  get(&EProps::w_lazy,g),
-                  ompl_lemur::IsEvaledMap(*this),
-                  1000, // nsamps
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  0), // seed
-               epath);
-#endif
-         }
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
+               boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
+            epath);
       }
       else
       {
@@ -858,136 +838,17 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<double> v_gvalues(num_vertices(eig));
          std::vector<double> v_rhsvalues(num_vertices(eig));
          
-         switch (_eval_type)
-         {
-         case EVAL_TYPE_FWD:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lpastar(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-                  1.0e-9),
-               pr_bgl::lazysp_selector_fwd(),
-               epath);
-         case EVAL_TYPE_REV:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lpastar(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-                  1.0e-9),
-               pr_bgl::lazysp_selector_rev(),
-               epath);
-         case EVAL_TYPE_ALT:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lpastar(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-                  1.0e-9),
-               pr_bgl::lazysp_selector_alt(),
-               epath);
-         case EVAL_TYPE_BISECT:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lpastar(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-                  1.0e-9),
-               pr_bgl::lazysp_selector_bisect(),
-               epath);
-         case EVAL_TYPE_FWD_EXPAND:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lpastar(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-                  1.0e-9),
-               pr_bgl::lazysp_selector_fwdexpand(),
-               epath);
-#if 0
-         case EVAL_TYPE_PARTITION_ALL:
-         {
-            double len_ref = 1.0/3.0;
-            
-            boost::chrono::high_resolution_clock::time_point time_selector_init_begin
-               = boost::chrono::high_resolution_clock::now();
-            OMPL_INFORM("computing partition_all from scratch ...");
-            pr_bgl::partition_all_matrix solver(num_vertices(g));
-            // add all edges (both directions)
-            std::pair<EdgeIter,EdgeIter> ep=edges(g);
-            for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
-            {
-               double weight_frac = g[*ei].w_lazy / len_ref;
-               Vertex va = source(*ei,g);
-               Vertex vb = target(*ei,g);
-               if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
-                  solver.add_edge(va, vb, weight_frac); // add forward edge a->b
-               if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
-                  solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
-            }
-            _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
-            
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lpastar(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-                  1.0e-9),
-               pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
-                  g, get(&EProps::w_lazy,g),
-                  1.0/3.0, // len_ref
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  true,
-                  solver),
-               epath);
-         }
-         case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-            return do_lazysp_b(g,
-               pr_bgl::make_lazysp_incsp_lpastar(g,
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
-                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-                  boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
-                  boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-                  1.0e-9),
-               pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
-                  get(&EProps::w_lazy,g),
-                  ompl_lemur::IsEvaledMap(*this),
-                  1000, // nsamps
-                  og[ov_singlestart].core_vertex,
-                  og[ov_singlegoal].core_vertex,
-                  0), // seed
-               epath);
-#endif
-         }
+         return do_lazysp_b(g,
+            pr_bgl::make_lazysp_incsp_lpastar(g,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               get(&EProps::w_lazy,g),
+               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
+               boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+               1.0e-9),
+            epath);
       }
    }
    else if (_search_type == SEARCH_TYPE_DIJKSTRAS)
@@ -995,94 +856,11 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       std::vector<Vertex> v_startpreds(num_vertices(eig));
       std::vector<double> v_startdist(num_vertices(eig));
       
-      switch (_eval_type)
-      {
-      case EVAL_TYPE_FWD:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_selector_fwd(),
-            epath);
-      case EVAL_TYPE_REV:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_selector_rev(),
-            epath);
-      case EVAL_TYPE_ALT:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_selector_alt(),
-            epath);
-      case EVAL_TYPE_BISECT:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_selector_bisect(),
-            epath);
-      case EVAL_TYPE_FWD_EXPAND:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_selector_fwdexpand(),
-            epath);
-#if 0
-      case EVAL_TYPE_PARTITION_ALL:
-      {
-         double len_ref = 1.0/3.0;
-         
-         boost::chrono::high_resolution_clock::time_point time_selector_init_begin
-            = boost::chrono::high_resolution_clock::now();
-         OMPL_INFORM("computing partition_all from scratch ...");
-         pr_bgl::partition_all_matrix solver(num_vertices(g));
-         // add all edges (both directions)
-         std::pair<EdgeIter,EdgeIter> ep=edges(g);
-         for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
-         {
-            double weight_frac = g[*ei].w_lazy / len_ref;
-            Vertex va = source(*ei,g);
-            Vertex vb = target(*ei,g);
-            if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
-               solver.add_edge(va, vb, weight_frac); // add forward edge a->b
-            if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
-               solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
-         }
-         _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
-      
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
-               g, get(&EProps::w_lazy,g),
-               1.0/3.0, // len_ref
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               true,
-               solver),
-            epath);
-      }
-      case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-            pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
-               get(&EProps::w_lazy,g),
-               ompl_lemur::IsEvaledMap(*this),
-               1000, // nsamps
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               0), // seed
-            epath);
-#endif
-      }
+      return do_lazysp_b(g,
+         pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
+            boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
+         epath);
    }
    else // _search_type == SEARCH_TYPE_INCBI
    {
@@ -1093,164 +871,21 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       std::vector<double> v_goaldist(num_vertices(eig));
       std::vector<double> v_goaldistlookahead(num_vertices(eig));
       
-      switch (_eval_type)
-      {
-      case EVAL_TYPE_FWD:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9,
-               pr_bgl::incbi_visitor_null<Graph>()),
-            pr_bgl::lazysp_selector_fwd(),
-            epath);
-      case EVAL_TYPE_REV:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9,
-               pr_bgl::incbi_visitor_null<Graph>()),
-            pr_bgl::lazysp_selector_rev(),
-            epath);
-      case EVAL_TYPE_ALT:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9,
-               pr_bgl::incbi_visitor_null<Graph>()),
-            pr_bgl::lazysp_selector_alt(),
-            epath);
-      case EVAL_TYPE_BISECT:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9,
-               pr_bgl::incbi_visitor_null<Graph>()),
-            pr_bgl::lazysp_selector_bisect(),
-            epath);
-      case EVAL_TYPE_FWD_EXPAND:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9,
-               pr_bgl::incbi_visitor_null<Graph>()),
-            pr_bgl::lazysp_selector_fwdexpand(),
-            epath);
-#if 0
-      case EVAL_TYPE_PARTITION_ALL:
-      {
-         double len_ref = 1.0/3.0;
-         
-         boost::chrono::high_resolution_clock::time_point time_selector_init_begin
-            = boost::chrono::high_resolution_clock::now();
-         OMPL_INFORM("computing partition_all from scratch ...");
-         pr_bgl::partition_all_matrix solver(num_vertices(g));
-         // add all edges (both directions)
-         std::pair<EdgeIter,EdgeIter> ep=edges(g);
-         for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
-         {
-            double weight_frac = g[*ei].w_lazy / len_ref;
-            Vertex va = source(*ei,g);
-            Vertex vb = target(*ei,g);
-            if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
-               solver.add_edge(va, vb, weight_frac); // add forward edge a->b
-            if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
-               solver.add_edge(vb, va, weight_frac); // add backwards edge b->a
-         }
-         _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
-         
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9,
-               pr_bgl::incbi_visitor_null<Graph>()),
-            pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
-               g, get(&EProps::w_lazy,g),
-               1.0/3.0, // len_ref
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               true,
-               solver),
-            epath);
-      }
-      case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-         return do_lazysp_b(g,
-            pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9,
-               pr_bgl::incbi_visitor_null<Graph>()),
-            pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
-               get(&EProps::w_lazy,g),
-               ompl_lemur::IsEvaledMap(*this),
-               1000, // nsamps
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               0), // seed
-            epath);
-#endif
-      }
+      return do_lazysp_b(g,
+         pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
+            og[ov_singlestart].core_vertex,
+            og[ov_singlegoal].core_vertex,
+            get(&EProps::w_lazy,g),
+            boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
+            boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+            boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+            boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
+            boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+            get(&EProps::index, g), eig.edge_vector_map,
+            1.0e-9,
+            pr_bgl::incbi_visitor_null<Graph>()),
+         epath);
    }
    OMPL_ERROR("switch error.");
    return false;
