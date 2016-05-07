@@ -299,10 +299,10 @@ public:
    void setProblemDefinition(const ompl::base::ProblemDefinitionPtr & pdef);
    
    template <class MyGraph, class IncSP, class EvalStrategy>
-   bool do_lazysp_c(MyGraph & graph, IncSP incsp, EvalStrategy evalstrategy, std::vector<Edge> & epath);
+   bool do_lazysp_c(MyGraph & graph, std::vector<Edge> & epath, IncSP incsp, EvalStrategy evalstrategy);
    
    template <class MyGraph, class IncSP>
-   bool do_lazysp_b(MyGraph & graph, IncSP incsp, std::vector<Edge> & epath);
+   bool do_lazysp_b(MyGraph & graph, std::vector<Edge> & epath, IncSP incsp);
    
    template <class MyGraph>
    bool do_lazysp_a(MyGraph & graph, std::vector<Edge> & epath);

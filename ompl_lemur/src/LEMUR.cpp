@@ -605,9 +605,8 @@ void ompl_lemur::LEMUR::setProblemDefinition(
 
 template <class MyGraph, class IncSP, class EvalStrategy>
 bool ompl_lemur::LEMUR::do_lazysp_c(
-   MyGraph & g,
-   IncSP incsp, EvalStrategy evalstrategy,
-   std::vector<Edge> & epath)
+   MyGraph & g, std::vector<Edge> & epath,
+   IncSP incsp, EvalStrategy evalstrategy)
 {
    if (_do_timing)
    {
@@ -679,35 +678,25 @@ bool ompl_lemur::LEMUR::do_lazysp_c(
 }
 
 template <class MyGraph, class IncSP>
-bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, IncSP incsp, std::vector<Edge> & epath)
+bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncSP incsp)
 {
    switch (_eval_type)
    {
    case EVAL_TYPE_FWD:
-      return do_lazysp_c(g,
-         incsp,
-         pr_bgl::lazysp_selector_fwd(),
-         epath);
+      return do_lazysp_c(g, epath, incsp,
+         pr_bgl::lazysp_selector_fwd());
    case EVAL_TYPE_REV:
-      return do_lazysp_c(g,
-         incsp,
-         pr_bgl::lazysp_selector_rev(),
-         epath);
+      return do_lazysp_c(g, epath, incsp,
+         pr_bgl::lazysp_selector_rev());
    case EVAL_TYPE_ALT:
-      return do_lazysp_c(g,
-         incsp,
-         pr_bgl::lazysp_selector_alt(),
-         epath);
+      return do_lazysp_c(g, epath, incsp,
+         pr_bgl::lazysp_selector_alt());
    case EVAL_TYPE_BISECT:
-      return do_lazysp_c(g,
-         incsp,
-         pr_bgl::lazysp_selector_bisect(),
-         epath);
+      return do_lazysp_c(g, epath, incsp,
+         pr_bgl::lazysp_selector_bisect());
    case EVAL_TYPE_FWD_EXPAND:
-      return do_lazysp_c(g,
-         incsp,
-         pr_bgl::lazysp_selector_fwdexpand(),
-         epath);
+      return do_lazysp_c(g, epath, incsp,
+         pr_bgl::lazysp_selector_fwdexpand());
 #if 0
    case EVAL_TYPE_PARTITION_ALL: 
    {
@@ -731,28 +720,24 @@ bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, IncSP incsp, std::vector<Edge> 
       }
       _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
    
-      return do_lazysp_c(g,
-         incsp,
+      return do_lazysp_c(g, epath, incsp,
          pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
             g, get(&EProps::w_lazy,g),
             len_ref,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             true,
-            solver),
-         epath);
+            solver));
    }
    case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-      return do_lazysp_c(g,
-         incsp,
+      return do_lazysp_c(g, epath, incsp,
          pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
             get(&EProps::w_lazy,g),
             ompl_lemur::IsEvaledMap(*this),
             1000, // nsamps
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
-            0), // seed
-         epath);
+            0)); // seed
 #endif
    default:
       throw std::runtime_error("no selector set!");
@@ -822,14 +807,13 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<double> v_fvalues(num_vertices(eig));
          std::vector<boost::default_color_type> v_colors(num_vertices(eig));
          
-         return do_lazysp_b(g,
+         return do_lazysp_b(g, epath,
             pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
                boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g))), // color_map
-            epath);
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g)))); // color_map
       }
       else
       {
@@ -838,7 +822,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<double> v_gvalues(num_vertices(eig));
          std::vector<double> v_rhsvalues(num_vertices(eig));
          
-         return do_lazysp_b(g,
+         return do_lazysp_b(g, epath,
             pr_bgl::make_lazysp_incsp_lpastar(g,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
@@ -847,8 +831,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               1.0e-9),
-            epath);
+               1.0e-9));
       }
    }
    else if (_search_type == SEARCH_TYPE_DIJKSTRAS)
@@ -856,11 +839,10 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       std::vector<Vertex> v_startpreds(num_vertices(eig));
       std::vector<double> v_startdist(num_vertices(eig));
       
-      return do_lazysp_b(g,
+      return do_lazysp_b(g, epath,
          pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
             boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
-         epath);
+            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)))); // startdist_map
    }
    else // _search_type == SEARCH_TYPE_INCBI
    {
@@ -871,7 +853,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       std::vector<double> v_goaldist(num_vertices(eig));
       std::vector<double> v_goaldistlookahead(num_vertices(eig));
       
-      return do_lazysp_b(g,
+      return do_lazysp_b(g, epath,
          pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
@@ -884,8 +866,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
             get(&EProps::index, g), eig.edge_vector_map,
             1.0e-9,
-            pr_bgl::incbi_visitor_null<Graph>()),
-         epath);
+            pr_bgl::incbi_visitor_null<Graph>()));
    }
    OMPL_ERROR("switch error.");
    return false;
@@ -961,7 +942,6 @@ ompl_lemur::LEMUR::solve(
       _singlestart_cost = 1.0e-9;
       _singlegoal_cost = 1.0e-9;
    }
-
    
    if (_search_type == SEARCH_TYPE_LPASTAR && _coeff_distance == 0.0)
       throw std::runtime_error("cannot use lpastar with 0 distance coefficient!");   
