@@ -96,6 +96,7 @@ public:
          return;
       if (this->initialized)
          throw std::runtime_error("cannot set gamma_factor, already initialized!");
+      ompl_lemur::util::snap_decimal(gamma_factor);
       _gamma_factor = gamma_factor;
    }
    

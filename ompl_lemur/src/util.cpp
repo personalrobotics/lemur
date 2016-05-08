@@ -127,6 +127,14 @@ std::string ompl_lemur::util::double_to_text(double in)
    return std::string(buf);
 }
 
+void ompl_lemur::util::snap_decimal(double & value)
+{
+   std::stringstream ss;
+   ss.precision(14);
+   ss << std::scientific;
+   ss << value;
+   ss >> value;
+}
 
 // prime[0] = 2
 // returns 0 if its not hardcoded!
