@@ -368,10 +368,16 @@ public:
       {
          weight_type start_top = start_queue.size() ? start_queue.top_key() : inf;
          weight_type goal_top = goal_queue.size() ? goal_queue.top_key() : inf;
-         if (start_top == inf && goal_top == inf)
+         
+         // no-path termination
+         if (!start_queue.size() && !goal_queue.size())
+            return std::make_pair(0, false);
+         if (!start_queue.size() && get(start_distance,v_goal) == inf)
+            return std::make_pair(0, false);
+         if (!goal_queue.size() && get(goal_distance,v_start) == inf)
             return std::make_pair(0, false);
          
-         // termination condition is rather complicated!
+         // has-path termination condition is rather complicated!
          do
          {
             if (!conn_queue.size()) break;
