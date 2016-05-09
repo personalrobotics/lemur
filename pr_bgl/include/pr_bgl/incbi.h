@@ -24,6 +24,11 @@ namespace pr_bgl
  * for correct bidirection Dijkstra's termination condition
  * 
  * original implemetation from 2015-04
+ * 
+ * be careful: this class uses the CostInf template argument for
+ * decisions about infinities and non-existant paths;
+ * if the underlying edge weights use a different value,
+ * performace can suffer!
  */
 template <class Graph,
    class StartPredecessorMap,
@@ -93,11 +98,13 @@ public:
    IncBiVisitor vis;
    IncBiBalancer balancer;
    
+   // these contain all inconsistent vertices
    heap_indexed< weight_type > start_queue;
    heap_indexed< weight_type > goal_queue;
    
    // contains the indices of all edges connecting one start-tree vertex to one goal-tree vertex
    // that are both consistent, sorted by start_distance + edge_weight + goal_distance
+   // infinite-length prospective paths are not in queue at all
    heap_indexed< conn_key > conn_queue;
    
    incbi(
@@ -354,7 +361,7 @@ public:
       }
    }
    
-   // returns index of middle edge!
+   // returns index of middle edge, and bool for success
    std::pair<size_t,bool> compute_shortest_path()
    {
       for (;;)
@@ -394,25 +401,27 @@ public:
             vis.start_queue_remove(u);
             if (get(start_distance,u) > get(start_distance_lookahead,u))
             {
-               weight_type u_dist = get(start_distance_lookahead,u);
-               put(start_distance, u, u_dist);
+               weight_type u_sdist = get(start_distance_lookahead,u);
+               put(start_distance, u, u_sdist);
+               
+               // vertex u is newly start-consistent
                
                // update any successors that they may now be inconsistent
                // also, this start vertex just became consistent,
                // so add any out_edges to consistent goal-tree vertices
+               // to conn queue
                OutEdgeIter ei, ei_end;
                for (boost::tie(ei,ei_end)=out_edges(u,g); ei!=ei_end; ei++)
                {
-                  Vertex v_target = target(*ei,g);
-                  size_t idx_target = get(vertex_index_map, v_target);
+                  Vertex v = target(*ei,g);
+                  size_t v_idx = get(vertex_index_map, v);
                   
-                  start_update_vertex(v_target);
+                  start_update_vertex(v);
                   
-                  weight_type goaldist_target = get(goal_distance,v_target);
-                  if (u_dist != inf && !goal_queue.contains(idx_target) && goaldist_target != inf && get(weight,*ei) != inf)
+                  weight_type v_tdist = get(goal_distance,v);
+                  if (u_sdist != inf && !goal_queue.contains(v_idx) && v_tdist != inf && get(weight,*ei) != inf)
                   {
-                     conn_key new_key(combine(combine(u_dist, get(weight,*ei)), goaldist_target),
-                        u_dist, goaldist_target);
+                     conn_key new_key(combine(combine(u_sdist, get(weight,*ei)), v_tdist), u_sdist, v_tdist);
                      conn_queue.insert(get(edge_index_map,*ei), new_key);
                      vis.conn_queue_insert(*ei);
                   }
@@ -432,34 +441,35 @@ public:
             if (!goal_queue.size())
                return std::make_pair(0, false);
             
-            size_t u_idx = goal_queue.top_idx();
-            Vertex u = vertex(u_idx, g);
+            size_t v_idx = goal_queue.top_idx();
+            Vertex v = vertex(v_idx, g);
             
-            vis.examine_vertex_goal(u);
+            vis.examine_vertex_goal(v);
             
             goal_queue.remove_min();
-            vis.goal_queue_remove(u);
-            if (get(goal_distance,u) > get(goal_distance_lookahead,u))
+            vis.goal_queue_remove(v);
+            if (get(goal_distance,v) > get(goal_distance_lookahead,v))
             {
-               weight_type u_dist = get(goal_distance_lookahead,u);
-               put(goal_distance, u, u_dist);
+               weight_type v_tdist = get(goal_distance_lookahead,v);
+               put(goal_distance, v, v_tdist);
+               
+               // vertex v is newly goal-consistent
                
                // update any predecessors that they may now be inconsistent
                // also, this goal vertex just became consistent,
                // so add any in_edges from consistent start-tree vertices
                InEdgeIter ei, ei_end;
-               for (boost::tie(ei,ei_end)=in_edges(u,g); ei!=ei_end; ei++)
+               for (boost::tie(ei,ei_end)=in_edges(v,g); ei!=ei_end; ei++)
                {
-                  Vertex v_source = source(*ei,g);
-                  size_t idx_source = get(vertex_index_map, v_source);
+                  Vertex u = source(*ei,g);
+                  size_t u_idx = get(vertex_index_map, u);
                   
-                  goal_update_vertex(v_source);
+                  goal_update_vertex(u);
                   
-                  weight_type startdist_source = get(start_distance,v_source);
-                  if (u_dist != inf && !start_queue.contains(idx_source) && startdist_source != inf && get(weight,*ei) != inf)
+                  weight_type u_sdist = get(start_distance,u);
+                  if (v_tdist != inf && !start_queue.contains(u_idx) && u_sdist != inf && get(weight,*ei) != inf)
                   {
-                     conn_key new_key(combine(combine(startdist_source, get(weight,*ei)), u_dist),
-                        startdist_source, u_dist);
+                     conn_key new_key(combine(combine(u_sdist, get(weight,*ei)), v_tdist), u_sdist, v_tdist);
                      conn_queue.insert(get(edge_index_map,*ei), new_key);
                      vis.conn_queue_insert(*ei);
                   }
@@ -467,10 +477,10 @@ public:
             }
             else
             {
-               put(goal_distance, u, inf);
-               goal_update_vertex(u);
+               put(goal_distance, v, inf);
+               goal_update_vertex(v);
                OutEdgeIter ei, ei_end;
-               for (boost::tie(ei,ei_end)=out_edges(u,g); ei!=ei_end; ei++)
+               for (boost::tie(ei,ei_end)=out_edges(v,g); ei!=ei_end; ei++)
                   goal_update_vertex(target(*ei,g));
             }
          }

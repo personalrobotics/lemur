@@ -17,7 +17,9 @@ namespace pr_bgl
  * 
  * solve is always called with the same g,v_start,v_goal
  */
-template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class DistanceLookaheadMap>
+template <class Graph, class WMap,
+   class HeuristicMap, class PredecessorMap, class DistanceMap, class DistanceLookaheadMap,
+   typename CompareFunction, typename CombineFunction>
 class lazysp_incsp_lpastar
 {
 public:
@@ -42,6 +44,7 @@ public:
    Vertex v_goal;
    PredecessorMap predecessor_map;
    DistanceMap distance_map;
+   weight_type inf;
    
    // lpa* instance
    pr_bgl::lpastar<Graph,
@@ -52,7 +55,7 @@ public:
       DistanceLookaheadMap,
       WMap,
       VIndexMap,
-      std::less<weight_type>, boost::closed_plus<weight_type>,
+      CompareFunction, CombineFunction,
       weight_type, weight_type
    > lpastar;
    
@@ -61,10 +64,13 @@ public:
       HeuristicMap heuristic_map,
       PredecessorMap predecessor_map, DistanceMap distance_map,
       DistanceLookaheadMap distance_lookahead_map,
-      weight_type goal_margin):
+      weight_type goal_margin,
+      CompareFunction compare, CombineFunction combine,
+      weight_type inf, weight_type zero):
       g(g), v_start(v_start), v_goal(v_goal),
       predecessor_map(predecessor_map),
       distance_map(distance_map),
+      inf(inf),
       lpastar(g, v_start, v_goal,
          map_heuristic(heuristic_map),
          boost::make_astar_visitor(boost::null_visitor()),
@@ -73,10 +79,7 @@ public:
          distance_lookahead_map,
          w_map,
          get(boost::vertex_index, g), // index_map
-         std::less<weight_type>(), // compare
-         boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
-         std::numeric_limits<weight_type>::max(),
-         weight_type(),
+         compare, combine, inf, zero,
          goal_margin)
    {
    }
@@ -88,8 +91,8 @@ public:
       lpastar.compute_shortest_path();
       
       // no solution?
-      if (get(distance_map,v_goal) == std::numeric_limits<weight_type>::max())
-         return std::numeric_limits<weight_type>::max();
+      if (get(distance_map,v_goal) == inf)
+         return inf;
       
       // get path
       path.clear();
@@ -113,8 +116,8 @@ public:
    }
 };
 
-template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class DistanceLookaheadMap>
-lazysp_incsp_lpastar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap>
+template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class DistanceLookaheadMap, typename CompareFunction, typename CombineFunction>
+lazysp_incsp_lpastar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap,CompareFunction,CombineFunction>
 make_lazysp_incsp_lpastar(
    Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
@@ -122,10 +125,13 @@ make_lazysp_incsp_lpastar(
    WMap w_map, HeuristicMap heuristic_map,
    PredecessorMap predecessor_map, DistanceMap distance_map,
    DistanceLookaheadMap distance_lookahead_map,
-   typename boost::property_traits<WMap>::value_type goal_margin)
+   typename boost::property_traits<WMap>::value_type goal_margin,
+   CompareFunction compare, CombineFunction combine,
+   typename boost::property_traits<WMap>::value_type inf,
+   typename boost::property_traits<WMap>::value_type zero)
 {
-   return lazysp_incsp_lpastar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap>(
-      g, v_start, v_goal, w_map, heuristic_map, predecessor_map, distance_map, distance_lookahead_map, goal_margin);
+   return lazysp_incsp_lpastar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,DistanceLookaheadMap,CompareFunction,CombineFunction>(
+      g, v_start, v_goal, w_map, heuristic_map, predecessor_map, distance_map, distance_lookahead_map, goal_margin, compare, combine, inf, zero);
 }
 
 } // namespace pr_bgl

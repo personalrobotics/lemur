@@ -813,7 +813,10 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
-               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g)))); // color_map
+               boost::make_iterator_property_map(v_colors.begin(), get(boost::vertex_index,g)), // color_map
+               std::less<double>(), // compare
+               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+               std::numeric_limits<double>::infinity(), 0.0)); 
       }
       else
       {
@@ -831,7 +834,10 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               1.0e-9));
+               1.0e-9, // goal_margin
+               std::less<double>(), // compare
+               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+               std::numeric_limits<double>::infinity(), 0.0));
       }
    }
    else if (_search_type == SEARCH_TYPE_DIJKSTRAS)
@@ -842,7 +848,10 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       return do_lazysp_b(g, epath,
          pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
             boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)))); // startdist_map
+            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
+            std::less<double>(), // compare
+            boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+            std::numeric_limits<double>::infinity(), 0.0));
    }
    else // _search_type == SEARCH_TYPE_INCBI
    {
@@ -865,7 +874,10 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
             boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
             boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
             get(&EProps::index, g), eig.edge_vector_map,
-            1.0e-9,
+            1.0e-9, // goal_margin
+            std::less<double>(), // compare
+            boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+            std::numeric_limits<double>::infinity(), 0.0,
             pr_bgl::incbi_visitor_null<Graph>()));
    }
    OMPL_ERROR("switch error.");

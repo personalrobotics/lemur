@@ -80,7 +80,10 @@ TEST(LazySPTestCase, LazySPTest)
       path,
       pr_bgl::make_lazysp_incsp_dijkstra< Graph, boost::associative_property_map< std::map<Edge,double> > >(
          boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-         boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g))), // startdist_map
+         boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
+         std::less<double>(), // compare
+         boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+         std::numeric_limits<double>::infinity(), 0.0),
       pr_bgl::lazysp_selector_alt(),
       pr_bgl::lazysp_visitor_null());
    ASSERT_EQ(true, success);

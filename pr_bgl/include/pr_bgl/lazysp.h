@@ -32,6 +32,8 @@ namespace pr_bgl
  * 
  * WMap is NOT assumed to be cached
  * (i.e. it's ok if it's expensive to evaluate each time)
+ * 
+ * incsp.solve returns IncSP<CostInf> if no path is found!
  */
 template <class Graph,
    class WMap, class WLazyMap, class IsEvaledMap,
@@ -55,7 +57,7 @@ bool lazysp(Graph & g,
       weight_type pathlen = incsp.solve(g, v_start, v_goal, wlazymap, incsp_path);
       visitor.search_end();
       
-      if (pathlen == std::numeric_limits<weight_type>::max())
+      if (pathlen == incsp.inf)
       {
          visitor.no_path();
          return false;

@@ -17,7 +17,10 @@ namespace pr_bgl
  * 
  * solve is always called with the same g,v_start,v_goal
  */
-template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class CostMap, class ColorMap>
+template <class Graph, class WMap,
+   class HeuristicMap, class PredecessorMap, class DistanceMap,
+   class CostMap, class ColorMap,
+   typename CompareFunction, typename CombineFunction>
 class lazysp_incsp_astar
 {
 public:
@@ -61,9 +64,18 @@ public:
    DistanceMap distance_map;
    CostMap cost_map;
    ColorMap color_map;
+   CompareFunction compare;
+   CombineFunction combine;
+   weight_type inf;
+   weight_type zero;
    
-   lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map, CostMap cost_map, ColorMap color_map):
-      heuristic_map(heuristic_map), predecessor_map(predecessor_map), distance_map(distance_map), cost_map(cost_map), color_map(color_map)
+   lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map,
+         CostMap cost_map, ColorMap color_map,
+         CompareFunction compare, CombineFunction combine,
+         weight_type inf, weight_type zero):
+      heuristic_map(heuristic_map), predecessor_map(predecessor_map), distance_map(distance_map),
+      cost_map(cost_map), color_map(color_map),
+      compare(compare), combine(combine), inf(inf), zero(zero)
    {}
    
    weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
@@ -82,18 +94,15 @@ public:
             wmap, // WeightMap weight
             get(boost::vertex_index, g), // VertexIndexMap index_map
             color_map, // ColorMap color
-            std::less<weight_type>(), // compare
-            boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
-            std::numeric_limits<weight_type>::max(), // cost inf
-            weight_type() // cost zero
+            compare, combine, inf, zero
          );
       }
       catch (const throw_visitor_exception & ex)
       {
       }
          
-      if (get(distance_map,v_goal) == std::numeric_limits<weight_type>::max())
-         return std::numeric_limits<weight_type>::max();
+      if (get(distance_map,v_goal) == inf)
+         return inf;
       
       // get path
       path.clear();
@@ -115,11 +124,11 @@ public:
    }
 };
 
-template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class CostMap, class ColorMap>
-lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap>
-make_lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map, CostMap cost_map, ColorMap color_map)
+template <class Graph, class WMap, class HeuristicMap, class PredecessorMap, class DistanceMap, class CostMap, class ColorMap, typename CompareFunction, typename CombineFunction>
+lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap,CompareFunction,CombineFunction>
+make_lazysp_incsp_astar(HeuristicMap heuristic_map, PredecessorMap predecessor_map, DistanceMap distance_map, CostMap cost_map, ColorMap color_map, CompareFunction compare, CombineFunction combine, typename boost::property_traits<WMap>::value_type inf, typename boost::property_traits<WMap>::value_type zero)
 {
-   return lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap>(heuristic_map, predecessor_map, distance_map, cost_map, color_map);
+   return lazysp_incsp_astar<Graph,WMap,HeuristicMap,PredecessorMap,DistanceMap,CostMap,ColorMap,CompareFunction,CombineFunction>(heuristic_map, predecessor_map, distance_map, cost_map, color_map, compare, combine, inf, zero);
 }
 
 } // namespace pr_bgl

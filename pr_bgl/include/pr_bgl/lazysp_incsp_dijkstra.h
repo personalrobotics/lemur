@@ -17,7 +17,9 @@ namespace pr_bgl
  * 
  * solve is always called with the same g,v_start,v_goal
  */
-template <class Graph, class WMap, class PredecessorMap, class DistanceMap>
+template <class Graph, class WMap,
+   class PredecessorMap, class DistanceMap,
+   typename CompareFunction, typename CombineFunction>
 class lazysp_incsp_dijkstra
 {
 public:
@@ -46,9 +48,17 @@ public:
    
    PredecessorMap predecessor_map;
    DistanceMap distance_map;
+   CompareFunction compare;
+   CombineFunction combine;
+   weight_type inf;
+   weight_type zero;
    
-   lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map):
-      predecessor_map(predecessor_map), distance_map(distance_map)
+   lazysp_incsp_dijkstra(
+         PredecessorMap predecessor_map, DistanceMap distance_map,
+         CompareFunction compare, CombineFunction combine,
+         weight_type inf, weight_type zero):
+      predecessor_map(predecessor_map), distance_map(distance_map),
+      compare(compare), combine(combine), inf(inf), zero(zero)
    {
    }
    
@@ -64,10 +74,7 @@ public:
             distance_map,
             wmap,
             get(boost::vertex_index, g), // implicit vertex index map
-            std::less<weight_type>(), // compare
-            boost::closed_plus<weight_type>(std::numeric_limits<weight_type>::max()), // combine
-            std::numeric_limits<weight_type>::max(), // cost inf
-            weight_type(), // cost zero
+            compare, combine, inf, zero,
             throw_visitor(v_goal)
             //boost::make_dijkstra_visitor(boost::null_visitor())
          );
@@ -76,8 +83,8 @@ public:
       {
       }
          
-      if (get(distance_map,v_goal) == std::numeric_limits<weight_type>::max())
-         return std::numeric_limits<weight_type>::max();
+      if (get(distance_map,v_goal) == inf)
+         return inf;
       
       // get path
       path.clear();
@@ -99,11 +106,11 @@ public:
    }
 };
 
-template <class Graph, class WMap, class PredecessorMap, class DistanceMap>
-lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap>
-make_lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map)
+template <class Graph, class WMap, class PredecessorMap, class DistanceMap, typename CompareFunction, typename CombineFunction>
+lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap,CompareFunction,CombineFunction>
+make_lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map, CompareFunction compare, CombineFunction combine, typename boost::property_traits<WMap>::value_type inf, typename boost::property_traits<WMap>::value_type zero)
 {
-   return lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap>(predecessor_map, distance_map);
+   return lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap,CompareFunction,CombineFunction>(predecessor_map, distance_map, compare, combine, inf, zero);
 }
 
 } // namespace pr_bgl
