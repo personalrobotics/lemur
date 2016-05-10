@@ -318,6 +318,34 @@ public:
    void update_notify(Edge e, WeightType e_weight_old) {}
 };
 
+/*! \brief Even selector for pr_bgl::lazysp.
+ */
+class lazysp_selector_even
+{
+public:
+   template <class Graph>
+   void get_to_evaluate(
+      const Graph & g,
+      const std::vector< std::pair<typename boost::graph_traits<Graph>::edge_descriptor,bool> > & path,
+      std::vector<typename boost::graph_traits<Graph>::edge_descriptor> & to_evaluate)
+   {
+      unsigned int ui, idx;
+      for (ui=0; ui<path.size(); ui++)
+      {
+         if (ui % 2 == 0)
+            idx = ui / 2;
+         else
+            idx = path.size() - (ui+1)/2;
+         if (path[idx].second == false)
+            break;
+      }
+      if (ui<path.size())
+         to_evaluate.push_back(path[idx].first);
+   }
+   template <class Edge, class WeightType>
+   void update_notify(Edge e, WeightType e_weight_old) {}
+};
+
 /*! \brief Bisect selector for pr_bgl::lazysp.
  */
 class lazysp_selector_bisect

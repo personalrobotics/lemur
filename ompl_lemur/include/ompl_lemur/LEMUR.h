@@ -219,6 +219,7 @@ private:
       EVAL_TYPE_FWD,
       EVAL_TYPE_REV,
       EVAL_TYPE_ALT,
+      EVAL_TYPE_EVEN,
       EVAL_TYPE_BISECT,
       EVAL_TYPE_FWD_EXPAND,
 #if 0

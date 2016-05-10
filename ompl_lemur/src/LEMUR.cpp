@@ -380,6 +380,8 @@ void ompl_lemur::LEMUR::setEvalType(std::string eval_type)
       _eval_type = EVAL_TYPE_REV;
    else if (eval_type == "alt")
       _eval_type = EVAL_TYPE_ALT;
+   else if (eval_type == "even")
+      _eval_type = EVAL_TYPE_EVEN;
    else if (eval_type == "bisect")
       _eval_type = EVAL_TYPE_BISECT;
    else if (eval_type == "fwd_expand")
@@ -401,6 +403,7 @@ std::string ompl_lemur::LEMUR::getEvalType() const
    case EVAL_TYPE_FWD: return "fwd";
    case EVAL_TYPE_REV: return "rev";
    case EVAL_TYPE_ALT: return "alt";
+   case EVAL_TYPE_EVEN: return "even";
    case EVAL_TYPE_BISECT: return "bisect";
    case EVAL_TYPE_FWD_EXPAND: return "fwd_expand";
 #if 0
@@ -691,6 +694,9 @@ bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncS
    case EVAL_TYPE_ALT:
       return do_lazysp_c(g, epath, incsp,
          pr_bgl::lazysp_selector_alt());
+   case EVAL_TYPE_EVEN:
+      return do_lazysp_c(g, epath, incsp,
+         pr_bgl::lazysp_selector_even());
    case EVAL_TYPE_BISECT:
       return do_lazysp_c(g, epath, incsp,
          pr_bgl::lazysp_selector_bisect());
