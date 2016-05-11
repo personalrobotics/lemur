@@ -204,6 +204,8 @@ private:
    unsigned int _num_batches_init; // dont do a search on batches below this
    unsigned int _max_batches;
    
+   unsigned int _num_batches_searched; // the number of batches currently being searched
+   
    bool _solve_all;
    
    enum

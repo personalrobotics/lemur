@@ -1157,6 +1157,8 @@ ompl_lemur::LEMUR::solve(
             if (_do_timing)
                time_lazysp_begin = boost::chrono::high_resolution_clock::now();
             
+            _num_batches_searched = num_batches;
+            
             if (num_batches < _roadmap->num_batches_generated)
             {
                filter_num_batches filter(get(&EProps::batch,g), num_batches);
@@ -1696,7 +1698,7 @@ std::pair<double, std::vector<ompl_lemur::LEMUR::Edge> > ompl_lemur::LEMUR::wmap
    // recalculate wlazy for this edge and any incident edges
    val_old = g[e].w_lazy;
    calculate_w_lazy(e);
-   if (g[e].w_lazy != val_old)
+   if (g[e].w_lazy != val_old && g[e].batch < (int)_num_batches_searched)
       es_changed.push_back(e);
    
    OutEdgeIter ei, ei_end;
@@ -1705,7 +1707,7 @@ std::pair<double, std::vector<ompl_lemur::LEMUR::Edge> > ompl_lemur::LEMUR::wmap
    {
       val_old = g[*ei].w_lazy;
       calculate_w_lazy(*ei);
-      if (g[*ei].w_lazy != val_old)
+      if (g[*ei].w_lazy != val_old && g[*ei].batch < (int)_num_batches_searched)
          es_changed.push_back(*ei);
    }
    
@@ -1713,7 +1715,7 @@ std::pair<double, std::vector<ompl_lemur::LEMUR::Edge> > ompl_lemur::LEMUR::wmap
    {
       val_old = g[*ei].w_lazy;
       calculate_w_lazy(*ei);
-      if (g[*ei].w_lazy != val_old)
+      if (g[*ei].w_lazy != val_old && g[*ei].batch < (int)_num_batches_searched)
          es_changed.push_back(*ei);
    }
 
