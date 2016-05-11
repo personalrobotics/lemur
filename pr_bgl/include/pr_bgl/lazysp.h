@@ -33,6 +33,8 @@ namespace pr_bgl
  * WMap is NOT assumed to be cached
  * (i.e. it's ok if it's expensive to evaluate each time)
  * 
+ * WMap maps from an edge to a pair<newval, vec<edge> changed>
+ * 
  * incsp.solve returns IncSP<CostInf> if no path is found!
  */
 template <class Graph,
@@ -47,7 +49,7 @@ bool lazysp(Graph & g,
 {
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
-   typedef typename boost::property_traits<WMap>::value_type weight_type;
+   typedef typename boost::property_traits<WLazyMap>::value_type weight_type;
 
    for (;;)
    {
@@ -100,19 +102,23 @@ bool lazysp(Graph & g,
       for (unsigned int ui=0; ui<to_evaluate.size(); ui++)
       {
          Edge & e = to_evaluate[ui];
-         weight_type e_weight_old = get(wlazymap, e);
+         //weight_type e_weight_old = get(wlazymap, e);
          
          visitor.eval_begin();
-         weight_type e_weight = get(wmap,e);
+         std::pair<weight_type, std::vector<Edge> > eval_result = get(wmap,e);
          visitor.eval_end();
          
-         visitor.edge_evaluate(e, e_weight);
-         put(wlazymap, e, e_weight);
+         visitor.edge_evaluate(e, eval_result.first);
+         put(wlazymap, e, eval_result.first);
          
-         incsp.update_notify(e);
+         for (unsigned int ui2=0; ui2<eval_result.second.size(); ui2++)
+         {
+            incsp.update_notify(eval_result.second[ui2]);
+         }
          
          visitor.selector_notify_begin();
-         evalstrategy.update_notify(e, e_weight_old);
+         for (unsigned int ui2=0; ui2<eval_result.second.size(); ui2++)
+            evalstrategy.update_notify(eval_result.second[ui2], incsp.inf); // e_weight_old
          visitor.selector_notify_end();
       }
       

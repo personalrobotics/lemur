@@ -342,7 +342,7 @@ private:
    // instead, i should probable move those classes inside LEMUR
 public:
    bool isevaledmap_get(const Edge & e);
-   double wmap_get(const Edge & e);
+   std::pair<double, std::vector<Edge> > wmap_get(const Edge & e);
    
 private:
    double nn_dist(const Vertex & va, const Vertex & vb);
@@ -370,12 +370,12 @@ class WMap
 public:
    typedef boost::readable_property_map_tag category;
    typedef LEMUR::Edge key_type;
-   typedef double value_type;
-   typedef double reference;
+   typedef std::pair<double, std::vector<LEMUR::Edge> > value_type;
+   typedef std::pair<double, std::vector<LEMUR::Edge> > reference;
    LEMUR & lemur;
    WMap(LEMUR & lemur): lemur(lemur) {}
 };
-inline const double get(const WMap & wmap, const LEMUR::Edge & e)
+inline const std::pair<double, std::vector<LEMUR::Edge> > get(const WMap & wmap, const LEMUR::Edge & e)
 {
    return wmap.lemur.wmap_get(e);
 }

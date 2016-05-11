@@ -29,6 +29,13 @@ namespace pr_bgl
  * decisions about infinities and non-existant paths;
  * if the underlying edge weights use a different value,
  * performace can suffer!
+ * 
+ * Invariant 1:
+ * start_distlook[v] = min_pred(v) { start_dist[u] + w(u,v) }
+ * 
+ * Invariant 2:
+ * iff start_distlook[v] != start_dist[u], then inconsistent
+ * (also conn queue stuff)
  */
 template <class Graph,
    class StartPredecessorMap,
@@ -213,11 +220,16 @@ public:
    
    // this is called to update vertex v due to either:
    // - u_dist being updated OR
-   // - uv_weight_new being updated
+   // - uv_weight being updated
    // it will recalculate v's lookahead distance
    // and return whether v's lookahead distance changed
+   // (if predecessor changed, but lookahead value didnt, return false)
    inline bool start_update_predecessor(Vertex u, Vertex v, double uv_weight)
    {
+      // start vertex dist lookahead is always zero
+      if (v == v_start)
+         return false;
+      
       // current predecessor and lookahead value
       Vertex v_pred = get(start_predecessor, v);
       weight_type v_look_old = get(start_distance_lookahead, v);
@@ -250,7 +262,8 @@ public:
                   v_pred_best = source(*ei,g);
                }
             }
-            put(start_predecessor, v, v_pred_best);
+            if (v_look_best != inf)
+               put(start_predecessor, v, v_pred_best);
             if (v_look_best == v_look_old)
             {
                return false;
@@ -340,15 +353,20 @@ public:
    
    // this is called to update vertex u due to either:
    // - v_dist being updated OR
-   // - uv_weight_new being updated
+   // - uv_weight being updated
    // it will recalculate u's lookahead distance
    // and return whether u's lookahead distance changed
+   // (if predecessor changed, but lookahead value didnt, return false)
    inline bool goal_update_successor(Vertex u, Vertex v, double uv_weight)
    {
+      // goal vertex dist lookahead is always zero
+      if (u == v_goal)
+         return false;
+      
       // current successor and lookahead value
       Vertex u_succ = get(goal_successor, u);
       weight_type u_look_old = get(goal_distance_lookahead, u);
-      weight_type u_look_v = combine(get(goal_distance,v), uv_weight);
+      weight_type u_look_v = combine(uv_weight, get(goal_distance,v));
       
       if (u_succ == v) // v was previously relied upon
       {
@@ -377,7 +395,8 @@ public:
                   u_succ_best = target(*ei,g);
                }
             }
-            put(goal_successor, u, u_succ_best);
+            if (u_look_best != inf)
+               put(goal_successor, u, u_succ_best);
             if (u_look_best == u_look_old)
             {
                return false;

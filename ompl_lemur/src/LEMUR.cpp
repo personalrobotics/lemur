@@ -1625,7 +1625,7 @@ bool ompl_lemur::LEMUR::isevaledmap_get(const Edge & e)
    return true;
 }
 
-double ompl_lemur::LEMUR::wmap_get(const Edge & e)
+std::pair<double, std::vector<ompl_lemur::LEMUR::Edge> > ompl_lemur::LEMUR::wmap_get(const Edge & e)
 {
    // check all points!
    Vertex va = source(e, g);
@@ -1690,15 +1690,34 @@ double ompl_lemur::LEMUR::wmap_get(const Edge & e)
    }
    while (0);
    
-   // recalculate wlazy for this edge and any incident edges
-   calculate_w_lazy(e);
-   OutEdgeIter ei, ei_end;
-   for (boost::tie(ei,ei_end)=out_edges(va,g); ei!=ei_end; ei++)
-      calculate_w_lazy(*ei);
-   for (boost::tie(ei,ei_end)=out_edges(vb,g); ei!=ei_end; ei++)
-      calculate_w_lazy(*ei);
+   std::vector<Edge> es_changed;
+   double val_old;
    
-   return g[e].w_lazy;
+   // recalculate wlazy for this edge and any incident edges
+   val_old = g[e].w_lazy;
+   calculate_w_lazy(e);
+   if (g[e].w_lazy != val_old)
+      es_changed.push_back(e);
+   
+   OutEdgeIter ei, ei_end;
+   
+   for (boost::tie(ei,ei_end)=out_edges(va,g); ei!=ei_end; ei++)
+   {
+      val_old = g[*ei].w_lazy;
+      calculate_w_lazy(*ei);
+      if (g[*ei].w_lazy != val_old)
+         es_changed.push_back(*ei);
+   }
+   
+   for (boost::tie(ei,ei_end)=out_edges(vb,g); ei!=ei_end; ei++)
+   {
+      val_old = g[*ei].w_lazy;
+      calculate_w_lazy(*ei);
+      if (g[*ei].w_lazy != val_old)
+         es_changed.push_back(*ei);
+   }
+
+   return std::make_pair(g[e].w_lazy, es_changed);
 }
 
 double ompl_lemur::LEMUR::nn_dist(const Vertex & va, const Vertex & vb)
