@@ -187,8 +187,12 @@ public:
    {
       Vertex va = source(e,g);
       Vertex vb = target(e,g);
+      incbi.start_update_predecessor(va, vb, get(w_map,e));
+      incbi.start_update_predecessor(vb, va, get(w_map,e));
       incbi.start_update_vertex(va);
       incbi.start_update_vertex(vb);
+      incbi.goal_update_successor(va, vb, get(w_map,e));
+      incbi.goal_update_successor(vb, va, get(w_map,e));
       incbi.goal_update_vertex(va);
       incbi.goal_update_vertex(vb);
       incbi.update_edge(e);
