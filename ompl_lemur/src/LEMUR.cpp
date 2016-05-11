@@ -612,14 +612,14 @@ void ompl_lemur::LEMUR::setProblemDefinition(
 
 template <class MyGraph, class IncSP, class EvalStrategy>
 bool ompl_lemur::LEMUR::do_lazysp_c(
-   MyGraph & g, std::vector<Edge> & epath,
+   MyGraph & mg, std::vector<Edge> & epath,
    IncSP incsp, EvalStrategy evalstrategy)
 {
    if (_do_timing)
    {
       if (os_alglog)
       {
-         return pr_bgl::lazysp(g,
+         return pr_bgl::lazysp(mg,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -638,7 +638,7 @@ bool ompl_lemur::LEMUR::do_lazysp_c(
       }
       else
       {
-         return pr_bgl::lazysp(g,
+         return pr_bgl::lazysp(mg,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -654,7 +654,7 @@ bool ompl_lemur::LEMUR::do_lazysp_c(
    {
       if (os_alglog)
       {
-         return pr_bgl::lazysp(g,
+         return pr_bgl::lazysp(mg,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -670,7 +670,7 @@ bool ompl_lemur::LEMUR::do_lazysp_c(
       }
       else
       {
-         return pr_bgl::lazysp(g,
+         return pr_bgl::lazysp(mg,
             og[ov_singlestart].core_vertex,
             og[ov_singlegoal].core_vertex,
             ompl_lemur::WMap(*this),
@@ -685,27 +685,27 @@ bool ompl_lemur::LEMUR::do_lazysp_c(
 }
 
 template <class MyGraph, class IncSP>
-bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncSP incsp)
+bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & mg, std::vector<Edge> & epath, IncSP incsp)
 {
    switch (_eval_type)
    {
    case EVAL_TYPE_FWD:
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_selector_fwd());
    case EVAL_TYPE_REV:
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_selector_rev());
    case EVAL_TYPE_ALT:
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_selector_alt());
    case EVAL_TYPE_EVEN:
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_selector_even());
    case EVAL_TYPE_BISECT:
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_selector_bisect());
    case EVAL_TYPE_FWD_EXPAND:
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_selector_fwdexpand());
 #if 0
    case EVAL_TYPE_PARTITION_ALL: 
@@ -715,14 +715,14 @@ bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncS
       boost::chrono::high_resolution_clock::time_point time_selector_init_begin
          = boost::chrono::high_resolution_clock::now();
       OMPL_INFORM("computing partition_all from scratch ...");
-      pr_bgl::partition_all_matrix solver(num_vertices(g));
+      pr_bgl::partition_all_matrix solver(num_vertices(eig));
       // add all edges (both directions)
-      std::pair<EdgeIter,EdgeIter> ep=edges(g);
+      std::pair<EdgeIter,EdgeIter> ep=edges(mg);
       for (EdgeIter ei=ep.first; ei!=ep.second; ei++)
       {
          double weight_frac = g[*ei].w_lazy / len_ref;
-         Vertex va = source(*ei,g);
-         Vertex vb = target(*ei,g);
+         Vertex va = source(*ei,mg);
+         Vertex vb = target(*ei,mg);
          if (vb != og[ov_singlestart].core_vertex && va != og[ov_singlegoal].core_vertex)
             solver.add_edge(va, vb, weight_frac); // add forward edge a->b
          if (va != og[ov_singlestart].core_vertex && vb != og[ov_singlegoal].core_vertex)
@@ -730,7 +730,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncS
       }
       _dur_selector_init += boost::chrono::high_resolution_clock::now() - time_selector_init_begin;
    
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_partition_all_matrix<MyGraph,EPWlazyMap>(
             g, get(&EProps::w_lazy,g),
             len_ref,
@@ -740,7 +740,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncS
             solver));
    }
    case EVAL_TYPE_SP_INDICATOR_PROBABILITY:
-      return do_lazysp_c(g, epath, incsp,
+      return do_lazysp_c(mg, epath, incsp,
          pr_bgl::lazysp_selector_sp_indicator_probability<MyGraph,EPWlazyMap,ompl_lemur::IsEvaledMap>(
             get(&EProps::w_lazy,g),
             ompl_lemur::IsEvaledMap(*this),
@@ -755,7 +755,7 @@ bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncS
 }
 
 template <class MyGraph>
-bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
+bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & mg, std::vector<Edge> & epath)
 {
    std::vector<double> v_hgvalues;
    std::vector<double> v_hsvalues;
@@ -780,30 +780,30 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       
       // assign distances to all non-singlestart/singlegoal vertices
       typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
-      for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+      for (boost::tie(vi,vi_end)=vertices(mg); vi!=vi_end; ++vi)
       {
          if (*vi == og[ov_singlestart].core_vertex) continue;
          if (*vi == og[ov_singlegoal].core_vertex) continue;
          ompl::base::State * v_state = g[*vi].state;
          double dist_to_goal = HUGE_VAL; // space distance to nearest goal vertex
          typename boost::graph_traits<MyGraph>::in_edge_iterator ei, ei_end;
-         for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,g); ei!=ei_end; ei++)
+         for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,mg); ei!=ei_end; ei++)
          {
-            ompl::base::State * vgoal_state = g[source(*ei,g)].state;
+            ompl::base::State * vgoal_state = g[source(*ei,mg)].state;
             double dist = space->distance(v_state, vgoal_state);
             if (dist < dist_to_goal)
                dist_to_goal = dist;
          }
-         v_hgvalues[get(get(boost::vertex_index,g),*vi)] = _singlegoal_cost + _coeff_distance * dist_to_goal;
+         v_hgvalues[get(get(boost::vertex_index,mg),*vi)] = _singlegoal_cost + _coeff_distance * dist_to_goal;
       }
       
       // singlestart vertex
       {
          double h_to_goal = HUGE_VAL;
          typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
-         for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,g); ei!=ei_end; ei++)
+         for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,mg); ei!=ei_end; ei++)
          {
-            Vertex v_start = target(*ei,g);
+            Vertex v_start = target(*ei,mg);
             double h = v_hgvalues[get(get(boost::vertex_index,g),v_start)];
             if (h < h_to_goal)
                h_to_goal = h;
@@ -825,16 +825,16 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          
          // assign distances to all non-singlestart/singlegoal vertices
          typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
-         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+         for (boost::tie(vi,vi_end)=vertices(mg); vi!=vi_end; ++vi)
          {
             if (*vi == og[ov_singlestart].core_vertex) continue;
             if (*vi == og[ov_singlegoal].core_vertex) continue;
             ompl::base::State * v_state = g[*vi].state;
             double dist_to_start = HUGE_VAL; // space distance to nearest goal vertex
             typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
-            for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,g); ei!=ei_end; ei++)
+            for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,mg); ei!=ei_end; ei++)
             {
-               ompl::base::State * vgoal_state = g[target(*ei,g)].state;
+               ompl::base::State * vgoal_state = g[target(*ei,mg)].state;
                double dist = space->distance(v_state, vgoal_state);
                if (dist < dist_to_start)
                   dist_to_start = dist;
@@ -846,9 +846,9 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          {
             double h_to_start = HUGE_VAL;
             typename boost::graph_traits<MyGraph>::in_edge_iterator ei, ei_end;
-            for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,g); ei!=ei_end; ei++)
+            for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,mg); ei!=ei_end; ei++)
             {
-               Vertex v_goal = source(*ei,g);
+               Vertex v_goal = source(*ei,mg);
                double h = v_hsvalues[get(get(boost::vertex_index,g),v_goal)];
                if (h < h_to_start)
                   h_to_start = h;
@@ -871,7 +871,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<double> v_fvalues(num_vertices(eig));
          std::vector<boost::default_color_type> v_colors(num_vertices(eig));
          
-         return do_lazysp_b(g, epath,
+         return do_lazysp_b(mg, epath,
             pr_bgl::make_lazysp_incsp_astar<MyGraph>(
                boost::make_iterator_property_map(v_hgvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
@@ -890,8 +890,8 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<double> v_gvalues(num_vertices(eig));
          std::vector<double> v_rhsvalues(num_vertices(eig));
          
-         return do_lazysp_b(g, epath,
-            pr_bgl::make_lazysp_incsp_lpastar(g,
+         return do_lazysp_b(mg, epath,
+            pr_bgl::make_lazysp_incsp_lpastar(mg,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -910,7 +910,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<Vertex> v_startpreds(num_vertices(eig));
          std::vector<double> v_startdist(num_vertices(eig));
          
-         return do_lazysp_b(g, epath,
+         return do_lazysp_b(mg, epath,
             pr_bgl::make_lazysp_incsp_dijkstra<MyGraph>(
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
@@ -928,8 +928,8 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<double> v_goaldist(num_vertices(eig));
          std::vector<double> v_goaldistlookahead(num_vertices(eig));
          
-         return do_lazysp_b(g, epath,
-            pr_bgl::make_lazysp_incsp_incbi(g,
+         return do_lazysp_b(mg, epath,
+            pr_bgl::make_lazysp_incsp_incbi(mg,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
@@ -959,10 +959,10 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          // compute averaged potential function
          std::vector<double> v_hvalues(num_vertices(eig));
          for (unsigned int ui=0; ui<v_hvalues.size(); ui++)
-            v_hvalues[ui] = 0.5 * (v_hgvalues[ui] - v_hsvalues[ui]);
+            v_hvalues[ui] = 0.5 * v_hgvalues[ui] - 0.5 * v_hsvalues[ui];
          
-         return do_lazysp_b(g, epath,
-            pr_bgl::make_lazysp_incsp_incbi(g,
+         return do_lazysp_b(mg, epath,
+            pr_bgl::make_lazysp_incsp_incbi(mg,
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                pr_bgl::make_waste_edge_map(g, get(&EProps::w_lazy,g),
