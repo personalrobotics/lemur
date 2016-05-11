@@ -47,6 +47,7 @@
 #include <pr_bgl/lazysp_incsp_astar.h>
 #include <pr_bgl/lazysp_incsp_lpastar.h>
 #include <pr_bgl/lazysp_incsp_incbi.h>
+#include <pr_bgl/waste_edge_map.h>
 
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/BisectPerm.h>
@@ -355,6 +356,8 @@ void ompl_lemur::LEMUR::setSearchType(std::string search_type)
       _search_type = SEARCH_TYPE_LPASTAR;
    else if (search_type == "incbi")
       _search_type = SEARCH_TYPE_INCBI;
+   else if (search_type == "wincbi")
+      _search_type = SEARCH_TYPE_WINCBI;
    else
       throw std::runtime_error("Search type parameter must be dijkstras, astar, or lpastar.");
 }
@@ -367,6 +370,7 @@ std::string ompl_lemur::LEMUR::getSearchType() const
    case SEARCH_TYPE_ASTAR: return "astar";
    case SEARCH_TYPE_LPASTAR: return "lpastar";
    case SEARCH_TYPE_INCBI: return "incbi";
+   case SEARCH_TYPE_WINCBI: return "wincbi";
    default:
       throw std::runtime_error("corrupted _search_type!");
    }
@@ -753,8 +757,13 @@ bool ompl_lemur::LEMUR::do_lazysp_b(MyGraph & g, std::vector<Edge> & epath, IncS
 template <class MyGraph>
 bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
 {
+   std::vector<double> v_hgvalues;
+   std::vector<double> v_hsvalues;
+   
+   // compute goal heuristic
    if (_search_type == SEARCH_TYPE_ASTAR
-      || _search_type == SEARCH_TYPE_LPASTAR) // a* as inner search
+      || _search_type == SEARCH_TYPE_LPASTAR
+      || _search_type == SEARCH_TYPE_WINCBI) // a* as inner search
    {
       boost::chrono::high_resolution_clock::time_point time_heur_begin;
       if (_do_timing)
@@ -764,10 +773,10 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
       // we need storage for:
       // 1. h-values for all vertices (will be used by each run of the inner search)
       // 2. color values for each vertex
-      std::vector<double> v_hvalues(num_vertices(eig), 0.0);
+      v_hgvalues.resize(num_vertices(eig), 0.0);
       
       // singlegoal vertex
-      v_hvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = 0.;
+      v_hgvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = 0.;
       
       // assign distances to all non-singlestart/singlegoal vertices
       typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
@@ -777,15 +786,15 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          if (*vi == og[ov_singlegoal].core_vertex) continue;
          ompl::base::State * v_state = g[*vi].state;
          double dist_to_goal = HUGE_VAL; // space distance to nearest goal vertex
-         typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
-         for (boost::tie(ei,ei_end)=out_edges(og[ov_singlegoal].core_vertex,g); ei!=ei_end; ei++)
+         typename boost::graph_traits<MyGraph>::in_edge_iterator ei, ei_end;
+         for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,g); ei!=ei_end; ei++)
          {
-            ompl::base::State * vgoal_state = g[target(*ei,g)].state;
+            ompl::base::State * vgoal_state = g[source(*ei,g)].state;
             double dist = space->distance(v_state, vgoal_state);
             if (dist < dist_to_goal)
                dist_to_goal = dist;
          }
-         v_hvalues[get(get(boost::vertex_index,g),*vi)] = _singlegoal_cost + _coeff_distance * dist_to_goal;
+         v_hgvalues[get(get(boost::vertex_index,g),*vi)] = _singlegoal_cost + _coeff_distance * dist_to_goal;
       }
       
       // singlestart vertex
@@ -795,17 +804,66 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,g); ei!=ei_end; ei++)
          {
             Vertex v_start = target(*ei,g);
-            double h = v_hvalues[get(get(boost::vertex_index,g),v_start)];
+            double h = v_hgvalues[get(get(boost::vertex_index,g),v_start)];
             if (h < h_to_goal)
                h_to_goal = h;
          }
-         v_hvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = _singlestart_cost + h_to_goal;
+         v_hgvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = _singlestart_cost + h_to_goal;
+      }
+      
+      // also compute start heuristic
+      if (_search_type == SEARCH_TYPE_WINCBI)
+      {
+         // if we're running a* as inner lazysp alg,
+         // we need storage for:
+         // 1. h-values for all vertices (will be used by each run of the inner search)
+         // 2. color values for each vertex
+         v_hsvalues.resize(num_vertices(eig), 0.0);
+         
+         // singlestart vertex
+         v_hsvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = 0.;
+         
+         // assign distances to all non-singlestart/singlegoal vertices
+         typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
+         for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
+         {
+            if (*vi == og[ov_singlestart].core_vertex) continue;
+            if (*vi == og[ov_singlegoal].core_vertex) continue;
+            ompl::base::State * v_state = g[*vi].state;
+            double dist_to_start = HUGE_VAL; // space distance to nearest goal vertex
+            typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
+            for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,g); ei!=ei_end; ei++)
+            {
+               ompl::base::State * vgoal_state = g[target(*ei,g)].state;
+               double dist = space->distance(v_state, vgoal_state);
+               if (dist < dist_to_start)
+                  dist_to_start = dist;
+            }
+            v_hsvalues[get(get(boost::vertex_index,g),*vi)] = _singlestart_cost + _coeff_distance * dist_to_start;
+         }
+         
+         // singlegoal vertex
+         {
+            double h_to_start = HUGE_VAL;
+            typename boost::graph_traits<MyGraph>::in_edge_iterator ei, ei_end;
+            for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,g); ei!=ei_end; ei++)
+            {
+               Vertex v_goal = source(*ei,g);
+               double h = v_hsvalues[get(get(boost::vertex_index,g),v_goal)];
+               if (h < h_to_start)
+                  h_to_start = h;
+            }
+            v_hsvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = _singlegoal_cost + h_to_start;
+         }
       }
       
       if (_do_timing)
          _dur_search += boost::chrono::high_resolution_clock::now() - time_heur_begin;
-      
-      if (_search_type == SEARCH_TYPE_ASTAR)
+   }
+   
+   switch (_search_type)
+   {
+   case SEARCH_TYPE_ASTAR:
       {
          // astar
          std::vector<Vertex> v_startpreds(num_vertices(eig));
@@ -814,8 +872,8 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
          std::vector<boost::default_color_type> v_colors(num_vertices(eig));
          
          return do_lazysp_b(g, epath,
-            pr_bgl::make_lazysp_incsp_astar<MyGraph,EPWlazyMap>(
-               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+            pr_bgl::make_lazysp_incsp_astar<MyGraph>(
+               boost::make_iterator_property_map(v_hgvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
                boost::make_iterator_property_map(v_fvalues.begin(), get(boost::vertex_index,g)), // cost_map,
@@ -824,7 +882,8 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
                std::numeric_limits<double>::infinity(), 0.0)); 
       }
-      else
+      break;
+   case SEARCH_TYPE_LPASTAR:
       {
          // lpastar
          std::vector<Vertex> v_startpreds(num_vertices(eig));
@@ -836,7 +895,7 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                og[ov_singlestart].core_vertex,
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_hgvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
@@ -845,46 +904,83 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & g, std::vector<Edge> & epath)
                boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
                std::numeric_limits<double>::infinity(), 0.0));
       }
-   }
-   else if (_search_type == SEARCH_TYPE_DIJKSTRAS)
-   {
-      std::vector<Vertex> v_startpreds(num_vertices(eig));
-      std::vector<double> v_startdist(num_vertices(eig));
-      
-      return do_lazysp_b(g, epath,
-         pr_bgl::make_lazysp_incsp_dijkstra<MyGraph,EPWlazyMap>(
-            boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
-            std::less<double>(), // compare
-            boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
-            std::numeric_limits<double>::infinity(), 0.0));
-   }
-   else // _search_type == SEARCH_TYPE_INCBI
-   {
-      std::vector<Vertex> v_startpreds(num_vertices(eig));
-      std::vector<double> v_startdist(num_vertices(eig));
-      std::vector<double> v_startdistlookahead(num_vertices(eig));
-      std::vector<Vertex> v_goalpreds(num_vertices(eig));
-      std::vector<double> v_goaldist(num_vertices(eig));
-      std::vector<double> v_goaldistlookahead(num_vertices(eig));
-      
-      return do_lazysp_b(g, epath,
-         pr_bgl::make_lazysp_incsp_incbi<MyGraph,EPWlazyMap>(g,
-            og[ov_singlestart].core_vertex,
-            og[ov_singlegoal].core_vertex,
-            get(&EProps::w_lazy,g),
-            boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-            boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-            boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-            boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-            boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-            boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-            get(&EProps::index, g), eig.edge_vector_map,
-            1.0e-9, // goal_margin
-            std::less<double>(), // compare
-            boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
-            std::numeric_limits<double>::infinity(), 0.0,
-            pr_bgl::incbi_visitor_null<Graph>()));
+      break;
+   case SEARCH_TYPE_DIJKSTRAS:
+      {
+         std::vector<Vertex> v_startpreds(num_vertices(eig));
+         std::vector<double> v_startdist(num_vertices(eig));
+         
+         return do_lazysp_b(g, epath,
+            pr_bgl::make_lazysp_incsp_dijkstra<MyGraph>(
+               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
+               std::less<double>(), // compare
+               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+               std::numeric_limits<double>::infinity(), 0.0));
+      }
+      break;
+   case SEARCH_TYPE_INCBI:
+      {
+         std::vector<Vertex> v_startpreds(num_vertices(eig));
+         std::vector<double> v_startdist(num_vertices(eig));
+         std::vector<double> v_startdistlookahead(num_vertices(eig));
+         std::vector<Vertex> v_goalpreds(num_vertices(eig));
+         std::vector<double> v_goaldist(num_vertices(eig));
+         std::vector<double> v_goaldistlookahead(num_vertices(eig));
+         
+         return do_lazysp_b(g, epath,
+            pr_bgl::make_lazysp_incsp_incbi(g,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               get(&EProps::w_lazy,g),
+               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
+               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
+               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+               get(&EProps::index, g), eig.edge_vector_map,
+               1.0e-9, // goal_margin
+               std::less<double>(), // compare
+               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+               std::numeric_limits<double>::infinity(), 0.0,
+               pr_bgl::incbi_visitor_null<Graph>()));
+      }
+      break;
+   case SEARCH_TYPE_WINCBI:
+      {
+         std::vector<Vertex> v_startpreds(num_vertices(eig));
+         std::vector<double> v_startdist(num_vertices(eig));
+         std::vector<double> v_startdistlookahead(num_vertices(eig));
+         std::vector<Vertex> v_goalpreds(num_vertices(eig));
+         std::vector<double> v_goaldist(num_vertices(eig));
+         std::vector<double> v_goaldistlookahead(num_vertices(eig));
+         
+         // compute averaged potential function
+         std::vector<double> v_hvalues(num_vertices(eig));
+         for (unsigned int ui=0; ui<v_hvalues.size(); ui++)
+            v_hvalues[ui] = 0.5 * (v_hgvalues[ui] - v_hsvalues[ui]);
+         
+         return do_lazysp_b(g, epath,
+            pr_bgl::make_lazysp_incsp_incbi(g,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               pr_bgl::make_waste_edge_map(g, get(&EProps::w_lazy,g),
+                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g))),
+               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
+               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
+               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+               get(&EProps::index, g), eig.edge_vector_map,
+               1.0e-9, // goal_margin
+               std::less<double>(), // compare
+               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+               std::numeric_limits<double>::infinity(), 0.0,
+               pr_bgl::incbi_visitor_null<Graph>()));
+      }
+      break;
    }
    OMPL_ERROR("switch error.");
    return false;

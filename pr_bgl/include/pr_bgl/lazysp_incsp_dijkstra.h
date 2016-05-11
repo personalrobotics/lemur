@@ -17,7 +17,7 @@ namespace pr_bgl
  * 
  * solve is always called with the same g,v_start,v_goal
  */
-template <class Graph, class WMap,
+template <class Graph,
    class PredecessorMap, class DistanceMap,
    typename CompareFunction, typename CombineFunction>
 class lazysp_incsp_dijkstra
@@ -25,7 +25,7 @@ class lazysp_incsp_dijkstra
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
-   typedef typename boost::property_traits<WMap>::value_type weight_type;
+   typedef typename boost::property_traits<DistanceMap>::value_type weight_type;
    
    struct throw_visitor_exception {};
    class throw_visitor
@@ -62,6 +62,7 @@ public:
    {
    }
    
+   template <typename WMap>
    weight_type solve(const Graph & g, Vertex v_start, Vertex v_goal,
       WMap wmap, std::vector<Edge> & path)
    {
@@ -106,11 +107,11 @@ public:
    }
 };
 
-template <class Graph, class WMap, class PredecessorMap, class DistanceMap, typename CompareFunction, typename CombineFunction>
-lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap,CompareFunction,CombineFunction>
-make_lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map, CompareFunction compare, CombineFunction combine, typename boost::property_traits<WMap>::value_type inf, typename boost::property_traits<WMap>::value_type zero)
+template <class Graph, class PredecessorMap, class DistanceMap, typename CompareFunction, typename CombineFunction>
+lazysp_incsp_dijkstra<Graph,PredecessorMap,DistanceMap,CompareFunction,CombineFunction>
+make_lazysp_incsp_dijkstra(PredecessorMap predecessor_map, DistanceMap distance_map, CompareFunction compare, CombineFunction combine, typename boost::property_traits<DistanceMap>::value_type inf, typename boost::property_traits<DistanceMap>::value_type zero)
 {
-   return lazysp_incsp_dijkstra<Graph,WMap,PredecessorMap,DistanceMap,CompareFunction,CombineFunction>(predecessor_map, distance_map, compare, combine, inf, zero);
+   return lazysp_incsp_dijkstra<Graph,PredecessorMap,DistanceMap,CompareFunction,CombineFunction>(predecessor_map, distance_map, compare, combine, inf, zero);
 }
 
 } // namespace pr_bgl

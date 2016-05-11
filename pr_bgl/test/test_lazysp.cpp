@@ -78,7 +78,7 @@ TEST(LazySPTestCase, LazySPTest)
       boost::make_assoc_property_map(dist_lazy),
       boost::make_assoc_property_map(isevaled),
       path,
-      pr_bgl::make_lazysp_incsp_dijkstra< Graph, boost::associative_property_map< std::map<Edge,double> > >(
+      pr_bgl::make_lazysp_incsp_dijkstra<Graph>(
          boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
          boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // startdist_map
          std::less<double>(), // compare

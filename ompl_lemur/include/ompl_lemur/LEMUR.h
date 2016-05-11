@@ -211,7 +211,8 @@ private:
       SEARCH_TYPE_DIJKSTRAS,
       SEARCH_TYPE_ASTAR,
       SEARCH_TYPE_LPASTAR,
-      SEARCH_TYPE_INCBI
+      SEARCH_TYPE_INCBI,
+      SEARCH_TYPE_WINCBI
    } _search_type;
    
    enum
