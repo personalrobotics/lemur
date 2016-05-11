@@ -17,6 +17,7 @@
 #include <pr_bgl/flag_set_map.h>
 #include <pr_bgl/lazysp.h>
 #include <pr_bgl/lazysp_incsp_dijkstra.h>
+#include <pr_bgl/lazysp_wmap_identity_map.h>
 
 #include <gtest/gtest.h>
 
@@ -72,9 +73,10 @@ TEST(LazySPTestCase, LazySPTest)
    
    bool success = pr_bgl::lazysp(
       g, vertex(17,g), vertex(22,g),
-      pr_bgl::make_flag_set_map(
-         boost::make_assoc_property_map(dist), 
-         boost::make_assoc_property_map(isevaled)),
+      pr_bgl::make_lazysp_wmap_identity_map(
+         pr_bgl::make_flag_set_map(
+            boost::make_assoc_property_map(dist), 
+            boost::make_assoc_property_map(isevaled))),
       boost::make_assoc_property_map(dist_lazy),
       boost::make_assoc_property_map(isevaled),
       path,
