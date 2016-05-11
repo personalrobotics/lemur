@@ -51,6 +51,8 @@ the heap index that's used is the edge index << 1
 with the lsb=0: lower vertex index is start-side
       or lsb=1: lower vertex index is goal-side
 \endverbatim
+ *
+ * due to wincbi stuff, wmap is not necessarily symmetric!
  */
 template <class Graph, class ActualWMap,
    class StartPredecessorMap, class StartDistanceMap, class StartDistanceLookaheadMap,
@@ -150,6 +152,7 @@ public:
          Vertex v_temp = v_startside;
          v_startside = v_goalside;
          v_goalside = v_temp;
+         e = edge(target(e,g),source(e,g),g).first;
       }
       
       // get path
@@ -183,20 +186,25 @@ public:
       return get(start_distance,v_startside) + get(w_map,e) + get(goal_distance,v_goalside);
    }
    
-   void update_notify(Edge e)
+   void update_notify(Edge euv)
    {
-      Vertex va = source(e,g);
-      Vertex vb = target(e,g);
-      incbi.start_update_predecessor(va, vb, get(w_map,e));
-      incbi.start_update_predecessor(vb, va, get(w_map,e));
-      incbi.start_update_vertex(va);
-      incbi.start_update_vertex(vb);
-      incbi.goal_update_successor(va, vb, get(w_map,e));
-      incbi.goal_update_successor(vb, va, get(w_map,e));
-      incbi.goal_update_vertex(va);
-      incbi.goal_update_vertex(vb);
-      incbi.update_edge(e);
-      incbi.update_edge(edge(target(e,g),source(e,g),g).first);
+      Vertex u = source(euv,g);
+      Vertex v = target(euv,g);
+      // update forward edge
+      weight_type wuv = get(w_map,euv);
+      incbi.start_update_predecessor(u, v, wuv);
+      incbi.start_update_vertex(v);
+      incbi.goal_update_successor(u, v, wuv);
+      incbi.goal_update_vertex(u);
+      incbi.update_edge(euv);
+      // update reverse edge
+      Edge evu = edge(v,u,g).first;
+      weight_type wvu = get(w_map,evu);
+      incbi.start_update_predecessor(v, u, wvu);
+      incbi.start_update_vertex(u);
+      incbi.goal_update_successor(v, u, wvu);
+      incbi.goal_update_vertex(v);
+      incbi.update_edge(evu);
    }
 };
 
