@@ -217,6 +217,16 @@ private:
       SEARCH_TYPE_WINCBI
    } _search_type;
    
+   double _search_incbi_heur_interp;
+   
+   enum
+   {
+      SEARCH_INCBI_BALANCER_TYPE_DISTANCE,
+      SEARCH_INCBI_BALANCER_TYPE_CARDINALITY
+   } _search_incbi_balancer_type;
+   
+   double _search_incbi_balancer_goalfrac;
+   
    enum
    {
       EVAL_TYPE_FWD,
@@ -295,6 +305,15 @@ public:
    
    void setSearchType(std::string search_type);
    std::string getSearchType() const;
+   
+   void setSearchIncbiHeurInterp(double search_incbi_heur_interp);
+   double getSearchIncbiHeurInterp() const;
+   
+   void setSearchIncbiBalancerType(std::string search_incbi_balancer_type);
+   std::string getSearchIncbiBalancerType() const;
+   
+   void setSearchIncbiBalancerGoalfrac(double search_incbi_balancer_goalfrac);
+   double getSearchIncbiBalancerGoalfrac() const;
    
    void setEvalType(std::string eval_type);
    std::string getEvalType() const;

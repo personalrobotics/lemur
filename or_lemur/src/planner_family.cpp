@@ -421,6 +421,12 @@ or_lemur::FamilyPlanner::InitPlan(OpenRAVE::RobotBasePtr robot, OpenRAVE::Planne
       _current_family->ompl_lemur->setSolveAll(params->solve_all);
    if (params->has_search_type)
       _current_family->ompl_lemur->setSearchType(params->search_type);
+   if (params->has_search_incbi_heur_interp)
+      _current_family->ompl_lemur->setSearchIncbiHeurInterp(params->search_incbi_heur_interp);
+   if (params->has_search_incbi_balancer_type)
+      _current_family->ompl_lemur->setSearchIncbiBalancerType(params->search_incbi_balancer_type);
+   if (params->has_search_incbi_balancer_goalfrac)
+      _current_family->ompl_lemur->setSearchIncbiBalancerGoalfrac(params->search_incbi_balancer_goalfrac);
    if (params->has_eval_type)
       _current_family->ompl_lemur->setEvalType(params->eval_type);
    

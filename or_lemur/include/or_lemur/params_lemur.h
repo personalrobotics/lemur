@@ -60,6 +60,15 @@ public:
    bool has_search_type;
    std::string search_type;
    
+   bool has_search_incbi_heur_interp;
+   double search_incbi_heur_interp;
+   
+   bool has_search_incbi_balancer_type;
+   std::string search_incbi_balancer_type;
+   
+   bool has_search_incbi_balancer_goalfrac;
+   double search_incbi_balancer_goalfrac;
+   
    bool has_eval_type;
    std::string eval_type;
    
@@ -85,6 +94,9 @@ public:
       has_max_batches(false),
       has_time_limit(false),
       has_search_type(false),
+      has_search_incbi_heur_interp(false),
+      has_search_incbi_balancer_type(false),
+      has_search_incbi_balancer_goalfrac(false),
       has_eval_type(false),
       has_solve_all(false),
       has_do_baked(false)
@@ -106,6 +118,9 @@ public:
       _vXMLParameters.push_back("max_batches");
       _vXMLParameters.push_back("time_limit");
       _vXMLParameters.push_back("search_type");
+      _vXMLParameters.push_back("search_incbi_heur_interp");
+      _vXMLParameters.push_back("search_incbi_balancer_type");
+      _vXMLParameters.push_back("search_incbi_balancer_goalfrac");
       _vXMLParameters.push_back("eval_type");
       _vXMLParameters.push_back("solve_all");
       _vXMLParameters.push_back("do_baked");
@@ -155,6 +170,12 @@ protected:
          sout << "<time_limit>" << time_limit << "</time_limit>";
       if (has_search_type)
          sout << "<search_type>" << search_type << "</search_type>";
+      if (has_search_incbi_heur_interp)
+         sout << "<search_incbi_heur_interp>" << search_incbi_heur_interp << "</search_incbi_heur_interp>";
+      if (has_search_incbi_balancer_type)
+         sout << "<search_incbi_balancer_type>" << search_incbi_balancer_type << "</search_incbi_balancer_type>";
+      if (has_search_incbi_balancer_goalfrac)
+         sout << "<search_incbi_balancer_goalfrac>" << search_incbi_balancer_goalfrac << "</search_incbi_balancer_goalfrac>";
       if (has_eval_type)
          sout << "<eval_type>" << eval_type << "</eval_type>";
       if (has_solve_all)
@@ -190,6 +211,9 @@ protected:
          || name == "max_batches"
          || name == "time_limit"
          || name == "search_type"
+         || name == "search_incbi_heur_interp"
+         || name == "search_incbi_balancer_type"
+         || name == "search_incbi_balancer_goalfrac"
          || name == "eval_type"
          || name == "solve_all"
          || name == "do_baked")
@@ -303,6 +327,21 @@ protected:
          {
             search_type = _ss.str();
             has_search_type = true;
+         }
+         if (lemur_deserializing == "search_incbi_heur_interp")
+         {
+            _ss >> search_incbi_heur_interp;
+            has_search_incbi_heur_interp = true;
+         }
+         if (lemur_deserializing == "search_incbi_balancer_type")
+         {
+            search_incbi_balancer_type = _ss.str();
+            has_search_incbi_balancer_type = true;
+         }
+         if (lemur_deserializing == "search_incbi_balancer_goalfrac")
+         {
+            _ss >> search_incbi_balancer_goalfrac;
+            has_search_incbi_balancer_goalfrac = true;
          }
          if (lemur_deserializing == "eval_type")
          {

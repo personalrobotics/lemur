@@ -120,6 +120,9 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    _max_batches(UINT_MAX),
    _solve_all(false),
    _search_type(SEARCH_TYPE_ASTAR),
+   _search_incbi_heur_interp(0.5),
+   _search_incbi_balancer_type(SEARCH_INCBI_BALANCER_TYPE_DISTANCE),
+   _search_incbi_balancer_goalfrac(0.5),
    _eval_type(EVAL_TYPE_ALT),
    os_alglog(0),
    _vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
@@ -163,6 +166,15 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    Planner::declareParam<std::string>("search_type", this,
       &ompl_lemur::LEMUR::setSearchType,
       &ompl_lemur::LEMUR::getSearchType);
+   Planner::declareParam<double>("search_incbi_heur_interp", this,
+      &ompl_lemur::LEMUR::setSearchIncbiHeurInterp,
+      &ompl_lemur::LEMUR::getSearchIncbiHeurInterp);
+   Planner::declareParam<std::string>("search_incbi_balancer_type", this,
+      &ompl_lemur::LEMUR::setSearchIncbiBalancerType,
+      &ompl_lemur::LEMUR::getSearchIncbiBalancerType);
+   Planner::declareParam<double>("search_incbi_balancer_goalfrac", this,
+      &ompl_lemur::LEMUR::setSearchIncbiBalancerGoalfrac,
+      &ompl_lemur::LEMUR::getSearchIncbiBalancerGoalfrac);
    Planner::declareParam<std::string>("eval_type", this,
       &ompl_lemur::LEMUR::setEvalType,
       &ompl_lemur::LEMUR::getEvalType);
@@ -374,6 +386,51 @@ std::string ompl_lemur::LEMUR::getSearchType() const
    default:
       throw std::runtime_error("corrupted _search_type!");
    }
+}
+
+void ompl_lemur::LEMUR::setSearchIncbiHeurInterp(double search_incbi_heur_interp)
+{
+   if (!(0.0 <= search_incbi_heur_interp && search_incbi_heur_interp <= 1.0))
+      throw std::runtime_error("search_incbi_heur_interp parameter must be between 0.0 and 1.0.");
+   _search_incbi_heur_interp = search_incbi_heur_interp;
+}
+
+double ompl_lemur::LEMUR::getSearchIncbiHeurInterp() const
+{
+   return _search_incbi_heur_interp;
+}
+
+void ompl_lemur::LEMUR::setSearchIncbiBalancerType(std::string search_incbi_balancer_type)
+{
+   if (search_incbi_balancer_type == "distance")
+      _search_incbi_balancer_type = SEARCH_INCBI_BALANCER_TYPE_DISTANCE;
+   else if (search_incbi_balancer_type == "cardinality")
+      _search_incbi_balancer_type = SEARCH_INCBI_BALANCER_TYPE_CARDINALITY;
+   else
+      throw std::runtime_error("search_incbi_balancer_type parameter must be distance or cardinality.");
+}
+
+std::string ompl_lemur::LEMUR::getSearchIncbiBalancerType() const
+{
+   switch (_search_incbi_balancer_type)
+   {
+   case SEARCH_INCBI_BALANCER_TYPE_DISTANCE: return "distance";
+   case SEARCH_INCBI_BALANCER_TYPE_CARDINALITY: return "cardinality";
+   default:
+      throw std::runtime_error("corrupted _search_incbi_balancer_type!");
+   }
+}
+
+void ompl_lemur::LEMUR::setSearchIncbiBalancerGoalfrac(double search_incbi_balancer_goalfrac)
+{
+   if (!(0.0 <= search_incbi_balancer_goalfrac && search_incbi_balancer_goalfrac <= 1.0))
+      throw std::runtime_error("search_incbi_balancer_goalfrac parameter must be between 0.0 and 1.0.");
+   _search_incbi_balancer_goalfrac = search_incbi_balancer_goalfrac;
+}
+
+double ompl_lemur::LEMUR::getSearchIncbiBalancerGoalfrac() const
+{
+   return _search_incbi_balancer_goalfrac;
 }
 
 void ompl_lemur::LEMUR::setEvalType(std::string eval_type)
@@ -928,23 +985,49 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & mg, std::vector<Edge> & epath)
          std::vector<double> v_goaldist(num_vertices(eig));
          std::vector<double> v_goaldistlookahead(num_vertices(eig));
          
-         return do_lazysp_b(mg, epath,
-            pr_bgl::make_lazysp_incsp_incbi(mg,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               get(&EProps::w_lazy,g),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9, // goal_margin
-               std::less<double>(), // compare
-               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
-               std::numeric_limits<double>::infinity(), 0.0,
-               pr_bgl::incbi_visitor_null<Graph>()));
+         switch (_search_incbi_balancer_type)
+         {
+         case SEARCH_INCBI_BALANCER_TYPE_DISTANCE:
+            return do_lazysp_b(mg, epath,
+               pr_bgl::make_lazysp_incsp_incbi(mg,
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex,
+                  get(&EProps::w_lazy,g),
+                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  get(&EProps::index, g), eig.edge_vector_map,
+                  1.0e-9, // goal_margin
+                  std::less<double>(), // compare
+                  boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+                  std::numeric_limits<double>::infinity(), 0.0,
+                  pr_bgl::incbi_visitor_null<Graph>(),
+                  pr_bgl::incbi_balancer_distance<Vertex,double>(_search_incbi_balancer_goalfrac)));
+         case SEARCH_INCBI_BALANCER_TYPE_CARDINALITY:
+            return do_lazysp_b(mg, epath,
+               pr_bgl::make_lazysp_incsp_incbi(mg,
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex,
+                  get(&EProps::w_lazy,g),
+                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  get(&EProps::index, g), eig.edge_vector_map,
+                  1.0e-9, // goal_margin
+                  std::less<double>(), // compare
+                  boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+                  std::numeric_limits<double>::infinity(), 0.0,
+                  pr_bgl::incbi_visitor_null<Graph>(),
+                  pr_bgl::incbi_balancer_cardinality<Vertex,double>(_search_incbi_balancer_goalfrac)));
+         default:
+            throw std::runtime_error("corrupted _search_incbi_balancer_type!");
+         }
       }
       break;
    case SEARCH_TYPE_WINCBI:
@@ -959,26 +1042,54 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & mg, std::vector<Edge> & epath)
          // compute averaged potential function
          std::vector<double> v_hvalues(num_vertices(eig));
          for (unsigned int ui=0; ui<v_hvalues.size(); ui++)
-            v_hvalues[ui] = 0.5 * v_hgvalues[ui] - 0.5 * v_hsvalues[ui];
+            v_hvalues[ui] = (_search_incbi_heur_interp) * v_hgvalues[ui]
+                          - (1.0-_search_incbi_heur_interp) * v_hsvalues[ui];
          
-         return do_lazysp_b(mg, epath,
-            pr_bgl::make_lazysp_incsp_incbi(mg,
-               og[ov_singlestart].core_vertex,
-               og[ov_singlegoal].core_vertex,
-               pr_bgl::make_waste_edge_map(g, get(&EProps::w_lazy,g),
-                  boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g))),
-               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
-               boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
-               boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
-               get(&EProps::index, g), eig.edge_vector_map,
-               1.0e-9, // goal_margin
-               std::less<double>(), // compare
-               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
-               std::numeric_limits<double>::infinity(), 0.0,
-               pr_bgl::incbi_visitor_null<Graph>()));
+         switch (_search_incbi_balancer_type)
+         {
+         case SEARCH_INCBI_BALANCER_TYPE_DISTANCE:
+            return do_lazysp_b(mg, epath,
+               pr_bgl::make_lazysp_incsp_incbi(mg,
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex,
+                  pr_bgl::make_waste_edge_map(g, get(&EProps::w_lazy,g),
+                     boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g))),
+                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  get(&EProps::index, g), eig.edge_vector_map,
+                  1.0e-9, // goal_margin
+                  std::less<double>(), // compare
+                  boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+                  std::numeric_limits<double>::infinity(), 0.0,
+                  pr_bgl::incbi_visitor_null<Graph>(),
+                  pr_bgl::incbi_balancer_distance<Vertex,double>(_search_incbi_balancer_goalfrac)));
+         case SEARCH_INCBI_BALANCER_TYPE_CARDINALITY:
+            return do_lazysp_b(mg, epath,
+               pr_bgl::make_lazysp_incsp_incbi(mg,
+                  og[ov_singlestart].core_vertex,
+                  og[ov_singlegoal].core_vertex,
+                  pr_bgl::make_waste_edge_map(g, get(&EProps::w_lazy,g),
+                     boost::make_iterator_property_map(v_hvalues.begin(), get(boost::vertex_index,g))),
+                  boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_startdist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_startdistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  boost::make_iterator_property_map(v_goalpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+                  boost::make_iterator_property_map(v_goaldist.begin(), get(boost::vertex_index,g)), // gvalues_map
+                  boost::make_iterator_property_map(v_goaldistlookahead.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+                  get(&EProps::index, g), eig.edge_vector_map,
+                  1.0e-9, // goal_margin
+                  std::less<double>(), // compare
+                  boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+                  std::numeric_limits<double>::infinity(), 0.0,
+                  pr_bgl::incbi_visitor_null<Graph>(),
+                  pr_bgl::incbi_balancer_cardinality<Vertex,double>(_search_incbi_balancer_goalfrac)));
+         default:
+            throw std::runtime_error("corrupted _search_incbi_balancer_type!");
+         }
       }
       break;
    }

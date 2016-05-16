@@ -59,7 +59,7 @@ template <class Graph, class ActualWMap,
    class GoalPredecessorMap, class GoalDistanceMap, class GoalDistanceLookaheadMap,
    class EdgeIndexMap, class EdgeVectorMap,
    typename CompareFunction, typename CombineFunction,
-   class IncBiVisitor>
+   class IncBiVisitor, class IncBiBalancer>
 class lazysp_incsp_incbi
 {
 public:
@@ -89,7 +89,7 @@ public:
       //std::less<weight_type>, boost::closed_plus<weight_type>,
       CompareFunction, CombineFunction,
       weight_type, weight_type,
-      IncBiVisitor, incbi_balancer_distance<Vertex,weight_type>
+      IncBiVisitor, IncBiBalancer
    > incbi;
    
    lazysp_incsp_incbi(
@@ -103,7 +103,7 @@ public:
       weight_type goal_margin,
       CompareFunction compare, CombineFunction combine,
       weight_type inf, weight_type zero,
-      IncBiVisitor vis):
+      IncBiVisitor vis, IncBiBalancer balancer):
       g(g), v_start(v_start), v_goal(v_goal),
       w_map(w_map),
       start_predecessor(start_predecessor),
@@ -124,7 +124,7 @@ public:
          //weight_type(),
          compare, combine, inf, zero,
          goal_margin,
-         vis, incbi_balancer_distance<Vertex,weight_type>())
+         vis, balancer)
    {
    }
    
@@ -213,8 +213,8 @@ template <class Graph, class ActualWMap,
    class GoalPredecessorMap, class GoalDistanceMap, class GoalDistanceLookaheadMap,
    class EdgeIndexMap, class EdgeVectorMap,
    typename CompareFunction, typename CombineFunction,
-   class IncBiVisitor>
-lazysp_incsp_incbi<Graph,ActualWMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,CompareFunction,CombineFunction,IncBiVisitor>
+   class IncBiVisitor, class IncBiBalancer>
+lazysp_incsp_incbi<Graph,ActualWMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,CompareFunction,CombineFunction,IncBiVisitor,IncBiBalancer>
 make_lazysp_incsp_incbi(
    Graph & g,
    typename boost::graph_traits<Graph>::vertex_descriptor v_start,
@@ -229,10 +229,10 @@ make_lazysp_incsp_incbi(
    CompareFunction compare, CombineFunction combine,
    typename boost::property_traits<ActualWMap>::value_type inf,
    typename boost::property_traits<ActualWMap>::value_type zero,
-   IncBiVisitor vis)
+   IncBiVisitor vis, IncBiBalancer balancer)
 {
-   return lazysp_incsp_incbi<Graph,ActualWMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,CompareFunction,CombineFunction,IncBiVisitor>(
-      g, v_start, v_goal, w_map, start_predecessor, start_distance, start_distance_lookahead, goal_predecessor, goal_distance, goal_distance_lookahead, edge_index_map, edge_vector_map, goal_margin, compare, combine, inf, zero, vis);
+   return lazysp_incsp_incbi<Graph,ActualWMap,StartPredecessorMap,StartDistanceMap,StartDistanceLookaheadMap,GoalPredecessorMap,GoalDistanceMap,GoalDistanceLookaheadMap,EdgeIndexMap,EdgeVectorMap,CompareFunction,CombineFunction,IncBiVisitor,IncBiBalancer>(
+      g, v_start, v_goal, w_map, start_predecessor, start_distance, start_distance_lookahead, goal_predecessor, goal_distance, goal_distance_lookahead, edge_index_map, edge_vector_map, goal_margin, compare, combine, inf, zero, vis, balancer);
 }
 
 } // namespace pr_bgl

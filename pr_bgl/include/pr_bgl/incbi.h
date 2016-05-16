@@ -663,11 +663,13 @@ public:
 template <typename Vertex, typename weight_type>
 struct incbi_balancer_distance
 {
+   const double goalfrac;
+   incbi_balancer_distance(double goalfrac): goalfrac(goalfrac) {}
    bool operator()(
       weight_type start_top, weight_type goal_top,
       size_t start_queuesize, size_t goal_queuesize) const
    {
-      return (goal_top < start_top);
+      return ((1.0-goalfrac)*goal_top < (goalfrac)*start_top);
    }
 };
 
@@ -678,11 +680,13 @@ struct incbi_balancer_distance
 template <typename Vertex, typename weight_type>
 struct incbi_balancer_cardinality
 {
+   const double goalfrac;
+   incbi_balancer_cardinality(double goalfrac): goalfrac(goalfrac) {}
    bool operator()(
       weight_type start_top, weight_type goal_top,
       size_t start_queuesize, size_t goal_queuesize) const
    {
-      return (goal_queuesize < start_queuesize);
+      return ((1.0-goalfrac)*goal_queuesize < (goalfrac)*start_queuesize);
    }
 };
 
