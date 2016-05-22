@@ -1158,6 +1158,10 @@ ompl_lemur::LEMUR::solve(
    // compute singleroot costs
    switch (_search_type)
    {
+   case SEARCH_TYPE_WINCBI:
+      _singlestart_cost = 0.5 * _coeff_distance * space->getMaximumExtent();
+      _singlegoal_cost = 0.5 * _coeff_distance * space->getMaximumExtent();
+      break;
    case SEARCH_TYPE_ASTAR:
    case SEARCH_TYPE_LPASTAR:
       _singlestart_cost = 0.5 * _coeff_distance * space->getMaximumExtent();
