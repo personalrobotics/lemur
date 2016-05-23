@@ -276,8 +276,19 @@ TEST(LifelongPlanningAstarTestCase, LifelongPlanningAstarTest)
    }
    for (std::set<Edge>::iterator it=edel.begin(); it!=edel.end(); it++)
    {
-      lpastar.update_vertex(source(*it,g));
-      lpastar.update_vertex(target(*it,g));
+      // notify
+      Edge euv = *it;
+      Vertex u = source(euv,g);
+      Vertex v = target(euv,g);
+      // update forward edge
+      unsigned int wuv = e_dists[euv];
+      lpastar.update_predecessor(u, v, wuv);
+      lpastar.update_vertex(v);
+      // update reverse edge
+      Edge evu = edge(v,u,g).first;
+      unsigned int wvu = e_dists[evu];
+      lpastar.update_predecessor(v, u, wvu);
+      lpastar.update_vertex(u);
    }
    printf("found %lu changed edges!\n", edel.size());
    ASSERT_EQ(29, edel.size());

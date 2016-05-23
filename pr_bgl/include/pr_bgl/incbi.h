@@ -521,8 +521,7 @@ public:
             if (!start_queue.size())
                return std::make_pair(0, false);
             
-            size_t u_idx = start_queue.top_idx();
-            Vertex u = vertex(u_idx, g);
+            Vertex u = vertex(start_queue.top_idx(), g);
             
             vis.examine_vertex_start(u);
             
@@ -580,8 +579,7 @@ public:
             if (!goal_queue.size())
                return std::make_pair(0, false);
             
-            size_t v_idx = goal_queue.top_idx();
-            Vertex v = vertex(v_idx, g);
+            Vertex v = vertex(goal_queue.top_idx(), g);
             
             vis.examine_vertex_goal(v);
             

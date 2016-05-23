@@ -42,6 +42,7 @@ public:
    Graph & g;
    Vertex v_start;
    Vertex v_goal;
+   WMap w_map;
    PredecessorMap predecessor_map;
    DistanceMap distance_map;
    weight_type inf;
@@ -67,7 +68,7 @@ public:
       weight_type goal_margin,
       CompareFunction compare, CombineFunction combine,
       weight_type inf, weight_type zero):
-      g(g), v_start(v_start), v_goal(v_goal),
+      g(g), v_start(v_start), v_goal(v_goal), w_map(w_map),
       predecessor_map(predecessor_map),
       distance_map(distance_map),
       inf(inf),
@@ -109,10 +110,19 @@ public:
       return get(distance_map,v_goal);
    }
    
-   void update_notify(Edge e)
+   void update_notify(Edge euv)
    {
-      lpastar.update_vertex(source(e,g));
-      lpastar.update_vertex(target(e,g));
+      Vertex u = source(euv,g);
+      Vertex v = target(euv,g);
+      // update forward edge
+      weight_type wuv = get(w_map,euv);
+      lpastar.update_predecessor(u, v, wuv);
+      lpastar.update_vertex(v);
+      // update reverse edge
+      Edge evu = edge(v,u,g).first;
+      weight_type wvu = get(w_map,evu);
+      lpastar.update_predecessor(v, u, wvu);
+      lpastar.update_vertex(u);
    }
 };
 

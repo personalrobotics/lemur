@@ -99,30 +99,100 @@ public:
       return std::make_pair(minval+h(u), minval);
    }
    
-   inline void update_vertex(Vertex u)
+   // this is called to update vertex v due to either:
+   // - u_dist being updated OR
+   // - uv_weight being updated
+   // it will recalculate v's lookahead distance
+   // and return whether v's lookahead distance changed
+   // (if predecessor changed, but lookahead value didnt, return false)
+   inline bool update_predecessor(Vertex u, Vertex v, weight_type uv_weight)
    {
-      size_t u_idx = get(index_map,u);
-      if (u != v_start)
+      // start vertex dist lookahead is always zero
+      if (v == v_start)
+         return false;
+      
+      // current predecessor and lookahead value
+      Vertex v_pred = get(predecessor, v);
+      weight_type v_look_old = get(distance_lookahead, v);
+      weight_type v_look_u = combine(get(distance,u), uv_weight);
+      
+      if (v_pred == u) // u was previously relied upon
       {
-         weight_type rhs = inf;
-         InEdgeIter ei, ei_end;
-         for (boost::tie(ei,ei_end)=in_edges(u,g); ei!=ei_end; ei++)
+         // if dist through u decreased, then u is still best; just update value
+         if (v_look_u == v_look_old)
          {
-            weight_type val = combine(get(distance,source(*ei,g)), get(weight,*ei));
-            if (val < rhs)
+            return false;
+         }
+         else if (v_look_u < v_look_old)
+         {
+            put(distance_lookahead, v, v_look_u);
+            return true;
+         }
+         else // dist through u increased
+         {
+            // so we need to search for a potentially new best predecessessor
+            weight_type v_look_best = inf;
+            Vertex v_pred_best;
+            InEdgeIter ei, ei_end;
+            for (boost::tie(ei,ei_end)=in_edges(v,g); ei!=ei_end; ei++)
             {
-               rhs = val;
-               put(predecessor, u, source(*ei,g));
+               weight_type v_look_uu = combine(get(distance,source(*ei,g)), get(weight,*ei));
+               if (v_look_uu < v_look_best)
+               {
+                  v_look_best = v_look_uu;
+                  v_pred_best = source(*ei,g);
+               }
+            }
+            if (v_look_best != inf)
+               put(predecessor, v, v_pred_best);
+            if (v_look_best == v_look_old)
+            {
+               return false;
+            }
+            else
+            {
+               put(distance_lookahead, v, v_look_best);
+               return true;
             }
          }
-         put(distance_lookahead, u, rhs);
       }
-      if (queue.contains(u_idx))
-         queue.remove(u_idx);
-      if (get(distance,u) != get(distance_lookahead,u))
-         queue.insert(u_idx, calculate_key(u));
+      else // some other (existing) predecessor was used by v
+      {
+         if (v_look_u < v_look_old) // dist through u is better
+         {
+            put(predecessor, v, u);
+            put(distance_lookahead, v, v_look_u);
+            return true;
+         }
+         else // u is not better
+         {
+            return false;
+         }
+      }
    }
-   
+
+   // this must be called called when u's dist and/or lookahead dist
+   // (and therefore consistency) may have been changed
+   // this ensures u is in the queue correctly
+   inline void update_vertex(Vertex u)
+   {
+      weight_type u_dist = get(distance,u);
+      bool is_consistent = (u_dist == get(distance_lookahead,u));
+      size_t u_idx = get(index_map,u);
+      if (is_consistent)
+      {
+         if (queue.contains(u_idx))
+            queue.remove(u_idx);
+      }
+      else // not consistent
+      {
+         if (queue.contains(u_idx))
+            queue.update(u_idx, calculate_key(u));
+         else
+            queue.insert(u_idx, calculate_key(u));
+      }
+   }
+
    void compute_shortest_path()
    {
       while (queue.size()
@@ -138,7 +208,12 @@ public:
             put(distance, u, get(distance_lookahead,u));
             OutEdgeIter ei, ei_end;
             for (boost::tie(ei,ei_end)=out_edges(u,g); ei!=ei_end; ei++)
-               update_vertex(target(*ei,g));
+            {
+               Vertex v = target(*ei,g);
+               bool lookahead_changed = update_predecessor(u, v, get(weight,*ei));
+               if (lookahead_changed)
+                  update_vertex(v);
+            }
          }
          else
          {
@@ -146,7 +221,12 @@ public:
             update_vertex(u);
             OutEdgeIter ei, ei_end;
             for (boost::tie(ei,ei_end)=out_edges(u,g); ei!=ei_end; ei++)
-               update_vertex(target(*ei,g));
+            {
+               Vertex v = target(*ei,g);
+               bool lookahead_changed = update_predecessor(u, v, get(weight,*ei));
+               if (lookahead_changed)
+                  update_vertex(v);
+            }
          }
       }
    }

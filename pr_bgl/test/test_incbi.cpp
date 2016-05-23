@@ -95,7 +95,7 @@ TEST(IncBiTestCase, IncBiTest)
          double(),
          0.0,
          pr_bgl::incbi_visitor_null<Graph>(),
-         pr_bgl::incbi_balancer_distance<Vertex,double>());
+         pr_bgl::incbi_balancer_distance<Vertex,double>(0.5));
    
    printf("computing shortest path ...\n");
    std::pair<size_t,bool> ret = myincbi.compute_shortest_path();
