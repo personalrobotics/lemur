@@ -12,6 +12,7 @@
 #include <boost/graph/dijkstra_shortest_paths.hpp>
 #include <boost/graph/astar_search.hpp>
 #include <boost/graph/filtered_graph.hpp>
+#include <boost/graph/reverse_graph.hpp>
 #include <boost/numeric/ublas/matrix.hpp>
 #include <boost/numeric/ublas/matrix_proxy.hpp>
 
@@ -366,6 +367,8 @@ void ompl_lemur::LEMUR::setSearchType(std::string search_type)
       _search_type = SEARCH_TYPE_ASTAR;
    else if (search_type == "lpastar")
       _search_type = SEARCH_TYPE_LPASTAR;
+   else if (search_type == "rlpastar")
+      _search_type = SEARCH_TYPE_RLPASTAR;
    else if (search_type == "incbi")
       _search_type = SEARCH_TYPE_INCBI;
    else if (search_type == "wincbi")
@@ -381,6 +384,7 @@ std::string ompl_lemur::LEMUR::getSearchType() const
    case SEARCH_TYPE_DIJKSTRAS: return "dijkstras";
    case SEARCH_TYPE_ASTAR: return "astar";
    case SEARCH_TYPE_LPASTAR: return "lpastar";
+   case SEARCH_TYPE_RLPASTAR: return "rlpastar";
    case SEARCH_TYPE_INCBI: return "incbi";
    case SEARCH_TYPE_WINCBI: return "wincbi";
    default:
@@ -817,15 +821,15 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & mg, std::vector<Edge> & epath)
    std::vector<double> v_hgvalues;
    std::vector<double> v_hsvalues;
    
+   boost::chrono::high_resolution_clock::time_point time_heur_begin;
+   if (_do_timing)
+      time_heur_begin = boost::chrono::high_resolution_clock::now();
+   
    // compute goal heuristic
    if (_search_type == SEARCH_TYPE_ASTAR
       || _search_type == SEARCH_TYPE_LPASTAR
       || _search_type == SEARCH_TYPE_WINCBI) // a* as inner search
    {
-      boost::chrono::high_resolution_clock::time_point time_heur_begin;
-      if (_do_timing)
-         time_heur_begin = boost::chrono::high_resolution_clock::now();
-      
       // if we're running a* as inner lazysp alg,
       // we need storage for:
       // 1. h-values for all vertices (will be used by each run of the inner search)
@@ -867,56 +871,57 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & mg, std::vector<Edge> & epath)
          }
          v_hgvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = _singlestart_cost + h_to_goal;
       }
+   }
+   
+   // compute start heuristic
+   if (_search_type == SEARCH_TYPE_WINCBI
+      || _search_type == SEARCH_TYPE_RLPASTAR)
+   {
+      // if we're running a* as inner lazysp alg,
+      // we need storage for:
+      // 1. h-values for all vertices (will be used by each run of the inner search)
+      // 2. color values for each vertex
+      v_hsvalues.resize(num_vertices(eig), 0.0);
       
-      // also compute start heuristic
-      if (_search_type == SEARCH_TYPE_WINCBI)
+      // singlestart vertex
+      v_hsvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = 0.;
+      
+      // assign distances to all non-singlestart/singlegoal vertices
+      typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
+      for (boost::tie(vi,vi_end)=vertices(mg); vi!=vi_end; ++vi)
       {
-         // if we're running a* as inner lazysp alg,
-         // we need storage for:
-         // 1. h-values for all vertices (will be used by each run of the inner search)
-         // 2. color values for each vertex
-         v_hsvalues.resize(num_vertices(eig), 0.0);
-         
-         // singlestart vertex
-         v_hsvalues[get(get(boost::vertex_index,g),og[ov_singlestart].core_vertex)] = 0.;
-         
-         // assign distances to all non-singlestart/singlegoal vertices
-         typename boost::graph_traits<MyGraph>::vertex_iterator vi, vi_end;
-         for (boost::tie(vi,vi_end)=vertices(mg); vi!=vi_end; ++vi)
+         if (*vi == og[ov_singlestart].core_vertex) continue;
+         if (*vi == og[ov_singlegoal].core_vertex) continue;
+         ompl::base::State * v_state = g[*vi].state;
+         double dist_to_start = HUGE_VAL; // space distance to nearest goal vertex
+         typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
+         for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,mg); ei!=ei_end; ei++)
          {
-            if (*vi == og[ov_singlestart].core_vertex) continue;
-            if (*vi == og[ov_singlegoal].core_vertex) continue;
-            ompl::base::State * v_state = g[*vi].state;
-            double dist_to_start = HUGE_VAL; // space distance to nearest goal vertex
-            typename boost::graph_traits<MyGraph>::out_edge_iterator ei, ei_end;
-            for (boost::tie(ei,ei_end)=out_edges(og[ov_singlestart].core_vertex,mg); ei!=ei_end; ei++)
-            {
-               ompl::base::State * vgoal_state = g[target(*ei,mg)].state;
-               double dist = space->distance(v_state, vgoal_state);
-               if (dist < dist_to_start)
-                  dist_to_start = dist;
-            }
-            v_hsvalues[get(get(boost::vertex_index,g),*vi)] = _singlestart_cost + _coeff_distance * dist_to_start;
+            ompl::base::State * vgoal_state = g[target(*ei,mg)].state;
+            double dist = space->distance(v_state, vgoal_state);
+            if (dist < dist_to_start)
+               dist_to_start = dist;
          }
-         
-         // singlegoal vertex
-         {
-            double h_to_start = HUGE_VAL;
-            typename boost::graph_traits<MyGraph>::in_edge_iterator ei, ei_end;
-            for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,mg); ei!=ei_end; ei++)
-            {
-               Vertex v_goal = source(*ei,mg);
-               double h = v_hsvalues[get(get(boost::vertex_index,g),v_goal)];
-               if (h < h_to_start)
-                  h_to_start = h;
-            }
-            v_hsvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = _singlegoal_cost + h_to_start;
-         }
+         v_hsvalues[get(get(boost::vertex_index,g),*vi)] = _singlestart_cost + _coeff_distance * dist_to_start;
       }
       
-      if (_do_timing)
-         _dur_search += boost::chrono::high_resolution_clock::now() - time_heur_begin;
+      // singlegoal vertex
+      {
+         double h_to_start = HUGE_VAL;
+         typename boost::graph_traits<MyGraph>::in_edge_iterator ei, ei_end;
+         for (boost::tie(ei,ei_end)=in_edges(og[ov_singlegoal].core_vertex,mg); ei!=ei_end; ei++)
+         {
+            Vertex v_goal = source(*ei,mg);
+            double h = v_hsvalues[get(get(boost::vertex_index,g),v_goal)];
+            if (h < h_to_start)
+               h_to_start = h;
+         }
+         v_hsvalues[get(get(boost::vertex_index,g),og[ov_singlegoal].core_vertex)] = _singlegoal_cost + h_to_start;
+      }
    }
+   
+   if (_do_timing)
+      _dur_search += boost::chrono::high_resolution_clock::now() - time_heur_begin;
    
    switch (_search_type)
    {
@@ -953,6 +958,28 @@ bool ompl_lemur::LEMUR::do_lazysp_a(MyGraph & mg, std::vector<Edge> & epath)
                og[ov_singlegoal].core_vertex,
                get(&EProps::w_lazy,g),
                boost::make_iterator_property_map(v_hgvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
+               boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
+               boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
+               boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
+               1.0e-9, // goal_margin
+               std::less<double>(), // compare
+               boost::closed_plus<double>(std::numeric_limits<double>::infinity()), // combine
+               std::numeric_limits<double>::infinity(), 0.0));
+      }
+      break;
+   case SEARCH_TYPE_RLPASTAR:
+      {
+         // lpastar
+         std::vector<Vertex> v_startpreds(num_vertices(eig));
+         std::vector<double> v_gvalues(num_vertices(eig));
+         std::vector<double> v_rhsvalues(num_vertices(eig));
+         
+         return do_lazysp_b(mg, epath,
+            pr_bgl::make_lazysp_incsp_rlpastar(mg,
+               og[ov_singlestart].core_vertex,
+               og[ov_singlegoal].core_vertex,
+               get(&EProps::w_lazy,g),
+               boost::make_iterator_property_map(v_hsvalues.begin(), get(boost::vertex_index,g)), // heuristic_map
                boost::make_iterator_property_map(v_startpreds.begin(), get(boost::vertex_index,g)), // startpreds_map
                boost::make_iterator_property_map(v_gvalues.begin(), get(boost::vertex_index,g)), // gvalues_map
                boost::make_iterator_property_map(v_rhsvalues.begin(), get(boost::vertex_index,g)), // rhsvalues_map
@@ -1167,13 +1194,26 @@ ompl_lemur::LEMUR::solve(
       _singlestart_cost = 0.5 * _coeff_distance * space->getMaximumExtent();
       _singlegoal_cost = 1.0e-9;
       break;
+   case SEARCH_TYPE_RLPASTAR:
+      _singlestart_cost = 1.0e-9;
+      _singlegoal_cost = 0.5 * _coeff_distance * space->getMaximumExtent();
+      break;
    default:
       _singlestart_cost = 1.0e-9;
       _singlegoal_cost = 1.0e-9;
    }
    
-   if (_search_type == SEARCH_TYPE_LPASTAR && _coeff_distance == 0.0)
-      throw std::runtime_error("cannot use lpastar with 0 distance coefficient!");   
+   switch (_search_type)
+   {
+   case SEARCH_TYPE_INCBI:
+   case SEARCH_TYPE_WINCBI:
+   case SEARCH_TYPE_LPASTAR:
+   case SEARCH_TYPE_RLPASTAR:
+      if (_coeff_distance == 0.0)
+         throw std::runtime_error("cannot use incremental search with 0 distance coefficient!");
+   default:
+      break;
+   }
    
    if (os_alglog)
    {
