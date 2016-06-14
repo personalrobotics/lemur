@@ -492,6 +492,8 @@ public:
          weight_type start_top = start_queue.size() ? start_queue.top_key() : inf;
          weight_type goal_top = goal_queue.size() ? goal_queue.top_key() : inf;
          
+         vis.begin_iteration();
+         
          // no-path termination
          if (!start_queue.size() && !goal_queue.size())
             return std::make_pair(0, false);
@@ -642,6 +644,7 @@ class incbi_visitor_null
 public:
    typedef typename boost::graph_traits<Graph>::vertex_descriptor Vertex;
    typedef typename boost::graph_traits<Graph>::edge_descriptor Edge;
+   inline void begin_iteration() {}
    inline void examine_vertex_start(Vertex v) {}
    inline void examine_vertex_goal(Vertex v) {}
    inline void start_queue_insert(Vertex v) {}
