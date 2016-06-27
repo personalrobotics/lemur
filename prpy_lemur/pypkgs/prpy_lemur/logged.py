@@ -44,7 +44,7 @@ def serialize_value(val):
 
 class LoggedPlanner(prpy.planning.base.MetaPlanner):
     def __init__(self, planner):
-        super(Logged, self).__init__()
+        super(LoggedPlanner, self).__init__()
         self.planner = planner
     
     def __str__(self):
@@ -64,7 +64,7 @@ class LoggedPlanner(prpy.planning.base.MetaPlanner):
         # get log file name
         stamp = time.time()
         struct = time.localtime(stamp)
-        fn = 'log-{}.{:06d}'.format(
+        fn = 'log-{}.{:06d}.yaml'.format(
             time.strftime('%Y%m%d-%H%M%S', struct),
             int(1.0e6*(stamp-math.floor(stamp))))
         

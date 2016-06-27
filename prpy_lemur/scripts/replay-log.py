@@ -13,7 +13,6 @@ import openravepy
 import yaml
 
 import prpy.planning
-import prpy_lemur.planning_multiset
 
 parser = argparse.ArgumentParser(description='replay planning request log file')
 parser.add_argument('--logfile',required=True)
@@ -22,16 +21,15 @@ args = parser.parse_args()
 # start openrave
 openravepy.RaveInitialize(True, level=openravepy.DebugLevel.Info)
 atexit.register(openravepy.RaveDestroy)
-e = openravepy.Environment()
-atexit.register(e.Destroy)
+env = openravepy.Environment()
+atexit.register(env.Destroy)
 
-e.SetViewer('qtcoin')
-
-m_urdf = openravepy.RaveCreateModule(e, 'urdf')
+env.SetViewer('qtcoin')
 
 #planner = prpy.planning.ompl.OMPLPlanner('RRTConnect')
 #planner = prpy.planning.CBiRRTPlanner()
-planner = prpy_lemur.planning_multiset.MultisetPlanner()
+#planner = prpy_lemur.planning_multiset.MultisetPlanner()
+planner = prpy.planning.openrave.OpenRAVEPlanner('birrt')
 
 # read log file
 yamldict = yaml.safe_load(open(args.logfile))
@@ -40,18 +38,26 @@ yamldict = yaml.safe_load(open(args.logfile))
 for kbdict in yamldict['environment']['kinbodies'].values():
    name = kbdict['name']
    uri = kbdict['uri']
+   # load/add kinbody
    if kbdict['is_robot']:
-      urdf,srdf = uri.split()
-      robot_name = m_urdf.SendCommand('Load {:s} {:s}'.format(urdf,srdf))
-      if robot_name != name:
-         raise RuntimeError('error, or_urdf name mismatch!')
-      kb = e.GetRobot(robot_name)
+      if uri.endswith('.robot.xml'):
+         kb = env.ReadRobotXMLFile('robots/barrettwam.robot.xml')
+         kb.SetName(name)
+         env.Add(kb)
+      else:
+         print('uri:', uri)
+         urdf,srdf = uri.split()
+         m_urdf = openravepy.RaveCreateModule(env, 'urdf')
+         robot_name = m_urdf.SendCommand('Load {:s} {:s}'.format(urdf,srdf))
+         if robot_name != name:
+            raise RuntimeError('error, or_urdf name mismatch!')
+         kb = env.GetRobot(robot_name)
       kb.SetActiveDOFs(kbdict['robot_state']['active_dof_indices'])
       kb.SetActiveManipulator(kbdict['robot_state']['active_manipulator'])
    else:
       kb = e.ReadKinBodyXMLFile(uri)
       kb.SetName(name)
-      e.Add(kb)
+      env.Add(kb)
    # transform
    txdict = kbdict['kinbody_state']['transform']
    orpose = txdict['orientation'] + txdict['position']
@@ -63,41 +69,34 @@ for kbdict in yamldict['environment']['kinbodies'].values():
 try:
    method = getattr(planner, yamldict['request']['method'])
 except AttributeError:
-   method = None
+   raise RuntimeError('that planner does not request that planning method!')
+
 # args
 args = []
-robot = e.GetRobot(yamldict['request']['args'][0])
+robot = env.GetRobot(yamldict['request']['args'][0])
 for arg in yamldict['request']['args'][1:]:
    args.append(numpy.array(arg))
 # kwargs
 kwargs = yamldict['request']['kw_args']
-print('args:')
-print(args)
-print(e.GetKinBody('herb').GetActiveManipulator())
+print('args:', args)
+print('manipulator:', robot.GetActiveManipulator())
 
 # load ik solver for robot in case it's needed
 ikmodel = openravepy.databases.inversekinematics.InverseKinematicsModel(robot,
    iktype=openravepy.IkParameterizationType.Transform6D)
 if not ikmodel.load():
    ikmodel.autogenerate()
-   
-if True:
-   print('### OVERRIDING REQUEST TO PLANTOCONFIG TO REACHED POINT!')
-   method = planner.PlanToConfiguration
-   args = [yamldict['result']['traj_last']]
-   kwargs = {}
 
 # call planning method itself ...
-t = method(robot, *args, **kwargs)
+print('calling planning method ...')
+traj = method(robot, *args, **kwargs)
 
 # retime/view resulting trajectory
-openravepy.planningutils.RetimeActiveDOFTrajectory(t, robot)
+openravepy.planningutils.RetimeActiveDOFTrajectory(traj, robot)
 try:
-   while t is not None:
+   while traj is not None:
       raw_input('Press [Enter] to run the trajectory, [Ctrl]+[C] to quit ...')
-      with e:
-         robot.GetController().SetPath(t)
+      with env:
+         robot.GetController().SetPath(traj)
 except KeyboardInterrupt:
-   print()
-   raw_input('enter to quit!')
    print()
