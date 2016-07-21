@@ -10,7 +10,7 @@ class LEMURPlanner(prpy.planning.base.BasePlanner):
    
    # params can be passed by name to constructor or planning methods
    Params = collections.namedtuple('LEMURParams',
-      ['roadmap', 'check_cost', 'search_type', 'num_batches_init', 'max_batches'])
+      ['roadmap', 'check_cost', 'search_type', 'eval_type', 'num_batches_init', 'max_batches'])
    
    def __init__(self, **kw_args):
       super(LEMURPlanner, self).__init__()

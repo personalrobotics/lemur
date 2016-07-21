@@ -124,7 +124,7 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    _search_incbi_heur_interp(0.5),
    _search_incbi_balancer_type(SEARCH_INCBI_BALANCER_TYPE_DISTANCE),
    _search_incbi_balancer_goalfrac(0.5),
-   _eval_type(EVAL_TYPE_ALT),
+   _eval_type(EVAL_TYPE_EVEN),
    os_alglog(0),
    _vidx_tag_map(pr_bgl::make_compose_property_map(get(&VProps::tag,g), get(boost::vertex_index,g))),
    _eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tag,g), eig.edge_vector_map))
