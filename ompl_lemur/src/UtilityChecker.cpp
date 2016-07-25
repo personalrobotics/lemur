@@ -6,6 +6,7 @@
 
 #include <stdexcept>
 #include <ompl/base/StateValidityChecker.h>
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/UtilityChecker.h>
 
 ompl_lemur::BinaryUtilityChecker::BinaryUtilityChecker(

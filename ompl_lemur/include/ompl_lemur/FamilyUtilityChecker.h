@@ -110,6 +110,10 @@ private:
    void compute_policy(size_t tag) const;
 };
 
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
 typedef boost::shared_ptr<FamilyUtilityChecker> FamilyUtilityCheckerPtr;
+#else
+typedef std::shared_ptr<FamilyUtilityChecker> FamilyUtilityCheckerPtr;
+#endif
 
 } // namespace ompl_lemur

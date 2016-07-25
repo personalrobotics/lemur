@@ -1,21 +1,40 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(ompl_lemur)
 
+include(CheckCXXSourceCompiles)
+
 find_package(catkin REQUIRED COMPONENTS pr_bgl)
 find_package(OMPL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS chrono filesystem graph program_options system)
 find_package(OpenSSL REQUIRED)
 
+# 1.2.0 ompl (ROS kinetic) switched from boost to std smart pointers
+set(CMAKE_REQUIRED_INCLUDES ${OMPL_INCLUDE_DIRS})
+check_cxx_source_compiles(
+    "#include <ompl/base/StateSpace.h>
+    int main(){ ompl::base::StateSpacePtr s = boost::shared_ptr<ompl::base::StateSpace>(); }"
+    OMPL_LEMUR_HAS_BOOSTSMARTPTRS)
+configure_file(
+    include/${PROJECT_NAME}/config.h.in
+    ${CATKIN_DEVEL_PREFIX}/include/${PROJECT_NAME}/config.h
+)
+
 catkin_package(
-   INCLUDE_DIRS include
+   INCLUDE_DIRS include ${CATKIN_DEVEL_PREFIX}/include
    LIBRARIES ${PROJECT_NAME}
    DEPENDS Boost
 )
 
 set(CMAKE_BUILD_TYPE Release)
 
+if(OMPL_LEMUR_HAS_BOOSTSMARTPTRS)
+else(OMPL_LEMUR_HAS_BOOSTSMARTPTRS)
+add_definitions(-std=c++11)
+endif(OMPL_LEMUR_HAS_BOOSTSMARTPTRS)
+
 include_directories(
    include
+   ${CATKIN_DEVEL_PREFIX}/include
    ${catkin_INCLUDE_DIRS}
    ${OMPL_INCLUDE_DIRS}
    ${Boost_INCLUDE_DIR}

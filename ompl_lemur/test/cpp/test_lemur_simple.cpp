@@ -4,6 +4,8 @@
  * \copyright License: BSD
  */
 
+#include <boost/bind.hpp>
+#include <boost/function.hpp>
 #include <boost/chrono.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -22,6 +24,7 @@
 #include <pr_bgl/heap_indexed.h>
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/overlay_manager.h>
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
@@ -81,7 +84,11 @@ make_state(const ompl::base::StateSpacePtr space, double x, double y)
 }
 
 ompl::base::ScopedState<ompl::base::RealVectorStateSpace>
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
 get_path_state(boost::shared_ptr<ompl::geometric::PathGeometric> path, size_t idx)
+#else
+get_path_state(std::shared_ptr<ompl::geometric::PathGeometric> path, size_t idx)
+#endif
 {
    ompl::base::StateSpacePtr space = path->getSpaceInformation()->getStateSpace();
    ompl::base::ScopedState<ompl::base::RealVectorStateSpace>
@@ -92,8 +99,13 @@ get_path_state(boost::shared_ptr<ompl::geometric::PathGeometric> path, size_t id
 TEST(LemurSimpleTestCase, LemurSimpleTest)
 {
    // state space
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
    boost::shared_ptr<ompl::base::RealVectorStateSpace> space(
       new CountingRealVectorStateSpace(2));
+#else
+   std::shared_ptr<ompl::base::RealVectorStateSpace> space(
+      new CountingRealVectorStateSpace(2));
+#endif
    space->setBounds(0.0, 1.0);
    space->setLongestValidSegmentFraction(
       0.001 / space->getMaximumExtent());
@@ -133,10 +145,16 @@ TEST(LemurSimpleTestCase, LemurSimpleTest)
    ASSERT_EQ(status, ompl::base::PlannerStatus::EXACT_SOLUTION);
    
    // check resulting path
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
    boost::shared_ptr<ompl::geometric::PathGeometric> path = 
       boost::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
       pdef->getSolutionPath());
-   ASSERT_TRUE(path);
+#else
+   std::shared_ptr<ompl::geometric::PathGeometric> path = 
+      std::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
+      pdef->getSolutionPath());
+#endif
+   ASSERT_TRUE(path.get());
    ASSERT_EQ(4, path->getStateCount());
    ASSERT_EQ(make_state(space, 0.25, 0.75),       get_path_state(path,0));
    ASSERT_EQ(make_state(space, 0.40625, 14./27.), get_path_state(path,1));

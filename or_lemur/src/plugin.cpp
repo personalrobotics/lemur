@@ -27,6 +27,7 @@
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/heap_indexed.h>
 
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
 #include <ompl_lemur/Roadmap.h>
@@ -37,6 +38,7 @@
 #include <ompl_lemur/FamilyUtilityChecker.h>
 #include <ompl_lemur/FamilyTagCache.h>
 
+#include <or_lemur/config.h>
 #include <or_lemur/or_ompl_conversions.h>
 #include <or_lemur/module_family.h>
 #include <or_lemur/params_lemur.h>

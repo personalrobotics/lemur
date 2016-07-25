@@ -88,7 +88,11 @@ public:
    }
 };
 
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
 typedef boost::shared_ptr<UtilityChecker> UtilityCheckerPtr;
+#else
+typedef std::shared_ptr<UtilityChecker> UtilityCheckerPtr;
+#endif
 
 
 /*! \brief Adaptor to use a basic ompl::base::StateValidityChecker
@@ -129,6 +133,10 @@ public:
    bool isValidPartialEval(size_t & tag, const ompl::base::State * state) const;
 };
 
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
 typedef boost::shared_ptr<BinaryUtilityChecker> BinaryUtilityCheckerPtr;
+#else
+typedef std::shared_ptr<BinaryUtilityChecker> BinaryUtilityCheckerPtr;
+#endif
 
 } // namespace ompl_lemur

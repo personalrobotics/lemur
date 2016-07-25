@@ -269,7 +269,7 @@ public:
    template <template<class> class RoadmapTemplate>
    void registerRoadmapType(std::string roadmap_type)
    {
-      return registerRoadmapType(roadmap_type, ompl_lemur::RoadmapFactory<RoadmapArgs,RoadmapTemplate>());
+      registerRoadmapType(roadmap_type, ompl_lemur::RoadmapFactory<RoadmapArgs,RoadmapTemplate>());
    }
    
    void registerRoadmapType(std::string roadmap_type,

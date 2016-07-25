@@ -26,6 +26,7 @@ or_lemur::FamilyModule::FamilyModule(OpenRAVE::EnvironmentBasePtr penv):
    _cost_per_ilc(60.0e-6)
 {
    RegisterCommand("GetInstanceId",boost::bind(&or_lemur::FamilyModule::CmdGetInstanceId,this,_1,_2),"GetInstanceId");
+   RegisterCommand("GetRobotName",boost::bind(&or_lemur::FamilyModule::CmdGetRobotName,this,_1,_2),"GetRobotName");
    RegisterCommand("SetCostPerIlc",boost::bind(&or_lemur::FamilyModule::CmdSetCostPerIlc,this,_1,_2),"SetCostPerIlc");
    RegisterCommand("GetFamilyId",boost::bind(&or_lemur::FamilyModule::CmdGetFamilyId,this,_1,_2),"GetFamilyId");
    RegisterCommand("Let",boost::bind(&or_lemur::FamilyModule::CmdLet,this,_1,_2),"Let");
@@ -938,6 +939,24 @@ or_lemur::FamilyModule::GetCanonicalNames(const Family & family)
 bool or_lemur::FamilyModule::CmdGetInstanceId(std::ostream & soutput, std::istream & sinput)
 {
    soutput << GetInstanceId();
+   return true;
+}
+
+
+bool or_lemur::FamilyModule::CmdGetRobotName(std::ostream & soutput, std::istream & sinput)
+{
+   if (!_initialized)
+   {
+      RAVELOG_ERROR("Family object not initialized!\n");
+      throw OpenRAVE::openrave_exception("Family object not initialized");
+   }
+   OpenRAVE::RobotBasePtr robot = _robot.lock();
+   if (!robot)
+   {
+      RAVELOG_ERROR("Robot not found!\n");
+      throw OpenRAVE::openrave_exception("Robot not found");
+   }
+   soutput << robot->GetName();
    return true;
 }
 

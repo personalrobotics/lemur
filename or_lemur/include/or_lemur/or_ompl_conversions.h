@@ -123,7 +123,11 @@ public:
    }
 };
 
+#ifdef OR_LEMUR_HAS_BOOSTSMARTPTRS
 typedef boost::shared_ptr<OrChecker> OrCheckerPtr;
+#else
+typedef std::shared_ptr<OrChecker> OrCheckerPtr;
+#endif
 
 class OrIndicatorChecker: public ompl::base::StateValidityChecker
 {

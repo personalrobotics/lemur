@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <fstream>
 
+#include <boost/bind.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -20,6 +21,7 @@
 #include <pr_bgl/vector_ref_property_map.h>
 #include <pr_bgl/edge_indexed_graph.h>
 
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/SamplerGenMonkeyPatch.h>

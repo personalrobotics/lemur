@@ -7,6 +7,7 @@
 #include <cstdio>
 #include <fstream>
 
+#include <boost/bind.hpp>
 #include <boost/property_map/property_map.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -19,6 +20,7 @@
 #include <pr_bgl/vector_ref_property_map.h>
 #include <pr_bgl/edge_indexed_graph.h>
 
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/SamplerGenMonkeyPatch.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
@@ -26,6 +28,9 @@
 #include <ompl_lemur/RoadmapRGG.h>
 
 #include <gtest/gtest.h>
+
+#include <boost/random/uniform_real_distribution.hpp>
+#include <boost/random/mersenne_twister.hpp>
 
 struct VertexProperties
 {
@@ -102,8 +107,9 @@ TEST(RoadmapRRGTestCase, FixedExampleTest)
    pr_bgl::write_graphio_properties(ss, g,
       get(boost::vertex_index, g), get(&EdgeProperties::index, g),
       props);
-   
-   EXPECT_EQ(ss.str(), std::string()
+
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
+   EXPECT_EQ(std::string()
       + "vertex 0\n"
       + "vertex 1\n"
       + "vertex 2\n"
@@ -141,8 +147,46 @@ TEST(RoadmapRRGTestCase, FixedExampleTest)
       + "eprop 10 distance 0.20095650007646965\n"
       + "eprop 11 distance 0.2815157007025205\n"
       + "eprop 12 distance 0.2617690590175142\n"
-      + "eprop 13 distance 0.16774879052012587\n"
+      + "eprop 13 distance 0.16774879052012587\n",
+      ss.str()
    );
+#else
+   EXPECT_EQ(std::string()
+      + "vertex 0\n"
+      + "vertex 1\n"
+      + "vertex 2\n"
+      + "vertex 3\n"
+      + "vertex 4\n"
+      + "vertex 5\n"
+      + "vertex 6\n"
+      + "vertex 7\n"
+      + "vertex 8\n"
+      + "vertex 9\n"
+      + "edge 0 source 4 target 0\n"
+      + "edge 1 source 5 target 2\n"
+      + "edge 2 source 5 target 3\n"
+      + "edge 3 source 6 target 2\n"
+      + "edge 4 source 7 target 3\n"
+      + "edge 5 source 8 target 2\n"
+      + "edge 6 source 8 target 3\n"
+      + "edge 7 source 8 target 5\n"
+      + "edge 8 source 8 target 6\n"
+      + "edge 9 source 9 target 0\n"
+      + "edge 10 source 9 target 4\n"
+      + "eprop 0 distance 0.10601247871201787\n"
+      + "eprop 1 distance 0.14944268993813253\n"
+      + "eprop 2 distance 0.1632578921033049\n"
+      + "eprop 3 distance 0.2662516953384763\n"
+      + "eprop 4 distance 0.284788735463025\n"
+      + "eprop 5 distance 0.2237325163613547\n"
+      + "eprop 6 distance 0.24888825006304047\n"
+      + "eprop 7 distance 0.17182538828941651\n"
+      + "eprop 8 distance 0.20159095365597857\n"
+      + "eprop 9 distance 0.16473745114865382\n"
+      + "eprop 10 distance 0.06801642391843093\n",
+      ss.str()
+   );
+#endif
 }
 
 int main(int argc, char **argv)

@@ -34,7 +34,7 @@ TEST(FamilyModuleTestCase, FamilyModuleTest)
    OpenRAVE::RaveInitialize(true, OpenRAVE::Level_Info);
    OpenRAVE::EnvironmentBasePtr env = OpenRAVE::RaveCreateEnvironment();
    OpenRAVE::RobotBasePtr robot = env->ReadRobotXMLFile(OpenRAVE::RobotBasePtr(), "robots/barrettwam.robot.xml");
-   ASSERT_TRUE(robot);
+   ASSERT_TRUE(robot.get());
    env->Add(robot);
    std::vector<OpenRAVE::RobotBase::ManipulatorPtr> manips = robot->GetManipulators();
    robot->SetActiveDOFs(manips[0]->GetArmIndices());
@@ -53,7 +53,7 @@ TEST(FamilyModuleTestCase, FamilyModuleTest)
    
    // construct family
    OpenRAVE::ModuleBasePtr mod = OpenRAVE::RaveCreateModule(env, "Family");
-   ASSERT_TRUE(mod);
+   ASSERT_TRUE(mod.get());
    env->Add(mod, false, "--robot-name=BarrettWAM");
    
    // do cast

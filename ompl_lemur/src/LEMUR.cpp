@@ -6,6 +6,8 @@
 
 #include <fstream>
 
+#include <boost/bind.hpp>
+#include <boost/function.hpp>
 #include <boost/chrono.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -50,6 +52,7 @@
 #include <pr_bgl/lazysp_incsp_incbi.h>
 #include <pr_bgl/waste_edge_map.h>
 
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/NearestNeighborsLinearBGL.h>
@@ -130,7 +133,11 @@ ompl_lemur::LEMUR::LEMUR(const ompl::base::SpaceInformationPtr & si):
    _eidx_tags_map(pr_bgl::make_compose_property_map(get(&EProps::edge_tag,g), eig.edge_vector_map))
 {
    // get utility checker
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
    _utility_checker = boost::dynamic_pointer_cast<UtilityChecker>(si->getStateValidityChecker());
+#else
+   _utility_checker = std::dynamic_pointer_cast<UtilityChecker>(si->getStateValidityChecker());
+#endif
    if (!_utility_checker)
    {
       OMPL_INFORM("LEMUR: StateValidityChecker does not provide utility info, using binary checker with default check cost ...");

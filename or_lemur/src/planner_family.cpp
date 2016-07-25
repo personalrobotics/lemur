@@ -32,6 +32,7 @@
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/heap_indexed.h>
 
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/TagCache.h>
@@ -54,6 +55,7 @@
 #include <ompl_lemur/BisectPerm.h>
 #include <ompl_lemur/LEMUR.h>
 
+#include <or_lemur/config.h>
 #include <or_lemur/RoadmapCached.h>
 #include <or_lemur/or_ompl_conversions.h>
 #include <or_lemur/params_lemur.h>

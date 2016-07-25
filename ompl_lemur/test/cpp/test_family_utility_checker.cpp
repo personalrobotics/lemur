@@ -11,6 +11,7 @@
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
 #include <pr_bgl/heap_indexed.h>
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/logic_engine.h>
 #include <ompl_lemur/UtilityChecker.h>
 #include <ompl_lemur/Family.h>

@@ -124,8 +124,8 @@ public:
             str += " " + missings[ui];
          throw std::runtime_error(str);
       }
-      
-      ompl_lemur::SamplerGenMonkeyPatch(_sampler) = boost::mt19937(_seed);
+
+      ompl_lemur::StateSamplerSetSeed(_sampler, _seed);
       
       this->initialized = true;
    }

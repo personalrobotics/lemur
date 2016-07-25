@@ -10,13 +10,19 @@
 #include <boost/shared_ptr.hpp>
 #include <ompl/base/StateSpace.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/SpaceID.h>
 #include <ompl_lemur/util.h>
 
 std::string ompl_lemur::space_id(const ompl::base::StateSpacePtr space)
 {
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
    boost::shared_ptr<ompl::base::RealVectorStateSpace> real
       = boost::dynamic_pointer_cast<ompl::base::RealVectorStateSpace>(space);
+#else
+   std::shared_ptr<ompl::base::RealVectorStateSpace> real
+      = std::dynamic_pointer_cast<ompl::base::RealVectorStateSpace>(space);
+#endif
    if (real)
    {
       std::string id = ompl_lemur::util::sf("class=RealVectorStateSpace dim=%u",

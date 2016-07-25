@@ -129,7 +129,7 @@ public:
       _gamma = _radius_first_batch / pow(log(_num_per_batch)/_num_per_batch, 1./_dim);
       printf("RoadmapRGGDens calculated gamma=%f\n", _gamma);
       
-      ompl_lemur::SamplerGenMonkeyPatch(_sampler) = boost::mt19937(_seed);
+      ompl_lemur::StateSamplerSetSeed(_sampler, _seed);
       
       this->initialized = true;
    }

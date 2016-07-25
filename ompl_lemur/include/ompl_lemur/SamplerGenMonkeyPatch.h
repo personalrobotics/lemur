@@ -5,12 +5,20 @@
  */
 
 /* requires:
+#include <ompl_lemur/config.h>
 #include <ompl/base/StateSampler.h>
  */
 
 namespace ompl_lemur
 {
 
-boost::mt19937 & SamplerGenMonkeyPatch(ompl::base::StateSamplerPtr sampler);
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
+boost::mt19937 &
+#else
+std::mt19937 &
+#endif
+SamplerGenMonkeyPatch(ompl::base::StateSamplerPtr sampler);
+
+void StateSamplerSetSeed(ompl::base::StateSamplerPtr sampler, uint32_t seed);
 
 } // namespace ompl_lemur

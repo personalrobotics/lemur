@@ -103,6 +103,8 @@ public:
    std::map<SetPtr,std::string> GetCanonicalNames(const Family & family);
 
    bool CmdGetInstanceId(std::ostream & soutput, std::istream & sinput);
+
+   bool CmdGetRobotName(std::ostream & soutput, std::istream & sinput);
    
    bool CmdSetCostPerIlc(std::ostream & soutput, std::istream & sinput);
    

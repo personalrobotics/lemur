@@ -1,0 +1,1 @@
+#cmakedefine OR_LEMUR_HAS_BOOSTSMARTPTRS 1

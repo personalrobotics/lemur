@@ -22,6 +22,7 @@
 #include <pr_bgl/vector_ref_property_map.h>
 #include <pr_bgl/edge_indexed_graph.h>
 
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/SamplerGenMonkeyPatch.h>

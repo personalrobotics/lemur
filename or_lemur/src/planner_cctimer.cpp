@@ -23,6 +23,7 @@
 #include <ompl/base/SpaceInformation.h>
 #include <ompl/base/spaces/RealVectorStateSpace.h>
 
+#include <or_lemur/config.h>
 #include <or_lemur/or_ompl_conversions.h>
 #include <or_lemur/planner_cctimer.h>
 

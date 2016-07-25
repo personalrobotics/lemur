@@ -17,6 +17,7 @@
 #include <ompl/base/goals/GoalStates.h>
 #include <ompl/base/ProblemDefinition.h>
 
+#include <or_lemur/config.h>
 #include <or_lemur/SemiTorusStateSpace.h>
 #include <or_lemur/or_ompl_conversions.h>
 

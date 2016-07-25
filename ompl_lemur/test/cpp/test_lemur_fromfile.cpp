@@ -7,6 +7,7 @@
 #include <fstream>
 
 #include <boost/chrono.hpp>
+#include <boost/function.hpp>
 #include <boost/shared_ptr.hpp>
 #include <boost/property_map/dynamic_property_map.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -26,6 +27,7 @@
 #include <pr_bgl/heap_indexed.h>
 #include <pr_bgl/string_map.h>
 #include <pr_bgl/overlay_manager.h>
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/util.h>
 #include <ompl_lemur/rvstate_map_string_adaptor.h>
 #include <ompl_lemur/BisectPerm.h>
@@ -64,7 +66,11 @@ make_state(const ompl::base::StateSpacePtr space, double x, double y)
 }
 
 ompl::base::ScopedState<ompl::base::RealVectorStateSpace>
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
 get_path_state(boost::shared_ptr<ompl::geometric::PathGeometric> path, size_t idx)
+#else
+get_path_state(std::shared_ptr<ompl::geometric::PathGeometric> path, size_t idx)
+#endif
 {
    ompl::base::StateSpacePtr space = path->getSpaceInformation()->getStateSpace();
    ompl::base::ScopedState<ompl::base::RealVectorStateSpace>
@@ -75,8 +81,13 @@ get_path_state(boost::shared_ptr<ompl::geometric::PathGeometric> path, size_t id
 TEST(LemurFromFileTestCase, LemurFromFileTest)
 {
    // state space
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
    boost::shared_ptr<ompl::base::RealVectorStateSpace> space(
       new ompl::base::RealVectorStateSpace(2));
+#else
+   std::shared_ptr<ompl::base::RealVectorStateSpace> space(
+      new ompl::base::RealVectorStateSpace(2));
+#endif
    space->setBounds(0.0, 1.0);
    space->setLongestValidSegmentFraction(
       0.001 / space->getMaximumExtent());
@@ -105,6 +116,10 @@ TEST(LemurFromFileTestCase, LemurFromFileTest)
    
    // roadmap
    planner->as<ompl_lemur::LEMUR>()->registerRoadmapType<ompl_lemur::RoadmapFromFile>("FromFile");
+
+   //ompl_lemur::RoadmapFactory< ompl_lemur::LEMUR::RoadmapArgs, ompl_lemur::RoadmapFromFile > factory();
+   //planner->as<ompl_lemur::LEMUR>()->registerRoadmapType("FromFile", factory);
+   
    planner->as<ompl_lemur::LEMUR>()->setRoadmapType("FromFile");
    planner->params().setParam("roadmap.filename", XSTR(DATADIR) "/halton2d.xml");
    planner->params().setParam("roadmap.root_radius", "0.3");
@@ -116,10 +131,16 @@ TEST(LemurFromFileTestCase, LemurFromFileTest)
    ASSERT_EQ(status, ompl::base::PlannerStatus::EXACT_SOLUTION);
    
    // check resulting path
+#ifdef OMPL_LEMUR_HAS_BOOSTSMARTPTRS
    boost::shared_ptr<ompl::geometric::PathGeometric> path = 
       boost::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
       pdef->getSolutionPath());
-   ASSERT_TRUE(path);
+#else
+   std::shared_ptr<ompl::geometric::PathGeometric> path = 
+      std::dynamic_pointer_cast<ompl::geometric::PathGeometric>(
+      pdef->getSolutionPath());
+#endif
+   ASSERT_TRUE(path.get());
    ASSERT_EQ(path->getStateCount(), 4);
    ASSERT_EQ(get_path_state(path,0), make_state(space, 0.25, 0.75));
    ASSERT_EQ(get_path_state(path,1), make_state(space, 0.40625, 14./27.));

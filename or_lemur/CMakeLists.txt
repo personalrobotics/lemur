@@ -1,10 +1,23 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(or_lemur)
 
+include(CheckCXXSourceCompiles)
+
 find_package(Boost REQUIRED COMPONENTS thread)
 find_package(catkin REQUIRED COMPONENTS pr_bgl ompl_lemur)
 find_package(OMPL REQUIRED)
 find_package(OpenRAVE REQUIRED)
+
+# 1.2.0 ompl (ROS kinetic) switched from boost to std smart pointers
+set(CMAKE_REQUIRED_INCLUDES ${OMPL_INCLUDE_DIRS})
+check_cxx_source_compiles(
+    "#include <ompl/base/StateSpace.h>
+    int main(){ ompl::base::StateSpacePtr s = boost::shared_ptr<ompl::base::StateSpace>(); }"
+    OR_LEMUR_HAS_BOOSTSMARTPTRS)
+configure_file(
+    include/${PROJECT_NAME}/config.h.in
+    ${CATKIN_DEVEL_PREFIX}/include/${PROJECT_NAME}/config.h
+)
 
 catkin_package(
    INCLUDE_DIRS include
@@ -17,8 +30,14 @@ catkin_add_env_hooks("20.${PROJECT_NAME}"
 
 set(CMAKE_BUILD_TYPE Release)
 
+if(OR_LEMUR_HAS_BOOSTSMARTPTRS)
+else(OR_LEMUR_HAS_BOOSTSMARTPTRS)
+add_definitions(-std=c++11)
+endif(OR_LEMUR_HAS_BOOSTSMARTPTRS)
+
 include_directories(
    include
+   ${CATKIN_DEVEL_PREFIX}/include
    ${catkin_INCLUDE_DIRS}
    ${OMPL_INCLUDE_DIRS}
    ${OpenRAVE_INCLUDE_DIRS})

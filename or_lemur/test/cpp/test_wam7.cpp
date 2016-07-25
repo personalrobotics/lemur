@@ -31,7 +31,7 @@ TEST(Wam7TestCase, Wam7Test)
    OpenRAVE::RaveInitialize(true, OpenRAVE::Level_Info);
    OpenRAVE::EnvironmentBasePtr env = OpenRAVE::RaveCreateEnvironment();
    OpenRAVE::RobotBasePtr robot = env->ReadRobotXMLFile(OpenRAVE::RobotBasePtr(), "robots/barrettwam.robot.xml");
-   ASSERT_TRUE(robot);
+   ASSERT_TRUE(robot.get());
    env->Add(robot);
    std::vector<OpenRAVE::RobotBase::ManipulatorPtr> manips = robot->GetManipulators();
    robot->SetActiveDOFs(manips[0]->GetArmIndices());
@@ -39,7 +39,7 @@ TEST(Wam7TestCase, Wam7Test)
    
    // construct planner
    OpenRAVE::PlannerBasePtr planner = OpenRAVE::RaveCreatePlanner(env, "LEMUR");
-   ASSERT_TRUE(planner);
+   ASSERT_TRUE(planner.get());
    
    // construct planner parameters
    OpenRAVE::PlannerBase::PlannerParametersPtr params(new OpenRAVE::PlannerBase::PlannerParameters());
@@ -57,7 +57,7 @@ TEST(Wam7TestCase, Wam7Test)
    
    // plan
    OpenRAVE::TrajectoryBasePtr traj = OpenRAVE::RaveCreateTrajectory(env);
-   ASSERT_TRUE(traj);
+   ASSERT_TRUE(traj.get());
    OpenRAVE::PlannerStatus status = planner->PlanPath(traj);
    ASSERT_EQ(OpenRAVE::PS_HasSolution, status);
    

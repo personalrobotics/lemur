@@ -12,6 +12,7 @@
 #include <ompl/util/Console.h>
 #include <ompl/base/StateValidityChecker.h>
 #include <pr_bgl/heap_indexed.h>
+#include <ompl_lemur/config.h>
 #include <ompl_lemur/UtilityChecker.h>
 #include <ompl_lemur/Family.h>
 #include <ompl_lemur/FamilyUtilityChecker.h>

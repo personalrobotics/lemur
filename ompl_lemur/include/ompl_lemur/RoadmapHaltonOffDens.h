@@ -173,7 +173,8 @@ public:
       _gamma = _gamma_factor * 2.0 * pow((1.+1./_dim) * frac, 1./_dim);
       
       ompl::base::StateSamplerPtr sampler(this->space->allocStateSampler());
-      ompl_lemur::SamplerGenMonkeyPatch(sampler) = boost::mt19937(_seed);
+
+      ompl_lemur::StateSamplerSetSeed(sampler, _seed);
       sampler->sampleUniform(_offset_state.get());
       
       this->initialized = true;
