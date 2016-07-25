@@ -132,6 +132,7 @@ private:
    bool _has_use_baked_checker; // whether it was passed
    bool _use_baked_checker;
    boost::weak_ptr<OpenRAVE::RobotBase> _robot;
+   bool _robot_nonempty;
    std::vector<int> _active_dofs;
    std::string _id;
    std::vector<int> _proxidxs;

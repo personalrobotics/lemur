@@ -17,8 +17,9 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
       
    def __str__(self):
       return 'LEMURSelfCached'
-   
-   class AddedFamily:
+
+   # this context manager adds a family module temporarily to the environment
+   class AddedFamilyModule:
       def __init__(self, env, robot):
          self.env = env
          self.robot = robot
@@ -59,7 +60,7 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
       
       # lock env, save robot state
       # and create family
-      with robot, type(self).AddedFamily(self.env, robot) as family:
+      with robot, type(self).AddedFamilyModule(self.env, robot) as family:
       
          setcache_path = self.get_setcache_path(family, params.roadmap, read_only=False)
       
@@ -138,7 +139,7 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
       params = self.defaults._replace(**kw_args)
       
       # create family
-      with type(self).AddedFamily(self.env, robot) as family:
+      with type(self).AddedFamilyModule(self.env, robot) as family:
 
          setcache_path = self.get_setcache_path(family, params.roadmap, read_only=True)
       
@@ -171,7 +172,7 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
       params = self.defaults._replace(**kw_args)
       
       # create family
-      with type(self).AddedFamily(self.env, robot) as family:
+      with type(self).AddedFamilyModule(self.env, robot) as family:
 
          setcache_path = self.get_setcache_path(family, params.roadmap, read_only=True)
       

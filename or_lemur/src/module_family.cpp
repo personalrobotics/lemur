@@ -23,6 +23,7 @@ or_lemur::FamilyModule::FamilyModule(OpenRAVE::EnvironmentBasePtr penv):
    OpenRAVE::ModuleBase(penv),
    _initialized(false),
    _has_use_baked_checker(false),
+   _robot_nonempty(false),
    _cost_per_ilc(60.0e-6)
 {
    RegisterCommand("GetInstanceId",boost::bind(&or_lemur::FamilyModule::CmdGetInstanceId,this,_1,_2),"GetInstanceId");
@@ -59,11 +60,10 @@ void or_lemur::FamilyModule::SetCostPerIlc(double cost_per_ilc)
 
 int or_lemur::FamilyModule::main(const std::string & cmd)
 {
-   // ensure we're not yet initialized
-   if (_initialized)
+   if (_robot_nonempty)
    {
-      RAVELOG_ERROR("Family object already initialized!\n");
-      throw OpenRAVE::openrave_exception("Family object already initialized");
+      RAVELOG_ERROR("Family module re-added, but it already has a robot!\n");
+      throw OpenRAVE::openrave_exception("Family module re-added, but it already has a robot");
    }
    
    // arguments
@@ -161,24 +161,47 @@ int or_lemur::FamilyModule::main(const std::string & cmd)
    }
    
    // parse use-baked-checker
+   bool has_use_baked_checker = false;
+   bool use_baked_checker = false;
    if (args.count("use-baked-checker") == 1)
    {
-      _use_baked_checker = args["use-baked-checker"].as<bool>();
-      _has_use_baked_checker = true;
+      use_baked_checker = args["use-baked-checker"].as<bool>();
+      has_use_baked_checker = true;
    }
-   
-   // save values
+
    _robot = robot;
-   _active_dofs = active_dofs;
-   _id = id;
-   _proxidxs = proxidxs;
-   _initialized = true;
+   _robot_nonempty = true;
+
+   // save values
+   if (!_initialized)
+   {
+      _active_dofs = active_dofs;
+      _id = id;
+      _proxidxs = proxidxs;
+      _has_use_baked_checker = has_use_baked_checker;
+      _use_baked_checker = use_baked_checker;
+      _initialized = true;
+   }
+   else
+   {
+      if (_active_dofs != active_dofs
+         || _id != id
+         || _proxidxs != proxidxs
+         || _has_use_baked_checker != has_use_baked_checker
+         || _use_baked_checker != use_baked_checker)
+      {
+         RAVELOG_ERROR("Family module already initialized, and args differ!\n");
+         throw OpenRAVE::openrave_exception("Family module already initialized, and args differ!");
+      }
+   }
    return 0;
 }
 
 
 void or_lemur::FamilyModule::Destroy()
 {
+   _robot.reset();
+   _robot_nonempty = false;
 }
 
 
