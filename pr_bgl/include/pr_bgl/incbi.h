@@ -144,6 +144,11 @@ public:
       goal_margin(goal_margin),
       vis(vis), balancer(balancer)
    {
+      reset();
+   }
+
+   void reset()
+   {
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {
@@ -154,10 +159,13 @@ public:
       }
       put(start_distance_lookahead, v_start, zero);
       put(goal_distance_lookahead, v_goal, zero);
+      start_queue.reset();
       start_queue.insert(get(vertex_index_map,v_start), zero);
       vis.start_queue_insert(v_start);
+      goal_queue.reset();
       goal_queue.insert(get(vertex_index_map,v_goal), zero);
       vis.goal_queue_insert(v_goal);
+      conn_queue.reset();
    }
    
    inline weight_type start_calculate_key(Vertex u)

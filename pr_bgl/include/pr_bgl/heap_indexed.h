@@ -44,6 +44,12 @@ class heap_indexed
    
 public:
    heap_indexed(): backing(1,element(KeyType(),0)), locs(0) {}
+
+   void reset()
+   {
+      backing.resize(1,element(KeyType(),0));
+      locs.clear();
+   }
    
    // simple queries
    inline size_t size() const

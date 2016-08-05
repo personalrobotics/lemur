@@ -79,6 +79,11 @@ public:
       inf(inf), zero(zero),
       goal_margin(goal_margin)
    {
+      reset();
+   }
+
+   void reset()
+   {
       VertexIter vi, vi_end;
       for (boost::tie(vi,vi_end)=vertices(g); vi!=vi_end; ++vi)
       {
@@ -87,6 +92,7 @@ public:
       }
       put(predecessor, v_start, v_start);
       put(distance_lookahead, v_start, zero);
+      queue.reset();
       queue.insert(get(index_map,v_start), std::make_pair(h(v_start),0));
    }
    
