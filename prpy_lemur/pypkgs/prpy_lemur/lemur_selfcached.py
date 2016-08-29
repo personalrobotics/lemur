@@ -134,7 +134,7 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
          return traj
 
    @prpy.planning.base.PlanningMethod
-   def PlanToConfiguration(self, robot, goal_config, **kw_args):
+   def PlanToConfiguration(self, robot, goal_config, setcache_required=False, **kw_args):
       
       params = self.defaults._replace(**kw_args)
       
@@ -142,6 +142,8 @@ class LEMURSelfCachedPlanner(prpy_lemur.lemur.LEMURPlanner):
       with type(self).AddedFamilyModule(self.env, robot) as family:
 
          setcache_path = self.get_setcache_path(family, params.roadmap, read_only=True)
+         if setcache_required and setcache_path == '':
+            raise prpy.planning.base.UnsupportedPlanningError('No self-checked setcache found, and setcache_required=True ... did you call Generate()?')
       
          planner = openravepy.RaveCreatePlanner(self.env, 'FamilyPlanner')
          if planner is None:
